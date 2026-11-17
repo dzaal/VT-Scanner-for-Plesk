@@ -36,10 +36,6 @@ VT Site Scanner makes that quota go a long way:
 
 ![Vendors that flag a site, with review links and the steps to get delisted](docs/screenshots/why-flagged.png)
 
-**Trend:** infected, suspicious and cleaned sites per day for the whole server, over the last 1, 2 or 3 months.
-
-![Trend graph: infected and suspicious sites per day, and sites cleaned per day](docs/screenshots/trend.png)
-
 **Card on the Plesk Home page:** counts per status and the sites flagged by the most engines, straight on the admin's Home page.
 
 <p>
