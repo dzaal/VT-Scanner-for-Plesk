@@ -4,6 +4,27 @@ A Plesk extension that checks every WordPress site on your server against [Virus
 
 Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web development and hosting company in Amsterdam.
 
+## Screenshots
+
+**Scanner dashboard:** every WordPress site with its status, detection score and a Rescan button. The scan queue at the top shows what is being checked right now.
+
+![VT Site Scanner dashboard in Plesk](docs/screenshots/scanner-dashboard.png)
+
+**Card on the Plesk Home page:** counts per status and the sites flagged by the most engines, straight on the admin's Home page.
+
+<p>
+  <img src="docs/screenshots/home-widget.png" alt="VT Site Scanner card on the Plesk Home page" width="346">
+</p>
+
+<details>
+<summary>The card in context on the Plesk Home page</summary>
+
+![Plesk Home page with the VT Site Scanner card](docs/screenshots/home-dashboard.png)
+
+</details>
+
+*Domain names and IP addresses in these screenshots are replaced with placeholders.*
+
 ---
 
 ## Why this extension exists
@@ -21,6 +42,7 @@ VT Site Scanner was built to fix that:
 ## Features
 
 - Dashboard with every WordPress site on the server: status (Infected / Suspicious / Clean / Queued / Error), detection score (e.g. `3/93` engines), IP address, domain age and danger tags (malware, phishing, …), with direct links to the site and to its VirusTotal page.
+- **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → VT Site Scanner**.
 - **Live scan queue** for manual rescans: queued → submitted → VT analysis → report → done, with the score before and after. VirusTotal's per-minute limit is waited out automatically instead of failing.
 - **Nightly background scan** (03:00, server time), scheduled automatically through Plesk's own scheduler.
 - **Per-role access:** the admin sees all sites, resellers see their own and their clients' sites, and clients see only their own sites. Each can use their own API key; users without one use the admin's key.
@@ -178,8 +200,10 @@ htdocs/index.php             Entry point (Plesk MVC bootstrap)
 plib/controllers/            IndexController: page + JSON actions
 plib/views/scripts/index/    Dashboard UI (vanilla JS + CSS, no build step)
 plib/library/                VirusTotal client, rate limiter, cache, settings, domain discovery
+plib/library/Hook/           Home page card (HomeBlock)
 plib/scripts/                Nightly scan + install/uninstall hooks (scheduler registration)
-plib/hooks/                  Which Plesk roles may open the extension
+plib/hooks/Home.php          Registers the Home page card (Plesk SDK hook, returns an anonymous class)
+docs/screenshots/            Images used in this README
 build.sh                     Builds dist/virustotal-extension-<version>.zip
 deploy.sh                    Build + install on a server over SSH
 ```
