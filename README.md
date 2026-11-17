@@ -25,6 +25,10 @@ VT Site Scanner makes that quota go a long way:
 
 ![VT Site Scanner dashboard in Plesk](docs/screenshots/scanner-dashboard.png)
 
+**Why is a site flagged, and how do you fix it?** Click the score of a flagged site: you see which security vendors flag it, a review link per vendor, and the steps from cleaning the site to getting it delisted.
+
+![Vendors that flag a site, with review links and the steps to get delisted](docs/screenshots/why-flagged.png)
+
 **Card on the Plesk Home page:** counts per status and the sites flagged by the most engines, straight on the admin's Home page.
 
 <p>
@@ -60,7 +64,7 @@ VT Site Scanner was built to fix that:
 - **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → VT Site Scanner**.
 - **Live scan queue**: one line showing the site being checked right now, or the latest result with its score. An animated bar shows the pause for VirusTotal's 4-requests-per-minute limit, which is waited out automatically instead of failing.
 - **Nightly background scan** (03:00, server time), scheduled automatically through Plesk's own scheduler.
-- **Why is it flagged?** Click the score of an infected or suspicious site to see which vendors flag it, with a link per vendor to ask for a review (see [Cleaned, but still red?](#cleaned-but-still-red)).
+- **Helps you solve it, not just report it.** Click the score of an infected or suspicious site to see which vendors flag it, with a link per vendor to ask for a review (see [Cleaned, but still red?](#cleaned-but-still-red)).
 - **E-mail notifications:** one summary e-mail with status changes and the full list of infected sites (see [Notifications](#notifications)).
 - **Works for every Plesk user level:** administrator, reseller and client (see [Users and roles](#users-and-roles)).
 - **Category menus:** the small arrow next to each status button (All, Infected, Suspicious, …) opens a menu with **Rescan**, which rescans every site in that category, worst first and never more than today's manual budget allows. The menu next to **All** also has **Refresh site list**.
@@ -129,6 +133,10 @@ The summary goes out at the end of the nightly scan, and during the day 10 minut
 Mail is sent with the server's own mail system (PHP `mail()` via sendmail), from the administrator's e-mail address. Keep in mind that a single vendor flagging a site can be a false alarm, so check a site before alarming its owner.
 
 ## Cleaned, but still red?
+
+A red or orange site raises two questions for the webmaster: *who* says the site is unsafe, and *how* do I get that changed once the site is clean? VT Site Scanner answers both on the same screen, so you don't have to search for each vendor's support page yourself.
+
+![Vendors that flag a site, with review links and the steps to get delisted](docs/screenshots/why-flagged.png)
 
 The status in VT Site Scanner comes from **VirusTotal**, not from the files on your server. VirusTotal shows what dozens of security vendors think of a site, and **each vendor keeps its own blocklist** and updates it on its own schedule. So after you clean a site, it can stay *infected* or *suspicious* in the dashboard for a while: sometimes hours, often days, sometimes weeks, and some vendors only remove a site when you ask.
 
