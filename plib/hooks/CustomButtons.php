@@ -7,9 +7,11 @@ class Modules_VirustotalExtension_CustomButtons extends pm_Hook_CustomButtons
 {
     public function getButtons()
     {
+        // ADMIN/RESELLER_NAVIGATION: their left menu. HOSTING_PANEL_NAVIGATION: the admin's menu in
+        // the Power User view. HOSTING_PANEL_TABS: the customer's left menu (and a tab on the subscription page).
         $places = [self::PLACE_ADMIN_NAVIGATION, self::PLACE_RESELLER_NAVIGATION];
-        if (defined(self::class . '::PLACE_HOSTING_PANEL_NAVIGATION')) {
-            $places[] = self::PLACE_HOSTING_PANEL_NAVIGATION;
+        foreach (['PLACE_HOSTING_PANEL_NAVIGATION', 'PLACE_HOSTING_PANEL_TABS'] as $c) {
+            if (defined(self::class . '::' . $c)) $places[] = constant(self::class . '::' . $c);
         }
         return [[
             'place'       => $places,
