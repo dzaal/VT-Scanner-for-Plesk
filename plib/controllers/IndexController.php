@@ -11,6 +11,7 @@ require_once $_vtLib . '/VtRateLimiter.php';
 require_once $_vtLib . '/VtApi.php';
 require_once $_vtLib . '/PleskDomains.php';
 require_once $_vtLib . '/VtNotifier.php';
+require_once $_vtLib . '/VtHistory.php';
 
 /**
  * IndexController — Plesk extension controller (extends pm_Controller_Action for layout).
@@ -216,6 +217,10 @@ class IndexController extends pm_Controller_Action
         $results = array_intersect_key($allResults, array_flip(array_merge($domains, $related)));
         $budgetInfo = $this->cache->budgetInfo();
         $budgetInfo['vt_quota_used'] = VtRateLimiter::todayCountForKey($this->effectiveApiKey);
+        if ($this->role() === 'admin') {
+            // Today's server totals for the trend graph (the admin sees every site)
+            VtHistory::record(array_map(fn($d) => (string)($allResults[$d]['status'] ?? 'unknown'), array_combine($domains, $domains)));
+        }
         $this->respond([
             'domains' => $domains,
             'related' => $related,
@@ -578,6 +583,13 @@ class IndexController extends pm_Controller_Action
         if (!is_array($out)) $out = ['error' => 'The backup failed'];
         if (!empty($out['ok'])) $this->appendLog('[db] Backup of ' . $item['db'] . ($item['kind'] === 'tables' ? ' (tables ' . $item['prefix'] . '*)' : '') . " for $host: " . $out['file']);
         $this->respond($out);
+    }
+
+    /** Daily server totals for the trend graph (administrator only) */
+    public function historyAction(): void
+    {
+        if ($this->role() !== 'admin') { $this->respond(['error' => 'Only the administrator can see the server trend']); return; }
+        $this->respond(['days' => VtHistory::days(92)]);
     }
 
     /** A site of this user, or a related hostname under one of the user's domains */

@@ -64,6 +64,7 @@ VT Site Scanner was built to fix that:
 - **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → VT Site Scanner**.
 - **Live scan queue**: one line showing the site being checked right now, or the latest result with its score. An animated bar shows the pause for VirusTotal's 4-requests-per-minute limit, which is waited out automatically instead of failing.
 - **Nightly background scan** (03:00, server time), scheduled automatically through Plesk's own scheduler.
+- **Trend graph:** infected, suspicious and cleaned sites per day over the last 1, 2 or 3 months (see [Trend](#trend)).
 - **Helps you solve it, not just report it.** Click the score of an infected or suspicious site to see which vendors flag it, with a link per vendor to ask for a review (see [Cleaned, but still red?](#cleaned-but-still-red)).
 - **E-mail notifications:** one summary e-mail with status changes and the full list of infected sites (see [Notifications](#notifications)).
 - **Works for every Plesk user level:** administrator, reseller and client (see [Users and roles](#users-and-roles)).
@@ -132,9 +133,26 @@ The summary goes out at the end of the nightly scan, and during the day 10 minut
 
 Mail is sent with the server's own mail system (PHP `mail()` via sendmail), from the administrator's e-mail address. Keep in mind that a single vendor flagging a site can be a false alarm, so check a site before alarming its owner.
 
+## Trend
+
+The **Trend** tab (administrator only) shows how infections on the server develop, per day, over the last **1, 2 or 3 months**:
+
+- **Infected** and **suspicious** sites per day, as lines.
+- **Sites cleaned per day**: sites that were infected or suspicious and are clean again, as bars.
+- At the top: infected and suspicious now, with the change since the start of the period; how many sites were cleaned in the period; and the number of clean sites.
+- Hover over a day for its figures, or open **Show as table**.
+
+The totals are saved once a day: by the nightly scan, and whenever the administrator opens the dashboard. The history is kept for about a year in `vt_history.json` in the data folder.
+
+To see what the graph looks like before there is any history, you can fill the last 92 days with made-up example data (clearly marked as *demo*, shaded in the graph, and replaced by real totals day by day):
+
+```bash
+sudo -u psaadm /usr/local/psa/admin/bin/php /usr/local/psa/admin/plib/modules/virustotal-extension/scripts/seed_demo_history.php
+```
+
 ## Orphan databases
 
-At the bottom of the dashboard, **Orphan databases** lists WordPress databases on the server for a hostname under one of your domains that doesn't exist in DNS: usually old copies, test or staging sites (`staging.`, `test.`, `2025.`, …) whose database was never removed.
+The **Orphan DBs** button next to the status filters (shown only when there are any) opens a separate list, WordPress databases on the server for a hostname under one of your domains that doesn't exist in DNS: usually old copies, test or staging sites (`staging.`, `test.`, `2025.`, …) whose database was never removed.
 
 Nobody can visit them, but VirusTotal often still has them on file, sometimes as infected, and an old copy that is never updated is an easy target. Per hostname you see:
 

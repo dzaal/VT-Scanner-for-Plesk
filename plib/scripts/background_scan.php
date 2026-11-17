@@ -22,6 +22,7 @@ require_once $plibDir . '/VtRateLimiter.php';
 require_once $plibDir . '/VtApi.php';
 require_once $plibDir . '/PleskDomains.php';
 require_once $plibDir . '/VtNotifier.php';
+require_once $plibDir . '/VtHistory.php';
 
 $settings = new VtSettings();
 $apiKey   = $settings->get('api_key');
@@ -128,6 +129,10 @@ log_msg(sprintf(
     $counts['infected'], $counts['suspicious'], $counts['clean'],
     $counts['error'], $budget['auto_used'], $budget['auto_max']
 ));
+
+// Today's server totals for the trend graph
+$allNow = $cache->all();
+VtHistory::record(array_map(fn($d) => (string)($allNow[$d]['status'] ?? 'unknown'), array_combine($domains, $domains)));
 
 function log_msg(string $msg): void
 {

@@ -248,7 +248,30 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 .vt-sw input:checked+span:before{transform:translateX(16px)}
 .vt-sw input:disabled+span{opacity:.45;cursor:not-allowed}
 .vt-fs-note{color:var(--muted);font-size:11.5px;margin-top:6px;line-height:1.45}
-.vt-rel{margin-top:22px}
+.vt-rel{margin-top:4px}
+.vt-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.vt-seg button{all:unset;cursor:pointer;font-size:12px;padding:5px 12px;color:var(--text);border-left:1px solid var(--border)}
+.vt-seg button:first-child{border-left:0}
+.vt-seg button.on{background:#2563eb;color:#fff}
+.vt-tr-tiles{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 14px}
+.vt-tr-tile{border:1px solid var(--border);border-radius:8px;padding:10px 14px;min-width:150px}
+.vt-tr-tile .l{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.vt-tr-tile .v{font-size:22px;font-weight:800;margin-top:2px}
+.vt-tr-tile .d{font-size:12px;color:var(--muted)}
+.vt-tr-tile .d.up{color:#b91c1c}.vt-tr-tile .d.down{color:#15803d}
+.vt-tr-legend{display:flex;gap:16px;font-size:12px;color:var(--text);margin-bottom:4px}
+.vt-tr-legend i{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.vt-tr-chart{position:relative;width:100%}
+.vt-tr-chart svg{display:block;width:100%;overflow:visible}
+.vt-tr-title{font-size:13px;font-weight:600;margin:16px 0 4px}
+.vt-tr-tip{position:fixed;pointer-events:none;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:8px 10px;font-size:12px;line-height:1.5;display:none;z-index:50;min-width:150px}
+.vt-tr-tip b{display:block;margin-bottom:2px}
+.vt-tr-tip .row{display:flex;justify-content:space-between;gap:14px}
+.vt-tr-tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.vt-tr-table{margin-top:10px;font-size:12px}
+.vt-tr-table table{border-collapse:collapse;margin-top:6px}
+.vt-tr-table td,.vt-tr-table th{padding:3px 10px;border-bottom:1px solid var(--border);text-align:right}
+.vt-tr-table td:first-child,.vt-tr-table th:first-child{text-align:left}
 .vt-orphan{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45}
 .vt-orphan code{font-size:11px}
 .vt-orphan-kind{font-size:11px;margin-top:1px}
@@ -303,6 +326,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 
   <div class="vt-tabs">
     <div class="vt-tab active" id="vtab-dashboard" onclick="vtShowTab('dashboard')">Dashboard</div>
+    <div class="vt-tab" id="vtab-trend" onclick="vtShowTab('trend');vtLoadTrend()" style="display:none">Trend</div>
     <div class="vt-tab" id="vtab-settings" onclick="vtShowTab('settings')">Settings</div>
     <div class="vt-tab" id="vtab-log" onclick="vtShowTab('log');vtLoadLog()">Log</div>
     <div class="vt-tab" id="vtab-about" onclick="vtShowTab('about')">About</div>
@@ -393,6 +417,9 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
             <button onclick="vtMenuAction('rescan','error')">Rescan</button>
           </div>
         </div>
+        <div class="vt-fgroup" data-f="orphan" id="vt-fgroup-orphan" style="display:none">
+          <button class="vt-fbtn" data-f="orphan" onclick="vtSetFilter('orphan')" title="Leftover WordPress databases for hostnames that no longer exist"><span class="vt-dot dot-gr"></span> Orphan DBs <strong id="vt-cnt-orphan">0</strong></button>
+        </div>
       </div>
       <div class="vt-spacer"></div>
       <span class="vt-status-txt" id="vt-scan-status"></span>
@@ -431,7 +458,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 
     <div class="vt-rel" id="vt-rel" style="display:none">
       <h3>Orphan databases <span class="vt-rel-cnt" id="vt-rel-cnt"></span></h3>
-      <p class="hint">WordPress databases on this server for a hostname under one of the domains above that doesn't exist in DNS:
+      <p class="hint">WordPress databases on this server for a hostname under one of your domains that doesn't exist in DNS:
         usually old copies, test or staging sites. Nobody can visit them, but VirusTotal often still lists them, sometimes as infected,
         and an old, never-updated copy is an easy target. They are not looked up automatically; click <strong>Rescan</strong> to check one.
         If the copy is no longer needed: click <strong>Back up</strong> (a <code>.sql.gz</code> copy in the subscription's <code>private/vt-db-backups</code> folder),
@@ -454,6 +481,26 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
   </div>
 
   <!-- Log -->
+  <div class="vt-panel" id="vtpanel-trend">
+    <div class="vt-card" style="max-width:100%">
+      <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Infections on this server
+        <span class="hint" style="font-weight:400" id="vt-tr-sub"></span>
+        <span style="flex:1"></span>
+        <span class="vt-seg" id="vt-tr-range">
+          <button data-d="30" onclick="vtTrendRange(30)">1 month</button><button data-d="61" onclick="vtTrendRange(61)">2 months</button><button data-d="92" onclick="vtTrendRange(92)">3 months</button>
+        </span>
+      </h3>
+      <div class="vt-tr-tiles" id="vt-tr-tiles"></div>
+      <div class="vt-tr-legend"><span><i style="background:#d03b3b"></i>Infected</span><span><i style="background:#fab219"></i>Suspicious</span></div>
+      <div class="vt-tr-chart" id="vt-tr-lines"></div>
+      <div class="vt-tr-title">Sites cleaned per day <span class="hint">(infected or suspicious, then clean again)</span></div>
+      <div class="vt-tr-chart" id="vt-tr-bars"></div>
+      <div class="vt-tr-tip" id="vt-tr-tip"></div>
+      <div class="vt-fs-note" id="vt-tr-note"></div>
+      <details class="vt-tr-table"><summary>Show as table</summary><div id="vt-tr-table"></div></details>
+    </div>
+  </div>
+
   <div class="vt-panel" id="vtpanel-log">
     <div class="vt-card" style="max-width:100%">
       <h3 style="display:flex;align-items:center;gap:10px">
@@ -675,6 +722,7 @@ async function init(){
   const cfg=await vtFetch('?action=get-settings').catch(()=>({}));
   if(!cfg.has_key||cfg.api_key_invalid) document.getElementById('vt-api-warning').style.display='flex';
   loadSettingsForm(cfg);
+  if(cfg.role==='admin') document.getElementById('vtab-trend').style.display='';
   if(!cfg.has_key||cfg.api_key_invalid){
     // Without a working key every lookup fails: show the sites as waiting for a key, not as errors
     noKey=true;
@@ -833,9 +881,9 @@ function renderTable(){
   const tbody=document.getElementById('vt-tbody');
   if(!domains.length){tbody.innerHTML='<tr class="vt-empty"><td colspan="5">No sites found. Click Refresh.</td></tr>';return;}
   tbody.innerHTML=domains.map(d=>rowHTML(d,results[d]||null)).join('');
-  const rel=document.getElementById('vt-rel');
-  rel.style.display=related.length?'':'none';
-  vtSet('vt-rel-cnt',related.length);
+  vtSet('vt-rel-cnt',related.length); vtSet('vt-cnt-orphan',related.length);
+  document.getElementById('vt-fgroup-orphan').style.display=related.length?'':'none';
+  if(!related.length&&activeFilter==='orphan') activeFilter='all';
   document.getElementById('vt-tbody-rel').innerHTML=related.map(d=>rowHTML(d,results[d]||null)).join('');
   vtApplyFilter();
 }
@@ -925,6 +973,106 @@ function rowHTML(domain,data){
     +'</tr>'+fsRowHTML(domain,st);
 }
 
+// ── Trend (server totals per day, administrator) ──────────────
+const TR_COL={infected:'#d03b3b',suspicious:'#fab219',cleaned:'#0ca30c',grid:'#e1e0d9',axis:'#c3c2b7',muted:'#898781',surface:'#fcfcfb'};
+let trDays=[], trRange=92;
+window.vtLoadTrend=async function(){
+  const r=await vtFetch('?action=history').catch(()=>null);
+  trDays=r?.days||[];
+  vtTrendRange(trRange);
+};
+window.vtTrendRange=function(n){
+  trRange=n;
+  document.querySelectorAll('#vt-tr-range button').forEach(b=>b.classList.toggle('on',+b.dataset.d===n));
+  vtTrendDraw();
+};
+function trNice(max){for(const s of [1,2,5,10,20,25,50,100,200,250,500,1000]){if(max/s<=5)return s;}return Math.ceil(max/5);}
+function trDate(iso,long){const p=iso.split('-');return long?p[2]+'-'+p[1]+'-'+p[0]:p[2]+'-'+p[1];}
+function vtTrendDraw(){
+  const days=trDays.slice(-trRange);
+  const tiles=document.getElementById('vt-tr-tiles');
+  if(!days.length){
+    tiles.innerHTML='<span class="hint">No history yet. Totals are saved once a day from now on.</span>';
+    ['vt-tr-lines','vt-tr-bars','vt-tr-table'].forEach(id=>document.getElementById(id).innerHTML='');
+    return;
+  }
+  const first=days[0], last=days[days.length-1];
+  const sum=k=>days.reduce((a,d)=>a+(+d[k]||0),0);
+  const delta=k=>{const v=(+last[k]||0)-(+first[k]||0);return '<div class="d '+(v>0?'up':v<0?'down':'')+'">'+(v>0?'+':'')+v+' since '+trDate(first.date)+'</div>';};
+  tiles.innerHTML=
+    '<div class="vt-tr-tile"><div class="l">Infected now</div><div class="v">'+last.infected+'</div>'+delta('infected')+'</div>'
+   +'<div class="vt-tr-tile"><div class="l">Suspicious now</div><div class="v">'+last.suspicious+'</div>'+delta('suspicious')+'</div>'
+   +'<div class="vt-tr-tile"><div class="l">Cleaned in this period</div><div class="v">'+sum('cleaned')+'</div><div class="d">sites</div></div>'
+   +'<div class="vt-tr-tile"><div class="l">Clean sites now</div><div class="v">'+last.clean+'</div><div class="d">of '+last.total+'</div></div>';
+  document.getElementById('vt-tr-sub').textContent=trDate(first.date,1)+' to '+trDate(last.date,1);
+  const demo=days.filter(d=>d.demo);
+  document.getElementById('vt-tr-note').innerHTML=demo.length
+    ?'<strong>Demo data:</strong> the days up to '+trDate(demo[demo.length-1].date,1)+' (shaded) are made-up example figures. Real totals replace them day by day.'
+    :'Totals are saved once a day, by the nightly scan and when the administrator opens the dashboard.';
+
+  const W=Math.max(320,document.getElementById('vt-tr-lines').clientWidth||900), L=36, R=14, T=10;
+  const n=days.length, step=(W-L-R)/Math.max(1,n-1), x=i=>L+(n<=1?0:i*step), bw=Math.max(2,Math.min(24,(W-L-R)/n-2));
+  const demoEnd=demo.length?days.findIndex(d=>!d.demo):-1;
+  const shadeW=demo.length?(demoEnd<0?x(n-1)-L:x(demoEnd)-step/2-L):0;
+  const shade=B=>shadeW>0?'<rect x="'+L+'" y="'+T+'" width="'+shadeW+'" height="'+(B-T)+'" fill="#f1f0ec"/>':'';
+  const xticks=B=>{let h='';const st=Math.max(1,Math.round(n/6));for(let i=0;i<n;i+=st)h+='<text x="'+x(i)+'" y="'+(B+16)+'" font-size="11" fill="'+TR_COL.muted+'" text-anchor="middle">'+trDate(days[i].date)+'</text>';return h;};
+  const yaxis=(max,B)=>{const st=trNice(max),top=Math.max(st,Math.ceil(max/st)*st);let h='';
+    for(let v=0;v<=top;v+=st){const y=B-(v/top)*(B-T);
+      h+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="'+(v?TR_COL.grid:TR_COL.axis)+'" stroke-width="1"/>'
+        +'<text x="'+(L-6)+'" y="'+(y+4)+'" font-size="11" fill="'+TR_COL.muted+'" text-anchor="end">'+v+'</text>';}
+    return {h,top};};
+
+  // Lines: infected and suspicious (one scale)
+  const H1=260, B1=H1-24, max1=Math.max(5,...days.map(d=>Math.max(+d.infected||0,+d.suspicious||0)));
+  const ya=yaxis(max1,B1), y1=v=>B1-(v/ya.top)*(B1-T);
+  const path=k=>days.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y1(+d[k]||0).toFixed(1)).join(' ');
+  const area=k=>path(k)+' L'+x(n-1).toFixed(1)+' '+B1+' L'+x(0).toFixed(1)+' '+B1+' Z';
+  const endLbl=(k,name)=>'<circle cx="'+x(n-1)+'" cy="'+y1(+last[k]||0)+'" r="4" fill="'+TR_COL[k]+'" stroke="'+TR_COL.surface+'" stroke-width="2"/>'
+     +'<text x="'+(x(n-1)-8)+'" y="'+(y1(+last[k]||0)-9)+'" font-size="11" fill="#333" text-anchor="end">'+name+' '+last[k]+'</text>';
+  document.getElementById('vt-tr-lines').innerHTML='<svg viewBox="0 0 '+W+' '+H1+'" height="'+H1+'" role="img" aria-label="Infected and suspicious sites per day">'
+    +shade(B1)+ya.h+xticks(B1)
+    +'<path d="'+area('infected')+'" fill="'+TR_COL.infected+'" opacity=".1"/>'
+    +'<path d="'+path('suspicious')+'" fill="none" stroke="'+TR_COL.suspicious+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+    +'<path d="'+path('infected')+'" fill="none" stroke="'+TR_COL.infected+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+    +endLbl('suspicious','Suspicious')+endLbl('infected','Infected')
+    +'<line id="vt-tr-x1" y1="'+T+'" y2="'+B1+'" stroke="#9ca3af" stroke-width="1" style="display:none"/>'
+    +'<rect x="'+L+'" y="'+T+'" width="'+(W-L-R)+'" height="'+(B1-T)+'" fill="transparent"/></svg>';
+
+  // Bars: sites cleaned per day
+  const H2=130, B2=H2-24, max2=Math.max(3,...days.map(d=>+d.cleaned||0));
+  const yb=yaxis(max2,B2), y2=v=>B2-(v/yb.top)*(B2-T);
+  const bar=(i,v)=>{if(!v)return '';const h=B2-y2(v),r=Math.min(4,h/2,bw/2),x0=x(i)-bw/2,y0=y2(v);
+    return '<path d="M'+x0+' '+B2+' V'+(y0+r)+' Q'+x0+' '+y0+' '+(x0+r)+' '+y0+' H'+(x0+bw-r)+' Q'+(x0+bw)+' '+y0+' '+(x0+bw)+' '+(y0+r)+' V'+B2+' Z" fill="'+TR_COL.cleaned+'"/>';};
+  document.getElementById('vt-tr-bars').innerHTML='<svg viewBox="0 0 '+W+' '+H2+'" height="'+H2+'" role="img" aria-label="Sites cleaned per day">'
+    +shade(B2)+yb.h+xticks(B2)+days.map((d,i)=>bar(i,+d.cleaned||0)).join('')
+    +'<line id="vt-tr-x2" y1="'+T+'" y2="'+B2+'" stroke="#9ca3af" stroke-width="1" style="display:none"/>'
+    +'<rect x="'+L+'" y="'+T+'" width="'+(W-L-R)+'" height="'+(B2-T)+'" fill="transparent"/></svg>';
+
+  // Hover: one crosshair over both charts, with a tooltip
+  const tip=document.getElementById('vt-tr-tip');
+  document.querySelectorAll('#vt-tr-lines svg,#vt-tr-bars svg').forEach(svg=>{
+    svg.onmousemove=ev=>{
+      const rc=svg.getBoundingClientRect(), px=(ev.clientX-rc.left)*W/rc.width;
+      const i=Math.max(0,Math.min(n-1,Math.round((px-L)/step)));
+      const d=days[i];
+      ['vt-tr-x1','vt-tr-x2'].forEach(id=>{const l=document.getElementById(id);l.setAttribute('x1',x(i));l.setAttribute('x2',x(i));l.style.display='';});
+      tip.innerHTML='<b>'+trDate(d.date,1)+(d.demo?' (demo)':'')+'</b>'
+        +'<div class="row"><span><i style="background:'+TR_COL.infected+'"></i>Infected</span><span>'+d.infected+'</span></div>'
+        +'<div class="row"><span><i style="background:'+TR_COL.suspicious+'"></i>Suspicious</span><span>'+d.suspicious+'</span></div>'
+        +'<div class="row"><span><i style="background:'+TR_COL.cleaned+'"></i>Cleaned</span><span>'+(d.cleaned||0)+'</span></div>'
+        +'<div class="row"><span>Clean sites</span><span>'+d.clean+' of '+d.total+'</span></div>';
+      tip.style.display='block';
+      const tx=ev.clientX+14+tip.offsetWidth>innerWidth?ev.clientX-tip.offsetWidth-14:ev.clientX+14;
+      tip.style.left=tx+'px'; tip.style.top=(ev.clientY+12)+'px';
+    };
+    svg.onmouseleave=()=>{tip.style.display='none';['vt-tr-x1','vt-tr-x2'].forEach(id=>document.getElementById(id).style.display='none');};
+  });
+
+  document.getElementById('vt-tr-table').innerHTML='<table><thead><tr><th>Date</th><th>Infected</th><th>Suspicious</th><th>Clean</th><th>Cleaned</th></tr></thead><tbody>'
+    +days.slice().reverse().map(d=>'<tr><td>'+trDate(d.date,1)+(d.demo?' (demo)':'')+'</td><td>'+d.infected+'</td><td>'+d.suspicious+'</td><td>'+d.clean+'</td><td>'+(d.cleaned||0)+'</td></tr>').join('')+'</tbody></table>';
+}
+window.addEventListener('resize',()=>{if(document.getElementById('vtpanel-trend').classList.contains('active'))vtTrendDraw();});
+
 // ── Filter ────────────────────────────────────────────────────
 window.vtSetFilter=function(f){
   activeFilter=f;
@@ -933,6 +1081,10 @@ window.vtSetFilter=function(f){
 };
 window.vtApplyFilter=function(){
   const q=document.getElementById('vt-search').value.toLowerCase();
+  // Orphan databases are their own view: shown only with the Orphan DBs button, instead of the site list
+  const orphanView=activeFilter==='orphan';
+  document.getElementById('vt-rel').style.display=orphanView&&related.length?'':'none';
+  document.getElementById('vt-tbody').closest('.vt-tbl-wrap').style.display=orphanView?'none':'';
   document.querySelectorAll('#vt-tbody-rel tr[data-domain]').forEach(row=>{row.style.display=(!q||row.dataset.domain.includes(q))?'':'none';});
   document.querySelectorAll('#vt-tbody tr[data-domain]').forEach(row=>{
     const st=row.dataset.status;

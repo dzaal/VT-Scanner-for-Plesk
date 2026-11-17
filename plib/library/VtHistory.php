@@ -1,0 +1,106 @@
+<?php
+/**
+ * Daily totals for the whole server: infected, suspicious and clean sites, plus how many
+ * sites were cleaned (infected/suspicious -> clean) and newly infected that day.
+ * Used for the trend graph. Stored in vt_history.json:
+ *   days: { "2026-11-17": {infected, suspicious, clean, total, cleaned, new_infected, demo?} }
+ *   last: { domain: status }  (statuses at the previous snapshot, to count changes)
+ */
+require_once __DIR__ . '/VtDataDir.php';
+
+class VtHistory
+{
+    const KEEP_DAYS = 400;
+
+    private static function file(): string { return VtDataDir::path('vt_history.json'); }
+
+    public static function load(): array
+    {
+        $d = json_decode((string)@file_get_contents(self::file()), true);
+        return is_array($d) ? $d + ['days' => [], 'last' => []] : ['days' => [], 'last' => []];
+    }
+
+    private static function save(array $h): void
+    {
+        ksort($h['days']);
+        $h['days'] = array_slice($h['days'], -self::KEEP_DAYS, null, true);
+        $tmp = self::file() . '.tmp';
+        if (@file_put_contents($tmp, json_encode($h)) !== false) @rename($tmp, self::file());
+    }
+
+    /**
+     * Record today's totals from the current status of every site ([domain => status]).
+     * Cheap; safe to call on every dashboard load and from the nightly scan.
+     */
+    public static function record(array $statusByDomain): void
+    {
+        $fp = @fopen(self::file() . '.lock', 'c');
+        if ($fp) flock($fp, LOCK_EX);
+        $h     = self::load();
+        $today = date('Y-m-d');
+        $c     = ['infected' => 0, 'suspicious' => 0, 'clean' => 0];
+        $cleaned = 0; $newInf = 0;
+        foreach ($statusByDomain as $d => $st) {
+            if (isset($c[$st])) $c[$st]++;
+            $prev = $h['last'][$d] ?? null;
+            if ($st === 'clean' && in_array($prev, ['infected', 'suspicious'], true)) $cleaned++;
+            if ($st === 'infected' && $prev !== null && $prev !== 'infected') $newInf++;
+            if (in_array($st, ['infected', 'suspicious', 'clean'], true)) $h['last'][$d] = $st;
+        }
+        $day = $h['days'][$today] ?? [];
+        if (!empty($day['demo'])) $day = []; // real data replaces demo data
+        $h['days'][$today] = $c + [
+            'total'        => count($statusByDomain),
+            'cleaned'      => (int)($day['cleaned'] ?? 0) + $cleaned,
+            'new_infected' => (int)($day['new_infected'] ?? 0) + $newInf,
+        ];
+        // Forget sites that are gone
+        $h['last'] = array_intersect_key($h['last'], $statusByDomain);
+        self::save($h);
+        if ($fp) { flock($fp, LOCK_UN); fclose($fp); }
+    }
+
+    /** The last $days days, oldest first: [{date, infected, suspicious, clean, total, cleaned, new_infected, demo}] */
+    public static function days(int $days = 92): array
+    {
+        $h   = self::load();
+        $out = [];
+        foreach (array_slice($h['days'], -$days, null, true) as $date => $v) $out[] = ['date' => $date] + $v;
+        return $out;
+    }
+
+    /**
+     * Fill the days before today with made-up but plausible data (marked demo),
+     * ending at the given totals. Only days that have no real data are filled.
+     * Shape: many infections, a big clean-up about two months ago, then a slow rise again.
+     */
+    public static function seedDemo(int $days, int $infected, int $suspicious, int $total): void
+    {
+        $h = self::load();
+        mt_srand(20261117);
+        $cleanupStart = (int)round($days * 0.66); // days ago
+        for ($ago = $days; $ago >= 1; $ago--) {
+            $date = date('Y-m-d', strtotime("-$ago days"));
+            if (isset($h['days'][$date]) && empty($h['days'][$date]['demo'])) continue;
+            if ($ago > $cleanupStart) {                       // before: high, drifting up
+                $inf = (int)round(64 + ($days - $ago) * 0.35 + mt_rand(-3, 3));
+                $sus = (int)round(18 + mt_rand(-2, 3));
+                $cln = mt_rand(0, 2);
+            } elseif ($ago > $cleanupStart - 6) {             // the clean-up week
+                $k   = ($cleanupStart - $ago + 1) / 6;
+                $inf = (int)round(75 - 64 * $k + mt_rand(-2, 2));
+                $sus = (int)round(20 - 15 * $k + mt_rand(-1, 1));
+                $cln = mt_rand(9, 16);
+            } else {                                          // after: slow rise to today
+                $k   = 1 - ($ago - 1) / max(1, $cleanupStart - 7);
+                $inf = (int)round(10 + ($infected - 10) * $k + mt_rand(-2, 2));
+                $sus = (int)round(4 + ($suspicious - 4) * $k + mt_rand(-1, 2));
+                $cln = mt_rand(0, 3);
+            }
+            $inf = max(0, $inf); $sus = max(0, $sus);
+            $h['days'][$date] = ['infected' => $inf, 'suspicious' => $sus, 'clean' => max(0, $total - $inf - $sus),
+                                 'total' => $total, 'cleaned' => $cln, 'new_infected' => mt_rand(0, 3), 'demo' => true];
+        }
+        self::save($h);
+    }
+}
