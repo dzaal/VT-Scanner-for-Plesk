@@ -21,7 +21,7 @@ class IndexController extends pm_Controller_Action
      * PayPal.Me username for the "Buy me a coffee" button on the About tab.
      * Leave empty to hide the button.
      */
-    private const PAYPAL_ME = 'digizaal';
+    private const PAYPAL_ME = 'zirk020';
     private const COFFEE_PRICE = '3USD';
 
     /** @var VtSettings */
