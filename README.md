@@ -251,49 +251,30 @@ The extension runs on Plesk's own bundled PHP (8.x), so the PHP version of your 
 
 ## Installation
 
-### Step 1: Build the extension package
+### Step 1: Install the extension
 
-On any machine with `bash` and either `zip` or Python:
-
-```bash
-git clone https://github.com/dzaal/VT-Scanner-for-Plesk.git
-cd VT-Scanner-for-Plesk
-bash build.sh
-```
-
-This creates `dist/virustotal-extension-<version>.zip`.
-
-> GitHub's green **Code → Download ZIP** button gives you the *source*, not an installable package. Always use `build.sh`, or a ready-made zip from the repository's **Releases** page if one is published.
-
-### Step 2: Install it in Plesk
-
-Choose **one** of the two options.
-
-**Option A: from the command line (recommended)**
-
-Copy the zip to the server and install it as root:
+Log in to your Plesk server as root and run:
 
 ```bash
-scp dist/virustotal-extension-*.zip root@your-plesk-server:/tmp/virustotal-extension.zip
+plesk bin extension --upgrade-url https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip
 ```
 
-```bash
-ssh root@your-plesk-server "plesk bin extension --install /tmp/virustotal-extension.zip && rm /tmp/virustotal-extension.zip"
+That's all. Plesk downloads the latest release from GitHub and installs it. The same command updates an existing installation to the newest version.
+
+**Without the command line:** download `virustotal-extension-<version>.zip` from the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest), then in Plesk go to **Extensions → My Extensions → Upload Extension** and select the zip. If you don't see the **Upload Extension** button, enable it once by adding these lines to `/usr/local/psa/admin/conf/panel.ini` on the server (create the file if it doesn't exist):
+
+```ini
+[ext-catalog]
+extensionUpload = true
 ```
 
-**Option B: through the Plesk interface**
-
-Plesk only shows an upload button for your own extensions after you enable it once:
-
-1. On the server, add these lines to `/usr/local/psa/admin/conf/panel.ini` (create the file if it doesn't exist):
-   ```ini
-   [ext-catalog]
-   extensionUpload = true
-   ```
-2. In Plesk, go to **Extensions → My Extensions** and click **Upload Extension**.
-3. Select the zip from step 1.
+> Use the zip from the **Releases** page. GitHub's green **Code → Download ZIP** button gives you the *source*, which Plesk can't install.
 
 Installing registers the nightly background scan automatically. You don't need to set up a cron job.
+
+### Step 2: Check the requirements for file scans (optional)
+
+The VirusTotal checks work right away. The **file scan** buttons appear for the malware scanners that are already installed on the server (ClamAV, Linux Malware Detect, ImunifyAV / Imunify360); see [File scanners](#file-scanners-clamav-maldet-imunify). You can check what was found under **Settings → File scanners**.
 
 ### Step 3: Add your VirusTotal API key
 
@@ -333,7 +314,13 @@ plesk bin extension --uninstall website-virus-check
 
 ## Updating
 
-Build the new version (step 1) and install it again (step 2). Plesk keeps your settings, API key and scan results, and the nightly task is re-registered automatically.
+Run the same command as for installing:
+
+```bash
+plesk bin extension --upgrade-url https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip
+```
+
+Plesk keeps your settings, API key, scan results and history, and the nightly task is re-registered automatically. Each release on the [Releases page](https://github.com/dzaal/VT-Scanner-for-Plesk/releases) lists what changed.
 
 **Upgrading from 1.0.x?** Earlier versions asked you to add a line to root's crontab by hand. Remove that line (`crontab -e` as root, delete the line with `background_scan.php`); the extension now schedules itself.
 
@@ -369,6 +356,23 @@ All data stays on your server in `/usr/local/psa/var/modules/virustotal-extensio
 
 ## Development
 
+### Releases
+
+Every new version gets a ready-made zip on the [Releases page](https://github.com/dzaal/VT-Scanner-for-Plesk/releases). This happens automatically: when the `<version>` in `META_INF/meta.xml` changes on `main`, the GitHub Action in `.github/workflows/release.yml` builds the package with `build.sh` and publishes release `v<version>` with two copies of it: `virustotal-extension-<version>.zip` and `virustotal-extension.zip` (a fixed name, so the `releases/latest/download/...` link always gives the newest version).
+
+### Building it yourself
+
+On any machine with `bash` and either `zip` or Python:
+
+```bash
+git clone https://github.com/dzaal/VT-Scanner-for-Plesk.git
+cd VT-Scanner-for-Plesk
+bash build.sh
+```
+
+This creates `dist/virustotal-extension-<version>.zip`. Install it on the server with `plesk bin extension --install <file>`.
+
+
 ```
 META_INF/meta.xml            Extension metadata (id, name, version)
 htdocs/index.php             Entry point (Plesk MVC bootstrap)
@@ -381,6 +385,7 @@ plib/hooks/Home.php          Registers the Home page card (Plesk SDK hook, retur
 _meta/icons/                 Extension icons shown in Plesk's Extensions list
 docs/                        Logo and screenshots used in this README
 build.sh                     Builds dist/virustotal-extension-<version>.zip
+.github/workflows/release.yml  Publishes the zip as a GitHub Release for every new version
 deploy.sh                    Build + install on a server over SSH
 ```
 

@@ -1,0 +1,61 @@
+# Publish a ready-made, installable zip as a GitHub Release for every new version.
+# Runs when META_INF/meta.xml changes on main; skips versions that already have a release.
+# Each release has two copies of the same package:
+#   virustotal-extension-<version>.zip  (that version)
+#   virustotal-extension.zip            (fixed name, so .../releases/latest/download/virustotal-extension.zip
+#                                        always points to the newest version)
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [META_INF/meta.xml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: v
+        run: echo "version=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' META_INF/meta.xml)" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this version is already released
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.v.outputs.version }}" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build the package
+        if: steps.exists.outputs.skip != 'true'
+        run: |
+          bash build.sh
+          cp "dist/virustotal-extension-${{ steps.v.outputs.version }}.zip" dist/virustotal-extension.zip
+
+      - name: Publish the release
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.v.outputs.version }}" \
+            "dist/virustotal-extension-${{ steps.v.outputs.version }}.zip" \
+            dist/virustotal-extension.zip \
+            --title "VT Site Scanner ${{ steps.v.outputs.version }}" \
+            --notes "Install or update on your Plesk server (as root):
+
+          \`\`\`
+          plesk bin extension --upgrade-url https://github.com/${{ github.repository }}/releases/latest/download/virustotal-extension.zip
+          \`\`\`
+
+          Or download \`virustotal-extension-${{ steps.v.outputs.version }}.zip\` below and upload it in Plesk (Extensions → My Extensions → Upload Extension).
+
+          Changes: see the commits since the previous release." \
+            --latest
