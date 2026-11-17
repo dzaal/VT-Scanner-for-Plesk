@@ -554,6 +554,7 @@ class IndexController extends pm_Controller_Action
                 'kind'      => $configs === null ? 'unknown' : ($same ? 'inuse' : ($usedBy ? 'tables' : 'database')),
                 'used_by'   => array_values(array_unique($usedBy)),
                 'webspace'  => $p['webspace_name'] ?? '',
+                'in_plesk'  => (bool)$p,
                 'plesk_url' => $ws ? '/admin/subscription/login/id/' . $ws . '?pageUrl=/smb/database/list/domainId/' . $ws : '',
             ];
         }
@@ -572,8 +573,8 @@ class IndexController extends pm_Controller_Action
             if ($o['db'] === $db) $item = $o;
         }
         if (!$item || !in_array($item['kind'], ['database', 'tables'], true)) { $this->respond(['error' => 'Not an orphan database']); return; }
-        $args = ['dump', $item['db']];
-        if ($item['kind'] === 'tables') $args[] = $item['prefix']; // only the old tables, never the live ones
+        // Only the old tables when a live site shares the database, never the live ones
+        $args = ['dump', $item['db'], $item['kind'] === 'tables' ? $item['prefix'] : '-', $host];
         try {
             $res = pm_ApiCli::callSbin('site-scan', $args, pm_ApiCli::RESULT_FULL);
             $out = json_decode(trim((string)($res['stdout'] ?? '')), true);

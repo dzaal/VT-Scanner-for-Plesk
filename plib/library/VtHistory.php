@@ -78,28 +78,32 @@ class VtHistory
     {
         $h = self::load();
         mt_srand(20261117);
+        // The shape is drawn for a server of about 275 sites and scaled to this one
+        $f   = max(0.05, $total / 275);
+        $rnd = fn(int $a, int $b) => mt_rand($a, $b) * $f;
         $cleanupStart = (int)round($days * 0.66); // days ago
         for ($ago = $days; $ago >= 1; $ago--) {
             $date = date('Y-m-d', strtotime("-$ago days"));
             if (isset($h['days'][$date]) && empty($h['days'][$date]['demo'])) continue;
             if ($ago > $cleanupStart) {                       // before: high, drifting up
-                $inf = (int)round(64 + ($days - $ago) * 0.35 + mt_rand(-3, 3));
-                $sus = (int)round(18 + mt_rand(-2, 3));
-                $cln = mt_rand(0, 2);
+                $inf = (64 + ($days - $ago) * 0.35) * $f + $rnd(-3, 3);
+                $sus = 18 * $f + $rnd(-2, 3);
+                $cln = $rnd(0, 2);
             } elseif ($ago > $cleanupStart - 6) {             // the clean-up week
                 $k   = ($cleanupStart - $ago + 1) / 6;
-                $inf = (int)round(75 - 64 * $k + mt_rand(-2, 2));
-                $sus = (int)round(20 - 15 * $k + mt_rand(-1, 1));
-                $cln = mt_rand(9, 16);
+                $inf = (75 - 64 * $k) * $f + $rnd(-2, 2);
+                $sus = (20 - 15 * $k) * $f + $rnd(-1, 1);
+                $cln = $rnd(9, 16);
             } else {                                          // after: slow rise to today
                 $k   = 1 - ($ago - 1) / max(1, $cleanupStart - 7);
-                $inf = (int)round(10 + ($infected - 10) * $k + mt_rand(-2, 2));
-                $sus = (int)round(4 + ($suspicious - 4) * $k + mt_rand(-1, 2));
-                $cln = mt_rand(0, 3);
+                $inf = 10 * $f + ($infected - 10 * $f) * $k + $rnd(-2, 2);
+                $sus = 4 * $f + ($suspicious - 4 * $f) * $k + $rnd(-1, 2);
+                $cln = $rnd(0, 3);
             }
+            $inf = (int)round($inf); $sus = (int)round($sus); $cln = (int)round($cln);
             $inf = max(0, $inf); $sus = max(0, $sus);
             $h['days'][$date] = ['infected' => $inf, 'suspicious' => $sus, 'clean' => max(0, $total - $inf - $sus),
-                                 'total' => $total, 'cleaned' => $cln, 'new_infected' => mt_rand(0, 3), 'demo' => true];
+                                 'total' => $total, 'cleaned' => $cln, 'new_infected' => (int)round($rnd(0, 3)), 'demo' => true];
         }
         self::save($h);
     }

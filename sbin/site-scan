@@ -252,13 +252,30 @@ if ($mode === 'dump') {
     // Nothing is deleted: this is the safety copy before the admin deletes it in Plesk.
     $db     = (string)($argv[2] ?? '');
     $prefix = (string)($argv[3] ?? '');
-    if (!preg_match('/^[A-Za-z0-9_\-]{1,64}$/', $db) || !preg_match('/^[A-Za-z0-9_]{0,32}$/', $prefix)) out(['error' => 'Invalid database or prefix']);
+    $host   = strtolower((string)($argv[4] ?? ''));
+    if ($prefix === '-') $prefix = '';
+    if (!preg_match('/^[A-Za-z0-9_\-]{1,64}$/', $db) || !preg_match('/^[A-Za-z0-9_]{0,32}$/', $prefix)
+        || ($host !== '' && !preg_match('/^[a-z0-9][a-z0-9.\-]*\.[a-z0-9\-]{2,}$/', $host))) out(['error' => 'Invalid database, prefix or hostname']);
     $q   = fn(string $sql) => trim((string)shell_exec('plesk db -Ne ' . escapeshellarg($sql) . ' 2>/dev/null'));
+    putenv('MYSQL_PWD=' . trim((string)@file_get_contents('/etc/psa/.psa.shadow')));
+    if (trim((string)shell_exec('mysql -uadmin -N -e ' . escapeshellarg("SHOW DATABASES LIKE '" . str_replace('_', '\\_', $db) . "'") . ' 2>/dev/null')) !== $db) {
+        out(['error' => 'Database ' . $db . ' does not exist on the local database server']);
+    }
     $row = $q("SELECT COALESCE(NULLIF(d.webspace_id,0), d.id), s.host FROM data_bases b JOIN domains d ON d.id = b.dom_id "
             . "JOIN DatabaseServers s ON s.id = b.db_server_id WHERE b.name = '" . $db . "' AND b.type = 'mysql' LIMIT 1");
-    if ($row === '') out(['error' => 'This database is not a MySQL database in Plesk']);
-    [$webspace, $dbhost] = array_pad(preg_split('/\s+/', $row), 2, '');
-    if (!in_array($dbhost, ['localhost', '127.0.0.1', '::1', ''], true)) out(['error' => 'Only databases on the local database server can be backed up from here']);
+    if ($row !== '') {
+        [$webspace, $dbhost] = array_pad(preg_split('/\s+/', $row), 2, '');
+        if (!in_array($dbhost, ['localhost', '127.0.0.1', '::1', ''], true)) out(['error' => 'Only databases on the local database server can be backed up from here']);
+    } else {
+        // Not registered in Plesk (created by hand or left over): store the backup with the
+        // hosted domain the hostname falls under
+        $webspace = '';
+        for ($name = $host; $name !== '' && substr_count($name, '.') >= 1; $name = substr($name, strpos($name, '.') + 1)) {
+            $webspace = $q("SELECT COALESCE(NULLIF(webspace_id,0), id) FROM domains WHERE name = '" . $name . "' AND htype = 'vrt_hst' LIMIT 1");
+            if ($webspace !== '') break;
+        }
+        if ($webspace === '') out(['error' => 'Could not find the subscription this database belongs to']);
+    }
     $user = preg_split('/\s+/', $q("SELECT s.login, s.home FROM hosting h JOIN sys_users s ON s.id = h.sys_user_id WHERE h.dom_id = " . (int)$webspace . " LIMIT 1"));
     [$login, $home] = array_pad($user, 2, '');
     if (!$login || strpos(rtrim($home, '/') . '/', VHOSTS) !== 0 || !is_dir($home)) out(['error' => 'Could not find the subscription folder']);

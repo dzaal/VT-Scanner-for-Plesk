@@ -29,6 +29,10 @@ VT Site Scanner makes that quota go a long way:
 
 ![Vendors that flag a site, with review links and the steps to get delisted](docs/screenshots/why-flagged.png)
 
+**Trend:** infected, suspicious and cleaned sites per day for the whole server, over the last 1, 2 or 3 months.
+
+![Trend graph: infected and suspicious sites per day, and sites cleaned per day](docs/screenshots/trend.png)
+
 **Card on the Plesk Home page:** counts per status and the sites flagged by the most engines, straight on the admin's Home page.
 
 <p>
@@ -42,7 +46,7 @@ VT Site Scanner makes that quota go a long way:
 
 </details>
 
-*Domain names and IP addresses in these screenshots are replaced with placeholders.*
+*Domain names and IP addresses in these screenshots are replaced with placeholders. The trend graph shows demo data.*
 
 ---
 
@@ -141,6 +145,10 @@ The **Trend** tab (administrator only) shows how infections on the server develo
 - **Sites cleaned per day**: sites that were infected or suspicious and are clean again, as bars.
 - At the top: infected and suspicious now, with the change since the start of the period; how many sites were cleaned in the period; and the number of clean sites.
 - Hover over a day for its figures, or open **Show as table**.
+
+![Trend graph with demo data: many infections, a big clean-up, then a slow rise again](docs/screenshots/trend.png)
+
+*This screenshot uses demo data (the shaded part): many infected sites, a big clean-up two months ago, and a slow rise since.*
 
 The totals are saved once a day: by the nightly scan, and whenever the administrator opens the dashboard. The history is kept for about a year in `vt_history.json` in the data folder.
 

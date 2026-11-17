@@ -856,6 +856,7 @@ function orphanInfoHTML(domain){
     return '<div class="vt-orphan"><code>'+vtEsc(o.db)+'</code>'+(o.kind==='tables'?' · tables <code>'+vtEsc(o.prefix)+'*</code>':'')
       +' · '+o.tables+' table'+(o.tables===1?'':'s')+' · <strong>'+vtBytes(o.size)+'</strong>'
       +(o.webspace?' · '+vtEsc(o.webspace):'')
+      +(o.in_plesk===false?' · <span title="Created outside Plesk, so Plesk cannot show or delete it">not registered in Plesk: remove it with phpMyAdmin or the mysql command</span>':'')
       +'<div class="vt-orphan-kind '+k[0]+'">'+vtEsc(k[1])+(o.used_by&&o.used_by.length&&o.kind!=='database'?' ('+o.used_by.map(vtEsc).join(', ')+')':'')+'</div></div>';
   }).join('');
 }
