@@ -272,3 +272,5 @@ Notes:
 ## Author
 
 **Dirk Zaal**, [Digizaal](https://www.digizaal.nl), Amsterdam
+
+VT Site Scanner is free. If it saves you time or catches a hacked site, you can [buy me a cup of coffee ($3)](https://www.paypal.com/paypalme/digizaal/3USD) ☕
