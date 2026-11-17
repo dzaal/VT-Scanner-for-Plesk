@@ -210,7 +210,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-n-email:focus{border-color:var(--blue)}
 .vt-n-group.hint{color:var(--muted)}
 /* File scanners (ClamAV, maldet, …) */
-.vt-sbar{display:inline-flex;border:1px solid var(--border);border-radius:5px;overflow:hidden;vertical-align:middle;margin-right:6px}
+.vt-scanbar{display:inline-flex;border:1px solid var(--border);border-radius:5px;overflow:hidden;vertical-align:middle;margin-right:6px}
 .vt-sbtn{padding:4px 9px;border:0;border-left:1px solid var(--border);background:var(--gray-bg);color:#374151;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .vt-sbtn:first-child{border-left:0}
 .vt-sbtn:hover{color:var(--blue);background:var(--blue-bg)}
@@ -1225,7 +1225,7 @@ function fsName(id){return scanners.find(x=>x.id===id)?.name||id;}
 function fsBarHTML(domain){
   if(!scanners.length) return '';
   const e=vtEsca(domain);
-  return '<span class="vt-sbar">'+scanners.map(sc=>{
+  return '<span class="vt-scanbar">'+scanners.map(sc=>{
     const r=fsGet(domain,sc.id);
     let mark='';
     if(fsBusy(domain,sc.id)) mark='<span class="vt-spin"></span>';
