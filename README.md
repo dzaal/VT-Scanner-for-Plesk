@@ -150,7 +150,7 @@ Buttons (administrator only):
 - **Back up** makes a `.sql.gz` copy of the database, or only of the old tables, in the subscription's `private/vt-db-backups/` folder, owned by the subscription's user. Nothing is deleted.
 - **Delete in Plesk ↗** opens the subscription's **Databases** page in Plesk. Delete the database there, or use phpMyAdmin from that page to drop only the old tables.
 
-VT Site Scanner never deletes anything itself. After you delete a database, the hostname disappears from the list within a day, or right away when you click **Refresh** on the dashboard.
+VT Site Scanner never deletes anything itself. After you delete a database, the hostname disappears from the list within a day, or right away with **Refresh site list** in the menu next to **All**.
 
 ## Cleaned, but still red?
 
