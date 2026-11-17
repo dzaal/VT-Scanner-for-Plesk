@@ -1,9 +1,10 @@
 <?php
 /**
- * Daily totals per scope ('admin' = the whole server, or a reseller's login = that reseller's
- * customers and own sites): infected, suspicious and clean sites, plus how many
+ * Daily totals per scope: 'admin' = the whole server, 'r:<login>' = a reseller's customers and
+ * own sites, 'c:<login>' = one customer's sites. Infected, suspicious and clean sites, plus how many
  * sites were cleaned (infected/suspicious -> clean) and newly infected that day.
- * Used for the trend graph. Stored in vt_history.json (server) or vt_history_r_<login>.json:
+ * Used for the trend graph. Stored in vt_history.json (server), vt_history_r_<login>.json (reseller)
+ * or vt_history_c_<login>.json (customer):
  *   days: { "2026-11-17": {infected, suspicious, clean, total, cleaned, new_infected, demo?} }
  *   last: { domain: status }  (statuses at the previous snapshot, to count changes)
  */
@@ -17,11 +18,12 @@ class VtHistory
 
     private static function file(): string
     {
-        return VtDataDir::path(self::$scope === 'admin' ? 'vt_history.json'
-            : 'vt_history_r_' . preg_replace('/[^a-z0-9_\-]/i', '_', self::$scope) . '.json');
+        if (self::$scope === 'admin') return VtDataDir::path('vt_history.json');
+        [$type, $login] = explode(':', self::$scope, 2) + [1 => ''];
+        return VtDataDir::path('vt_history_' . ($type === 'c' ? 'c' : 'r') . '_' . preg_replace('/[^a-z0-9_\-]/i', '_', $login) . '.json');
     }
 
-    /** Work on the history of 'admin' (the whole server) or of a reseller (its login) */
+    /** Work on the history of 'admin' (the whole server), 'r:<login>' (a reseller) or 'c:<login>' (a customer) */
     public static function scope(string $scope): void { self::$scope = $scope !== '' ? $scope : 'admin'; }
 
     public static function load(): array

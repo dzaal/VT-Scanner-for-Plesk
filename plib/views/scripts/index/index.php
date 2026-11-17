@@ -730,7 +730,7 @@ async function init(){
   const cfg=await vtFetch('?action=get-settings').catch(()=>({}));
   if(!cfg.has_key||cfg.api_key_invalid) document.getElementById('vt-api-warning').style.display='flex';
   loadSettingsForm(cfg);
-  if(cfg.role==='admin'||cfg.role==='reseller') document.getElementById('vtab-trend').style.display='';
+  document.getElementById('vtab-trend').style.display=''; // admin: the server; reseller and customer: their own sites
   if(!cfg.has_key||cfg.api_key_invalid){
     // Without a working key every lookup fails: show the sites as waiting for a key, not as errors
     noKey=true;
@@ -1036,7 +1036,7 @@ let trDays=[], trRange=92;
 window.vtLoadTrend=async function(){
   const r=await vtFetch('?action=history').catch(()=>null);
   trDays=r?.days||[];
-  document.getElementById('vt-tr-h').textContent=r?.scope==='reseller'?'Infections on your sites':'Infections on this server';
+  document.getElementById('vt-tr-h').textContent=r?.scope==='own'?'Infections on your sites':'Infections on this server';
   vtTrendRange(trRange);
 };
 window.vtTrendRange=function(n){

@@ -130,17 +130,18 @@ log_msg(sprintf(
     $counts['error'], $budget['auto_used'], $budget['auto_max']
 ));
 
-// Today's totals for the trend graph: the whole server, and each reseller's sites
+// Today's totals for the trend graph: the whole server, each reseller's sites and each customer's sites
 $allNow = $cache->all();
 $status = array_map(fn($d) => (string)($allNow[$d]['status'] ?? 'unknown'), array_combine($domains, $domains));
 VtHistory::scope('admin');
 VtHistory::record($status);
-$perReseller = [];
+$perScope = [];
 foreach (PleskDomains::owners($domains) as $d => $o) {
-    if (!empty($o['rl'])) $perReseller[$o['rl']][$d] = $status[$d];
+    if (!empty($o['rl'])) $perScope['r:' . $o['rl']][$d] = $status[$d];
+    if (($o['ct'] ?? '') === 'client') $perScope['c:' . $o['cl']][$d] = $status[$d];
 }
-foreach ($perReseller as $login => $st) {
-    VtHistory::scope($login);
+foreach ($perScope as $scope => $st) {
+    VtHistory::scope($scope);
     VtHistory::record($st);
 }
 VtHistory::scope('admin');

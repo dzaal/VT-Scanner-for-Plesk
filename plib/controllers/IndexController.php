@@ -217,11 +217,9 @@ class IndexController extends pm_Controller_Action
         $results = array_intersect_key($allResults, array_flip(array_merge($domains, $related)));
         $budgetInfo = $this->cache->budgetInfo();
         $budgetInfo['vt_quota_used'] = VtRateLimiter::todayCountForKey($this->effectiveApiKey);
-        if (in_array($this->role(), ['admin', 'reseller'], true)) {
-            // Today's totals for the trend graph: the whole server for the admin, a reseller's own sites otherwise
-            VtHistory::scope($this->role() === 'admin' ? 'admin' : $this->settings->getUserId());
-            VtHistory::record(array_map(fn($d) => (string)($allResults[$d]['status'] ?? 'unknown'), array_combine($domains, $domains)));
-        }
+        // Today's totals for the trend graph: the whole server for the admin, otherwise the user's own sites
+        VtHistory::scope($this->historyScope());
+        VtHistory::record(array_map(fn($d) => (string)($allResults[$d]['status'] ?? 'unknown'), array_combine($domains, $domains)));
         $this->respond([
             'domains' => $domains,
             'related' => $related,
@@ -588,13 +586,19 @@ class IndexController extends pm_Controller_Action
         $this->respond($out);
     }
 
-    /** Daily totals for the trend graph: the whole server (administrator) or the reseller's sites */
-    public function historyAction(): void
+    /** Which trend history this user sees: the server (admin), or their own sites (reseller, customer) */
+    private function historyScope(): string
     {
         $role = $this->role();
-        if (!in_array($role, ['admin', 'reseller'], true)) { $this->respond(['error' => 'The trend is available to the administrator and resellers']); return; }
-        VtHistory::scope($role === 'admin' ? 'admin' : $this->settings->getUserId());
-        $this->respond(['days' => VtHistory::days(92), 'scope' => $role === 'admin' ? 'server' : 'reseller']);
+        if ($role === 'admin') return 'admin';
+        return ($role === 'reseller' ? 'r:' : 'c:') . $this->settings->getUserId();
+    }
+
+    /** Daily totals for the trend graph: the whole server (administrator) or the user's own sites */
+    public function historyAction(): void
+    {
+        VtHistory::scope($this->historyScope());
+        $this->respond(['days' => VtHistory::days(92), 'scope' => $this->role() === 'admin' ? 'server' : 'own']);
     }
 
     /** A site of this user, or a related hostname under one of the user's domains */
