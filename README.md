@@ -6,6 +6,8 @@ A Plesk extension that checks every website hosted on your Plesk server against 
 
 Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web development and hosting company in Amsterdam.
 
+> **Detection only.** VT Site Scanner never changes anything on your sites. It does not edit, clean, move, quarantine or delete files, and it does not touch databases. It only looks and reports, so you decide what to do.
+
 ## Who it's for
 
 Hosting companies, agencies and server admins who look after **more sites than VirusTotal's free API can check in a day**. The free key allows 500 requests per day and 4 per minute. With 500 sites or more you can't check them all every day, and a simple scanner burns the whole quota before you get to the one site you just cleaned up.
@@ -61,21 +63,29 @@ VT Site Scanner was built to fix that:
 - **E-mail notifications:** one summary e-mail with status changes and the full list of infected sites (see [Notifications](#notifications)).
 - **Works for every Plesk user level:** administrator, reseller and client (see [Users and roles](#users-and-roles)).
 - **Category menus:** the small arrow next to each status button (All, Infected, Suspicious, …) opens a menu with **Rescan**, which rescans every site in that category, worst first and never more than today's manual budget allows. The menu next to **All** also has **Refresh site list**.
+- **File scanners on demand:** a button bar on every site for the malware scanners found on the server (ClamAV, maldet, Imunify). Results and infected files appear right under the site (see [File scanners](#file-scanners-clamav-maldet-imunify)).
 - **Log tab** with a colour-coded scan log.
 - **About tab** about the maker, with a *Buy me a coffee* button.
 
-## ClamAV file scan
+## File scanners (ClamAV, maldet, Imunify)
 
-VirusTotal judges a site from the outside (its URL and domain). When a site shows up as **infected** or **suspicious**, you can also look inside it: click **Scan files** on that row and ClamAV scans the site's document root.
+VirusTotal judges a site from the outside (its URL and domain). To look inside a site, every row has a small **scanner bar** with one button per malware scanner found on the server. The extension detects what is installed and only shows those buttons:
 
-- On demand only: a scan runs when you click, never by itself. One scan runs at a time on the server; a click while another scan is busy waits its turn and starts by itself.
-- It uses the ClamAV daemon that already runs for mail scanning (`clamd`, via `clamdscan --fdpass`), at low CPU and disk priority, so no extra memory is used.
-- The row then shows the ClamAV result, for example *ClamAV: 3 infected files · show files*. **Show files** lists each infected file (relative to the website folder) with the ClamAV signature.
-- ClamAV only reports. Nothing is deleted, moved or quarantined.
-- A large site takes a few minutes (about 17,000 files took 5–6 minutes in testing).
-- VirusTotal and ClamAV don't always agree: a site can be flagged by VirusTotal for spam or phishing content in its database while its files are clean. Signatures starting with `PUA.` or `Heuristics.` are often false alarms.
+| Button | Scanner | What a click does |
+|---|---|---|
+| **ClamAV** | [ClamAV](https://www.clamav.net) | Scans the site's document root. Uses a running `clamd` (for example the one for mail scanning) via `clamdscan --fdpass`, so signatures are not loaded again; otherwise `clamscan`. |
+| **Maldet** | [Linux Malware Detect](https://www.rfxn.com/projects/linux-malware-detect/) | Runs `maldet -a` on the document root only (the temp folders maldet normally adds are skipped). Uses ClamAV's engine when it is installed. |
+| **Imunify** | ImunifyAV / Imunify360 | **Starts no scan.** Shows the result of Imunify's own latest scan of the site, including files Imunify has already cleaned. |
 
-Requirements: ClamAV with `clamdscan` and a running clamd (on Plesk, the one from the antivirus/amavis setup at `/etc/clamd.d/amavisd.conf`). Website files belong to the subscription users, so the scan runs through a small root helper (`sbin/clamscan-site`) that Plesk installs with the extension and calls through its own `callSbin` mechanism. The helper only accepts a hostname and looks the folder up in Plesk's database.
+Clicking a button opens a second line under the site. It shows the scan while it runs, then the result and the list of infected files with the signature that matched. Click the button again (or **Close**) to fold it away; the button keeps a mark: ✓ for clean, a red number for infected files. **Scan again** runs a new scan.
+
+- **On demand only.** A scan runs when you click, never by itself. One scan runs at a time on the server; a click while another scan is busy waits its turn and starts by itself. You can leave the page; the scan keeps running.
+- **Detection only.** The extension asks every scanner to report, never to clean, quarantine or delete. maldet runs with its own quarantine setting, which is off by default; leave `quarantine_hits=0` in `/usr/local/maldetect/conf.maldet`.
+- **Why Imunify is read-only:** Imunify handles what it finds according to its own settings (*Default action on detect*, for example *cleanup*). Starting an Imunify scan from here could therefore change files, so the extension only reads its results.
+- Scans run at low CPU and disk priority. A large site takes a few minutes (about 17,000 files took 5–6 minutes with ClamAV in testing).
+- Scanners don't always agree, and VirusTotal can flag a site for spam or phishing content in its database while its files are clean. Signatures starting with `PUA.` or `Heuristics.` are often false alarms.
+
+How it works: website files belong to the subscription users, so the scans run through a small root helper (`sbin/site-scan`) that Plesk installs with the extension and calls through its own `callSbin` mechanism. The helper only accepts a scanner name and a hostname, and looks up the folder in Plesk's database. Each scanner is a small adapter in that file (detect, scan, read the result), so another scanner can be added the same way.
 
 ## Users and roles
 
@@ -126,6 +136,7 @@ Every API call is a domain report lookup (`GET /domains/{domain}`), a re-analysi
 - **Plesk Obsidian 18.0 or newer** on Linux, with root SSH access to the server
 - Websites hosted in Plesk. Every active domain and subdomain with web hosting is checked, whatever it runs (WordPress, Joomla, plain HTML, …), plus WordPress sites on a hostname under a hosted domain. Forwarding-only domains, domains without hosting and suspended domains are skipped. The list is read from Plesk's own database. To check WordPress sites only, choose **Settings → Sites to scan → WordPress sites only**.
 - A **VirusTotal API key**. The free key is enough: create an account at [virustotal.com](https://www.virustotal.com), then open your profile menu → **API key**.
+- Optional: **ClamAV**, **maldet** and/or **ImunifyAV / Imunify360** for the file scans. The extension uses whichever are installed; none of them is required.
 
 The extension runs on Plesk's own bundled PHP (8.x), so the PHP version of your websites doesn't matter.
 

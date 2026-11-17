@@ -219,78 +219,104 @@ class IndexController extends pm_Controller_Action
             'domains' => $domains,
             'results' => $results,
             'budget'  => $budgetInfo,
-            'clam'    => self::clamResults($domains),
+            'scans'    => self::scanResults($domains),
+            'scanners' => self::scanners(),
         ]);
     }
 
-    // ── ClamAV file scan (on demand) ────────────────────────────
+    // ── File scanners (ClamAV, maldet, …), on demand ───────────
 
-    /** Start a ClamAV scan of one site's files (runs in the background as root) */
-    public function clamScanAction(): void
+    /** Scanners installed on this server (asked from the root helper, cached for an hour) */
+    private static function scanners(): array
     {
-        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
-        $domain = $this->sanitize($this->_getParam('domain', ''));
-        if (!$domain) { $this->respond(['error' => 'invalid']); return; }
-        if (!in_array($domain, PleskDomains::forCurrentUser($this->wpOnly()), true)) {
-            $this->respond(['error' => 'forbidden']); return;
+        $cache = VtDataDir::path('vt_scanners.json');
+        if (is_file($cache) && time() - filemtime($cache) < 3600) {
+            $d = json_decode((string)file_get_contents($cache), true);
+            if (is_array($d)) return $d;
         }
         try {
-            $res = pm_ApiCli::callSbin('clamscan-site', [$domain], pm_ApiCli::RESULT_FULL);
-            $out = json_decode(trim((string)($res['stdout'] ?? '')), true);
+            $res  = pm_ApiCli::callSbin('site-scan', ['list'], pm_ApiCli::RESULT_FULL);
+            $list = json_decode(trim((string)($res['stdout'] ?? '')), true)['scanners'] ?? null;
         } catch (\Throwable $e) {
-            $out = ['error' => 'Could not start ClamAV: ' . $e->getMessage()];
+            $list = null;
         }
-        if (!is_array($out)) $out = ['error' => 'Could not start ClamAV'];
-        if (!empty($out['started'])) $this->appendLog("[clamav] File scan started: $domain");
-        $this->respond($out + ['clam' => self::clamResult($domain)]);
+        if (!is_array($list)) return [];
+        @file_put_contents($cache, json_encode($list));
+        return $list;
     }
 
-    /** Current ClamAV result of one site */
-    public function clamResultAction(): void
+    private function scanParams(): ?array
     {
-        $domain = $this->sanitize($this->_getParam('domain', ''));
-        if (!$domain || !in_array($domain, PleskDomains::forCurrentUser($this->wpOnly()), true)) {
-            $this->respond(['error' => 'forbidden']); return;
+        $domain  = $this->sanitize($this->_getParam('domain', ''));
+        $scanner = (string)$this->_getParam('scanner', '');
+        if (!$domain || !preg_match('/^[a-z0-9]+$/', $scanner)) { $this->respond(['error' => 'invalid']); return null; }
+        if (!in_array($domain, PleskDomains::forCurrentUser($this->wpOnly()), true)) {
+            $this->respond(['error' => 'forbidden']); return null;
         }
-        $r = self::clamResult($domain);
+        return [$domain, $scanner];
+    }
+
+    /** Start a file scan of one site (runs in the background as root) */
+    public function fileScanAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        if (!($p = $this->scanParams())) return;
+        [$domain, $scanner] = $p;
+        try {
+            $res = pm_ApiCli::callSbin('site-scan', ['start', $scanner, $domain], pm_ApiCli::RESULT_FULL);
+            $out = json_decode(trim((string)($res['stdout'] ?? '')), true);
+        } catch (\Throwable $e) {
+            $out = ['error' => 'Could not start the scan: ' . $e->getMessage()];
+        }
+        if (!is_array($out)) $out = ['error' => 'Could not start the scan'];
+        if (!empty($out['started']) && empty($out['already'])) $this->appendLog("[files] {$out['name']} scan started: $domain");
+        $this->respond($out + ['result' => self::scanResult($scanner, $domain)]);
+    }
+
+    /** Current file-scan result of one site and scanner */
+    public function fileResultAction(): void
+    {
+        if (!($p = $this->scanParams())) return;
+        [$domain, $scanner] = $p;
+        $r = self::scanResult($scanner, $domain);
         if ($r && !in_array($r['status'] ?? '', ['running', 'queued'], true) && empty($r['logged'])) {
             // Log a finished scan once
-            $this->appendLog(sprintf('[clamav] %s: %s', $domain, ($r['status'] ?? '') === 'done'
+            $this->appendLog(sprintf('[files] %s %s: %s', $r['name'] ?? $scanner, $domain, ($r['status'] ?? '') === 'done'
                 ? (($r['infected'] ?? 0) ? $r['infected'] . ' infected file(s)' : 'no infected files') . ' in ' . ($r['files'] ?? 0) . ' files'
                 : ($r['message'] ?? $r['status'] ?? 'error')));
             $r['logged'] = true;
-            @file_put_contents(self::clamFile($domain), json_encode($r, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            @file_put_contents(self::scanFile($scanner, $domain), json_encode($r, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
-        $this->respond(['clam' => $r]);
+        $this->respond(['result' => $r]);
     }
 
-    private static function clamFile(string $domain): string
+    private static function scanFile(string $scanner, string $domain): string
     {
-        return VtDataDir::path('vt_clam_' . preg_replace('/[^a-z0-9]/', '_', $domain) . '.json');
+        return VtDataDir::path('vt_scan_' . $scanner . '_' . preg_replace('/[^a-z0-9]/', '_', $domain) . '.json');
     }
 
-    private static function clamResult(string $domain): ?array
+    private static function scanResult(string $scanner, string $domain): ?array
     {
-        $d = json_decode((string)@file_get_contents(self::clamFile($domain)), true);
+        $d = json_decode((string)@file_get_contents(self::scanFile($scanner, $domain)), true);
         if (!is_array($d)) return null;
-        // A scan that has said "running" for over 70 minutes has died
+        // A scan that has said "running" or "queued" for hours has died
         if (in_array($d['status'] ?? '', ['running', 'queued'], true) && time() - (int)($d['started'] ?? 0) > 4200 * 3) {
             $d['status'] = 'error'; $d['message'] = 'The scan stopped unexpectedly';
         }
         return $d;
     }
 
-    /** ClamAV results of the given domains (without file lists), keyed by domain */
-    private static function clamResults(array $domains): array
+    /** File-scan results of the given domains (without file lists): [domain => [scanner => result]] */
+    private static function scanResults(array $domains): array
     {
         $want = array_flip($domains);
         $out  = [];
-        foreach (glob(VtDataDir::path('vt_clam_*.json')) ?: [] as $f) {
+        foreach (glob(VtDataDir::path('vt_scan_*.json')) ?: [] as $f) {
             $d = json_decode((string)@file_get_contents($f), true);
-            if (!is_array($d) || !isset($d['domain'], $want[$d['domain']])) continue;
-            $r = self::clamResult($d['domain']);
+            if (!is_array($d) || !isset($d['domain'], $d['scanner'], $want[$d['domain']])) continue;
+            $r = self::scanResult($d['scanner'], $d['domain']);
             unset($r['found']);
-            $out[$d['domain']] = $r;
+            $out[$d['domain']][$d['scanner']] = $r;
         }
         return $out;
     }

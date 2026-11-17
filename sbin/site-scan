@@ -1,0 +1,271 @@
+#!/usr/local/psa/admin/bin/php
+<?php
+/**
+ * site-scan: scan one website's files with a malware scanner installed on the server.
+ * Read-only: the scanners only report, nothing is deleted, moved or quarantined.
+ *
+ * Runs as root through pm_ApiCli::callSbin(), because website files belong to
+ * the subscription users and the panel user cannot read them.
+ *
+ *   site-scan list                       JSON list of the scanners found on this server
+ *   site-scan start <scanner> <hostname> start a scan in the background, print JSON
+ *   site-scan --run <scanner> <hostname> (internal) the scan itself
+ *
+ * Each scanner is an adapter below: detect() says whether it is installed,
+ * scan() runs it on a folder and returns one common result format:
+ *   files, infected, found: [{file, signature}], errors
+ * To support another scanner, add an adapter to SCANNERS.
+ *
+ * Only one scan runs at a time on the server; a scan started while another
+ * one runs waits its turn ("queued").
+ */
+
+const DATA     = '/usr/local/psa/var/modules/virustotal-extension/data';
+const VHOSTS   = '/var/www/vhosts/';
+const MAX_LIST = 200;   // files listed in a result
+const TIMEOUT  = 3600;  // seconds before a scan is stopped
+
+// ── Adapters ───────────────────────────────────────────────────
+
+/** ClamAV: a running clamd (fast, signatures already loaded), else clamscan */
+function clamav_detect(): ?array
+{
+    $confs = array_merge(glob('/etc/clamd.d/*.conf') ?: [], ['/etc/clamav/clamd.conf', '/etc/clamd.conf']);
+    if (is_executable('/usr/bin/clamdscan')) {
+        foreach ($confs as $c) {
+            if (!is_file($c)) continue;
+            if (preg_match('/^\s*LocalSocket\s+(\S+)/m', (string)@file_get_contents($c), $m) && file_exists($m[1])
+                && @filetype($m[1]) === 'socket') {
+                return ['id' => 'clamav', 'name' => 'ClamAV', 'mode' => 'clamd', 'conf' => $c];
+            }
+        }
+    }
+    if (is_executable('/usr/bin/clamscan')) return ['id' => 'clamav', 'name' => 'ClamAV', 'mode' => 'clamscan'];
+    return null;
+}
+
+function clamav_scan(array $s, string $root): array
+{
+    $cmd = $s['mode'] === 'clamd'
+        ? '/usr/bin/clamdscan -c ' . escapeshellarg($s['conf']) . ' --fdpass --infected --no-summary ' . escapeshellarg($root)
+        : '/usr/bin/clamscan -r --infected --no-summary ' . escapeshellarg($root);
+    exec('timeout ' . TIMEOUT . ' nice -n 19 ionice -c3 ' . $cmd . ' 2>&1', $lines, $code);
+    $found = []; $errors = 0;
+    foreach ($lines as $line) {
+        if (preg_match('/^(.*): (\S+) FOUND$/', $line, $m)) $found[] = ['file' => $m[1], 'signature' => $m[2]];
+        elseif (stripos($line, 'ERROR') !== false || stripos($line, 'failed') !== false) $errors++;
+    }
+    return ['found' => $found, 'errors' => $errors, 'timeout' => $code === 124, 'files' => count_files($root)];
+}
+
+/** Linux Malware Detect (maldet), from rfxn.com */
+function maldet_detect(): ?array
+{
+    foreach (['/usr/local/maldetect/maldet', '/usr/local/sbin/maldet'] as $b) {
+        if (is_executable($b)) return ['id' => 'maldet', 'name' => 'Maldet', 'bin' => $b];
+    }
+    return null;
+}
+
+function maldet_scan(array $s, string $root): array
+{
+    // Only the website folder: no /tmp etc., which maldet adds to every scan by default
+    $cmd = 'timeout ' . TIMEOUT . ' ' . escapeshellarg($s['bin']) . ' -co scan_tmpdir_paths= -a ' . escapeshellarg($root) . ' 2>&1';
+    exec($cmd, $lines, $code);
+    $out   = implode("\n", $lines);
+    $files = preg_match('/files (\d+), malware hits/', $out, $m) ? (int)$m[1] : count_files($root);
+    $found = [];
+    if (preg_match('/--report (\S+)/', $out, $m)) {
+        $hits = '/usr/local/maldetect/sess/session.hits.' . basename($m[1]);
+        foreach (@file($hits, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+            if (preg_match('/^(\S+)\s+:\s+(.+)$/', trim($line), $h)) $found[] = ['file' => $h[2], 'signature' => $h[1]];
+        }
+    }
+    $failed = !preg_match('/scan completed on/', $out);
+    return ['found' => $found, 'errors' => $failed ? 1 : 0, 'timeout' => $code === 124, 'files' => $files,
+            'message' => $failed && $code !== 124 ? 'maldet did not complete the scan' : ''];
+}
+
+/**
+ * ImunifyAV / Imunify360: read-only. No scan is started, because Imunify may be set
+ * to clean up or quarantine what it finds (its own MALWARE_SCANNING.default_action).
+ * Instead this shows the result of Imunify's own latest scan of the site.
+ */
+function imunify_detect(): ?array
+{
+    foreach (['/usr/bin/imunify-antivirus', '/usr/bin/imunify360-agent'] as $b) {
+        if (is_executable($b)) return ['id' => 'imunify', 'name' => 'Imunify', 'bin' => $b, 'instant' => true];
+    }
+    return null;
+}
+
+function imunify_json(array $s, string $args): array
+{
+    $d = json_decode((string)shell_exec('timeout 120 ' . escapeshellarg($s['bin']) . ' ' . $args . ' --json 2>/dev/null'), true);
+    return is_array($d) ? $d : [];
+}
+
+function imunify_scan(array $s, string $root): array
+{
+    // Latest Imunify scan of this folder or of the subscription that contains it
+    $last = null;
+    foreach (imunify_json($s, 'malware on-demand list --limit 100000')['items'] ?? [] as $it) {
+        $path = rtrim((string)($it['path'] ?? ''), '/');
+        if ($path === '' || strpos($root . '/', $path . '/') !== 0 || empty($it['completed'])) continue;
+        if (!$last || $it['completed'] > $last['completed']) $last = $it;
+    }
+    $found = []; $active = 0;
+    $labels = ['cleanup_done' => 'cleaned by Imunify', 'cleanup_removed' => 'removed by Imunify',
+               'restored_from_backup' => 'restored from backup', 'cleanup_requires_myimunify_protection' => 'not cleaned'];
+    foreach (imunify_json($s, 'malware malicious list --limit 1000 --search ' . escapeshellarg($root))['items'] ?? [] as $it) {
+        $file = (string)($it['file'] ?? '');
+        if (strpos($file, $root . '/') !== 0) continue;
+        $st = (string)($it['status'] ?? '');
+        $handled = strpos($st, 'cleanup_done') === 0 || strpos($st, 'cleanup_removed') === 0 || strpos($st, 'restored') === 0;
+        if (!$handled) $active++;
+        $found[] = ['file' => $file, 'signature' => (string)($it['type'] ?? '?') . ($st && $st !== 'found' ? ' (' . ($labels[$st] ?? $st) . ')' : ''),
+                    'handled' => $handled];
+    }
+    usort($found, fn($a, $b) => $a['handled'] <=> $b['handled']);
+    return [
+        'found' => $found, 'infected' => $active, 'errors' => 0, 'timeout' => false,
+        'files' => (int)($last['total_resources'] ?? 0),
+        'scanned_at' => (int)($last['completed'] ?? 0),
+        'note' => $last
+            ? 'Result of Imunify\'s own ' . ($last['scan_type'] ?? '') . ' scan of ' . substr(rtrim($last['path'], '/'), strlen(VHOSTS)) . '. No new scan was started: Imunify handles found files with its own settings.'
+            : 'Imunify has not scanned this site yet.',
+    ];
+}
+
+const SCANNERS = ['clamav', 'maldet', 'imunify'];
+
+// ── Helpers ────────────────────────────────────────────────────
+
+function out(array $a): void { echo json_encode($a, JSON_UNESCAPED_SLASHES), "\n"; exit(0); }
+
+function scanners(): array
+{
+    $list = [];
+    foreach (SCANNERS as $id) {
+        $s = ($id . '_detect')();
+        if ($s) $list[$id] = $s;
+    }
+    return $list;
+}
+
+function count_files(string $root): int
+{
+    return (int)trim((string)shell_exec('find ' . escapeshellarg($root) . ' -type f 2>/dev/null | wc -l'));
+}
+
+function save(string $file, array $a): void
+{
+    file_put_contents($file . '.tmp', json_encode($a, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    @chown($file . '.tmp', 'psaadm'); @chgrp($file . '.tmp', 'psaadm'); @chmod($file . '.tmp', 0640);
+    rename($file . '.tmp', $file);
+}
+
+/** Document root of the site, from Plesk's database (parent domains for WordPress subsites) */
+function docroot(string $host): ?string
+{
+    $name = $host;
+    while (substr_count($name, '.') >= 1) {
+        $sql  = "SELECT h.www_root FROM hosting h JOIN domains d ON d.id = h.dom_id "
+              . "WHERE d.name = '" . $name . "' AND d.htype = 'vrt_hst' AND d.status = 0 LIMIT 1";
+        $root = trim((string)shell_exec('plesk db -Ne ' . escapeshellarg($sql) . ' 2>/dev/null'));
+        if ($root !== '') {
+            $real = realpath($root);
+            return ($real && strpos($real . '/', VHOSTS) === 0 && is_dir($real)) ? $real : null;
+        }
+        $name = substr($name, strpos($name, '.') + 1);
+    }
+    return null;
+}
+
+/** Run an adapter and build the common result */
+function finish(array $base, string $id, array $scanner, string $root, int $started): array
+{
+    $r = ($id . '_scan')($scanner, $root);
+    $found = [];
+    foreach ($r['found'] as $f) {
+        $file = (string)$f['file'];
+        if (strpos($file, $root . '/') === 0) $file = substr($file, strlen($root) + 1);
+        $found[] = ['file' => $file, 'signature' => (string)$f['signature']] + (isset($f['handled']) ? ['handled' => (bool)$f['handled']] : []);
+    }
+    $status = !empty($r['timeout']) ? 'timeout' : (!empty($r['message']) ? 'error' : 'done');
+    return $base + [
+        'status'   => $status,
+        'started'  => $started,
+        'finished' => $r['scanned_at'] ?? time(),
+        'root'     => substr($root, strlen(VHOSTS)),
+        'files'    => (int)$r['files'],
+        'infected' => (int)($r['infected'] ?? count($found)),
+        'found'    => array_slice($found, 0, MAX_LIST),
+        'listed'   => count($found),
+        'errors'   => (int)$r['errors'],
+        'note'     => (string)($r['note'] ?? ''),
+        'message'  => $status === 'timeout' ? 'Stopped after ' . (TIMEOUT / 60) . ' minutes' : (string)($r['message'] ?? ''),
+    ];
+}
+
+// ── Main ───────────────────────────────────────────────────────
+
+$mode = $argv[1] ?? '';
+if ($mode === 'list') {
+    out(['scanners' => array_values(array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name'], 'instant' => !empty($s['instant'])], scanners()))]);
+}
+if ($mode !== 'start' && $mode !== '--run') out(['error' => 'usage: site-scan list | start <scanner> <hostname>']);
+
+$id   = (string)($argv[2] ?? '');
+$host = strtolower(trim((string)($argv[3] ?? '')));
+if (!in_array($id, SCANNERS, true)) out(['error' => 'Unknown scanner']);
+if (!preg_match('/^[a-z0-9][a-z0-9.\-]*\.[a-z0-9\-]{2,}$/', $host)) out(['error' => 'Invalid site name']);
+$scanner = scanners()[$id] ?? null;
+if (!$scanner) out(['error' => $id . ' is not installed on this server']);
+
+$resultFile = DATA . '/vt_scan_' . $id . '_' . preg_replace('/[^a-z0-9]/', '_', $host) . '.json';
+$lockFile   = DATA . '/vt_scan.lock';
+$base       = ['domain' => $host, 'scanner' => $id, 'name' => $scanner['name']];
+
+if ($mode === 'start') {
+    $prev = json_decode((string)@file_get_contents($resultFile), true);
+    if (in_array($prev['status'] ?? '', ['running', 'queued'], true) && time() - (int)($prev['started'] ?? 0) < TIMEOUT + 600) {
+        out(['started' => true, 'already' => true] + $base);
+    }
+    $root = docroot($host);
+    if (!$root) out(['error' => 'Could not find the website folder of ' . $host]);
+
+    if (!empty($scanner['instant'])) {   // read-only adapters: answer straight away
+        save($resultFile, finish($base, $id, $scanner, $root, time()));
+        out(['started' => true, 'done' => true] + $base);
+    }
+
+    $lock = fopen($lockFile, 'c');
+    $free = $lock && flock($lock, LOCK_EX | LOCK_NB);
+    if ($free) flock($lock, LOCK_UN);
+    if ($lock) fclose($lock);
+    save($resultFile, $base + ['status' => $free ? 'running' : 'queued', 'started' => time(), 'root' => substr($root, strlen(VHOSTS))]);
+    exec('setsid nohup ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__FILE__)
+         . ' --run ' . escapeshellarg($id) . ' ' . escapeshellarg($host) . ' >/dev/null 2>&1 &');
+    out(['started' => true] + $base);
+}
+
+// --run: wait for any other scan to finish (one at a time on the server)
+$lock = fopen($lockFile, 'c');
+if (!$lock || !flock($lock, LOCK_EX)) {
+    save($resultFile, $base + ['status' => 'error', 'finished' => time(), 'message' => 'Could not start the scan']);
+    exit(0);
+}
+ftruncate($lock, 0); fwrite($lock, "$id $host"); fflush($lock);
+
+$started = time();
+$root    = docroot($host);
+if (!$root) {
+    save($resultFile, $base + ['status' => 'error', 'finished' => time(), 'message' => 'Website folder not found']);
+    exit(0);
+}
+save($resultFile, $base + ['status' => 'running', 'started' => $started, 'root' => substr($root, strlen(VHOSTS))]);
+
+save($resultFile, finish($base, $id, $scanner, $root, $started));
+ftruncate($lock, 0);
+flock($lock, LOCK_UN);
