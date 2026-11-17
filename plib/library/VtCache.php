@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/VtDataDir.php';
 require_once __DIR__ . '/VtSettings.php';
+require_once __DIR__ . '/VtNotifier.php';
 
 /**
  * VtCache — persistent cache for VirusTotal scan results.
@@ -43,8 +44,12 @@ class VtCache
         return $this->results[$domain] ?? null;
     }
 
+    /** Addresses e-mailed by the last set() call (status change notifications) */
+    public array $lastNotified = [];
+
     public function set(string $domain, array $result, bool $manual = false): void
     {
+        $old = $this->results[$domain] ?? null;
         $result['cached_at'] = time();
         $this->results[$domain] = $result;
         $this->saveJson(self::resultsFile(), $this->results);
@@ -52,6 +57,13 @@ class VtCache
         $key = $manual ? 'manual' : 'auto';
         $this->state['today'][$key] = ($this->state['today'][$key] ?? 0) + 1;
         $this->saveJson(self::stateFile($this->settings->getUserId()), $this->state);
+
+        $this->lastNotified = [];
+        try {
+            $this->lastNotified = VtNotifier::statusChanged($domain, $old, $result);
+        } catch (\Throwable $e) {
+            // A mail problem must never break scanning
+        }
     }
 
     /** Charge one call to the auto or manual daily budget without touching results */

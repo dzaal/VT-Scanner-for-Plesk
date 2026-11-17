@@ -10,6 +10,7 @@ require_once $_vtLib . '/VtCache.php';
 require_once $_vtLib . '/VtRateLimiter.php';
 require_once $_vtLib . '/VtApi.php';
 require_once $_vtLib . '/PleskDomains.php';
+require_once $_vtLib . '/VtNotifier.php';
 
 /**
  * IndexController — Plesk extension controller (extends pm_Controller_Action for layout).
@@ -146,6 +147,9 @@ class IndexController extends pm_Controller_Action
             }
             if ($result['status'] !== 'ratelimit' && $result['status'] !== 'quota_exceeded') {
                 $this->cache->set($domain, $result, false);
+                if ($this->cache->lastNotified) {
+                    $this->appendLog("[mail] $domain status change sent to " . implode(', ', $this->cache->lastNotified));
+                }
                 $this->respond($result); return;
             }
             // Pass ratelimit/quota_exceeded through to frontend — do NOT cache
@@ -257,6 +261,9 @@ class IndexController extends pm_Controller_Action
         $s   = $this->settings->all();
         $ownKey = $s['api_key'] ?? '';
         $s['api_key_readable'] = $ownKey;
+        $s['role']             = $this->role();
+        $s['notify_targets']   = VtNotifier::allowedTargets($this->role());
+        $s['my_email']         = VtNotifier::emailOfLogin($this->settings->getUserId()) ?? '';
         $s['has_key']          = !empty($ownKey) || $this->usingAdminKey;
         $s['using_admin_key']  = false; // Never expose admin key fallback to non-admin users
         // Quick auth check using the effective key (own or admin fallback)
@@ -278,7 +285,7 @@ class IndexController extends pm_Controller_Action
         $raw = $this->getRequest()->getRawBody();
         $input = ($raw && $raw[0] === '{') ? (json_decode($raw, true) ?? []) : $this->getRequest()->getPost();
 
-        $allowed = ['api_key', 'wordpress_only', 'daily_limit', 'auto_scan_share', 'clean_ttl_days', 'infected_ttl_days'];
+        $allowed = ['api_key', 'wordpress_only', 'notify_enabled', 'notify_events', 'notify_to', 'daily_limit', 'auto_scan_share', 'clean_ttl_days', 'infected_ttl_days'];
         $save    = [];
         foreach ($allowed as $k) {
             if (!isset($input[$k])) continue;
@@ -286,7 +293,11 @@ class IndexController extends pm_Controller_Action
                 $v = trim((string)$input[$k]);
                 if ($v === '') continue;
                 $save[$k] = $v;
-            } elseif ($k === 'wordpress_only') {
+            } elseif ($k === 'notify_events' || $k === 'notify_to') {
+                $list  = array_filter(array_map('trim', explode(',', (string)$input[$k])));
+                $valid = $k === 'notify_events' ? VtNotifier::EVENTS : VtNotifier::allowedTargets($this->role());
+                $save[$k] = array_values(array_intersect($list, $valid));
+            } elseif ($k === 'wordpress_only' || $k === 'notify_enabled') {
                 $save[$k] = filter_var($input[$k], FILTER_VALIDATE_BOOLEAN);
             } elseif (in_array($k, ['daily_limit', 'clean_ttl_days', 'infected_ttl_days'])) {
                 $save[$k] = max(1, (int)$input[$k]);
@@ -295,6 +306,7 @@ class IndexController extends pm_Controller_Action
             }
         }
 
+        $save['login'] = $this->settings->getUserId(); // lets the notifier find this user's address
         $this->settings->setAll($save);
         // Clear cached error results when API key changes so they get rescanned
         if (isset($save['api_key'])) {
@@ -304,6 +316,30 @@ class IndexController extends pm_Controller_Action
     }
 
     // ── Helpers ─────────────────────────────────────────────────
+
+    /** Send a test notification to the current user's own e-mail address */
+    public function testNotifyAction(): void
+    {
+        if (!$this->getRequest()->isPost()) {
+            $this->respond(['error' => 'POST required']); return;
+        }
+        $sent = VtNotifier::sendTest($this->settings->getUserId());
+        $this->respond($sent ? ['ok' => true, 'email' => $sent]
+                             : ['error' => 'No valid e-mail address found for your Plesk account']);
+    }
+
+    /** admin, reseller or client */
+    private function role(): string
+    {
+        try {
+            $c = pm_Session::getClient();
+            if ($c->isAdmin()) return 'admin';
+            if ($c->isReseller()) return 'reseller';
+            return 'client';
+        } catch (\Throwable $e) {
+            return 'admin';
+        }
+    }
 
     /** Scan WordPress sites only, instead of every hosted website */
     private function wpOnly(): bool

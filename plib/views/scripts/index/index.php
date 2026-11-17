@@ -78,6 +78,16 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-fbtn{padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);display:flex;align-items:center;gap:4px}
 .vt-fbtn:hover{border-color:var(--blue);color:var(--blue)}
 .vt-fbtn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+/* Category button + arrow menu */
+.vt-fgroup{position:relative;display:inline-flex}
+.vt-fgroup .vt-fbtn{border-top-right-radius:0;border-bottom-right-radius:0;border-right:none}
+.vt-fcaret{padding:0 7px;border:1px solid var(--border);border-left:1px solid var(--border);border-radius:0 20px 20px 0;background:var(--surface);color:var(--muted);font-size:10px;cursor:pointer}
+.vt-fcaret:hover{color:var(--blue);border-color:var(--blue)}
+.vt-fgroup .vt-fbtn.active+.vt-fcaret{background:var(--blue);border-color:var(--blue);color:#fff;border-left-color:rgba(255,255,255,.4)}
+.vt-fmenu{display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:170px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 6px 18px rgba(0,0,0,.12);padding:4px;z-index:50}
+.vt-fmenu.open{display:block}
+.vt-fmenu button{display:block;width:100%;text-align:left;padding:7px 10px;border:none;background:none;border-radius:5px;font-size:13px;color:var(--text);cursor:pointer}
+.vt-fmenu button:hover{background:var(--blue-bg);color:var(--blue)}
 .vt-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block}
 .dot-r{background:var(--red);box-shadow:0 0 0 2px #fca5a5}
 .dot-y{background:#f59e0b;box-shadow:0 0 0 2px #fde68a}
@@ -191,6 +201,15 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-key-display{margin-top:8px;padding:8px 11px;background:var(--gray-bg);border:1px solid var(--border);border-radius:var(--radius);font-family:monospace;font-size:12px;color:var(--text);word-break:break-all;display:none}
 .vt-key-display .vt-key-label{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
 
+/* Notifications */
+.vt-n-group{margin:10px 0 12px 26px}
+.vt-n-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.vt-check{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:13px;cursor:pointer}
+.vt-check .hint{font-size:12px;color:var(--muted)}
+#vt-n-opts{margin-left:0}
+#vt-n-opts>.vt-btn{margin-left:26px}
+#vt-n-opts.off{opacity:.45;pointer-events:none}
+
 /* Radio options */
 .vt-radio{display:flex;align-items:flex-start;gap:10px;padding:8px 0;cursor:pointer;font-size:13px}
 .vt-radio input{margin-top:3px}
@@ -269,17 +288,52 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
     <div class="vt-toolbar">
       <input class="vt-search" type="text" id="vt-search" placeholder="Search domain..." oninput="vtApplyFilter()">
       <div class="vt-filters">
-        <button class="vt-fbtn active" data-f="all"        onclick="vtSetFilter('all')">        All <strong id="vt-cnt-all">—</strong></button>
-        <button class="vt-fbtn"        data-f="infected"   onclick="vtSetFilter('infected')">   <span class="vt-dot dot-r"></span> Infected <strong id="vt-cnt-infected">0</strong></button>
-        <button class="vt-fbtn"        data-f="suspicious" onclick="vtSetFilter('suspicious')"> <span class="vt-dot dot-y"></span> Suspicious <strong id="vt-cnt-suspicious">0</strong></button>
-        <button class="vt-fbtn"        data-f="clean"      onclick="vtSetFilter('clean')">      <span class="vt-dot dot-g"></span> Clean <strong id="vt-cnt-clean">0</strong></button>
-        <button class="vt-fbtn"        data-f="pending"    onclick="vtSetFilter('pending')">    <span class="vt-dot dot-b"></span> Queued <strong id="vt-cnt-pending">0</strong></button>
-        <button class="vt-fbtn"        data-f="error"      onclick="vtSetFilter('error')">      <span class="vt-dot dot-gr"></span> Error <strong id="vt-cnt-error">0</strong></button>
+        <div class="vt-fgroup" data-f="all">
+          <button class="vt-fbtn active" data-f="all" onclick="vtSetFilter('all')">All <strong id="vt-cnt-all">—</strong></button>
+          <button class="vt-fcaret" onclick="vtToggleMenu(event,'all')" aria-label="All options">&#9662;</button>
+          <div class="vt-fmenu" id="vt-fmenu-all">
+            <button onclick="vtMenuAction('rescan','all')">Rescan</button>
+            <button onclick="vtMenuAction('refresh')">Refresh site list</button>
+          </div>
+        </div>
+        <div class="vt-fgroup" data-f="infected">
+          <button class="vt-fbtn" data-f="infected" onclick="vtSetFilter('infected')"><span class="vt-dot dot-r"></span> Infected <strong id="vt-cnt-infected">0</strong></button>
+          <button class="vt-fcaret" onclick="vtToggleMenu(event,'infected')" aria-label="Infected options">&#9662;</button>
+          <div class="vt-fmenu" id="vt-fmenu-infected">
+            <button onclick="vtMenuAction('rescan','infected')">Rescan</button>
+          </div>
+        </div>
+        <div class="vt-fgroup" data-f="suspicious">
+          <button class="vt-fbtn" data-f="suspicious" onclick="vtSetFilter('suspicious')"><span class="vt-dot dot-y"></span> Suspicious <strong id="vt-cnt-suspicious">0</strong></button>
+          <button class="vt-fcaret" onclick="vtToggleMenu(event,'suspicious')" aria-label="Suspicious options">&#9662;</button>
+          <div class="vt-fmenu" id="vt-fmenu-suspicious">
+            <button onclick="vtMenuAction('rescan','suspicious')">Rescan</button>
+          </div>
+        </div>
+        <div class="vt-fgroup" data-f="clean">
+          <button class="vt-fbtn" data-f="clean" onclick="vtSetFilter('clean')"><span class="vt-dot dot-g"></span> Clean <strong id="vt-cnt-clean">0</strong></button>
+          <button class="vt-fcaret" onclick="vtToggleMenu(event,'clean')" aria-label="Clean options">&#9662;</button>
+          <div class="vt-fmenu" id="vt-fmenu-clean">
+            <button onclick="vtMenuAction('rescan','clean')">Rescan</button>
+          </div>
+        </div>
+        <div class="vt-fgroup" data-f="pending">
+          <button class="vt-fbtn" data-f="pending" onclick="vtSetFilter('pending')"><span class="vt-dot dot-b"></span> Queued <strong id="vt-cnt-pending">0</strong></button>
+          <button class="vt-fcaret" onclick="vtToggleMenu(event,'pending')" aria-label="Queued options">&#9662;</button>
+          <div class="vt-fmenu" id="vt-fmenu-pending">
+            <button onclick="vtMenuAction('rescan','pending')">Rescan</button>
+          </div>
+        </div>
+        <div class="vt-fgroup" data-f="error">
+          <button class="vt-fbtn" data-f="error" onclick="vtSetFilter('error')"><span class="vt-dot dot-gr"></span> Error <strong id="vt-cnt-error">0</strong></button>
+          <button class="vt-fcaret" onclick="vtToggleMenu(event,'error')" aria-label="Error options">&#9662;</button>
+          <div class="vt-fmenu" id="vt-fmenu-error">
+            <button onclick="vtMenuAction('rescan','error')">Rescan</button>
+          </div>
+        </div>
       </div>
       <div class="vt-spacer"></div>
       <span class="vt-status-txt" id="vt-scan-status"></span>
-      <button class="vt-btn ghost" onclick="vtRefreshDomains()">Refresh</button>
-      <button class="vt-btn danger" id="vt-btn-reanalyze" onclick="vtReanalyzeInfected()" disabled>Rescan infected</button>
     </div>
 
     <div class="vt-queue" id="vt-queue">
@@ -336,6 +390,28 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
         <span><strong>All hosted websites</strong><br><span class="hint">Every active domain and subdomain with web hosting, whatever it runs</span></span></label>
       <label class="vt-radio"><input type="radio" name="vt-s-scope" id="vt-s-scope-wp" value="wp">
         <span><strong>WordPress sites only</strong><br><span class="hint">Only sites with a WordPress database on this server</span></span></label>
+    </div>
+
+    <div class="vt-card">
+      <h3>Notifications</h3>
+      <label class="vt-radio"><input type="checkbox" id="vt-n-enabled" onchange="vtNotifyUi()">
+        <span><strong>E-mail me when a site's status changes</strong><br><span class="hint">Checked by the nightly scan and by every lookup or rescan on this page</span></span></label>
+      <div id="vt-n-opts">
+        <div class="vt-n-group">
+          <div class="vt-n-label">When a site becomes</div>
+          <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="infected"> <span class="vt-dot dot-r"></span> Infected</label>
+          <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="suspicious"> <span class="vt-dot dot-y"></span> Suspicious</label>
+          <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="clean"> <span class="vt-dot dot-g"></span> Clean again <span class="hint">(after being infected or suspicious)</span></label>
+        </div>
+        <div class="vt-n-group">
+          <div class="vt-n-label">Send the e-mail to</div>
+          <label class="vt-check" data-target="me"><input type="checkbox" name="vt-n-to" value="me"> Me <span class="hint" id="vt-n-myemail"></span></label>
+          <label class="vt-check" data-target="owner"><input type="checkbox" name="vt-n-to" value="owner"> The site owner <span class="hint">(the customer the site belongs to)</span></label>
+          <label class="vt-check" data-target="reseller"><input type="checkbox" name="vt-n-to" value="reseller"> The reseller <span class="hint">(of the customer the site belongs to)</span></label>
+        </div>
+        <button class="vt-btn ghost" type="button" onclick="vtTestNotify()">Send test e-mail</button>
+        <span class="vt-smsg" id="vt-n-msg"></span>
+      </div>
     </div>
 
     <div class="vt-card">
@@ -699,7 +775,6 @@ function updateCounts(){
   vtSet('vt-cnt-clean',c.clean);
   vtSet('vt-cnt-pending',c.pending);
   vtSet('vt-cnt-error',c.error);
-  document.getElementById('vt-btn-reanalyze').disabled=c.infected===0&&c.suspicious===0;
 }
 
 // ── Rescan queue ──────────────────────────────────────────────
@@ -810,6 +885,39 @@ function enqueueRescan(domain){
 
 window.vtReanalyzeSingle=function(domain){
   if(!enqueueRescan(domain)) vtToast(domain+' is already in the scan queue','info');
+};
+
+// ── Category menus (arrow next to each filter button) ──────────
+window.vtToggleMenu=function(ev,f){
+  ev.stopPropagation();
+  const m=document.getElementById('vt-fmenu-'+f), open=m.classList.contains('open');
+  document.querySelectorAll('.vt-fmenu.open').forEach(x=>x.classList.remove('open'));
+  if(!open) m.classList.add('open');
+};
+document.addEventListener('click',()=>document.querySelectorAll('.vt-fmenu.open').forEach(x=>x.classList.remove('open')));
+
+function inCategory(d,f){
+  const st=results[d]?.status;
+  if(f==='all') return true;
+  if(f==='error') return ['error','ratelimit','quota_exceeded','budget_exceeded'].includes(st);
+  return st===f;
+}
+
+window.vtMenuAction=function(action,f){
+  document.querySelectorAll('.vt-fmenu.open').forEach(x=>x.classList.remove('open'));
+  if(action==='refresh') return vtRefreshDomains();
+  const targets=domains.filter(d=>inCategory(d,f)&&!activeJob(d));
+  if(!targets.length){vtToast('No sites to rescan in this category','info');return;}
+  // Every rescan costs one manual call: never queue more than today's manual budget allows
+  const left=Math.max(0,(budget.manual_max??0)-(budget.manual_used??0)-jobs.filter(j=>ACTIVE.has(j.state)).length);
+  if(!left){vtToast('Daily manual rescan limit reached — resets at midnight UTC','warn');return;}
+  // Worst first: infected, then suspicious, then the rest
+  const rank={infected:0,suspicious:1};
+  targets.sort((a,b)=>(rank[results[a]?.status]??2)-(rank[results[b]?.status]??2));
+  const pick=targets.slice(0,left);
+  pick.forEach(enqueueRescan);
+  vtToast(pick.length+' site'+(pick.length===1?'':'s')+' added to the scan queue'
+    +(pick.length<targets.length?' ('+(targets.length-pick.length)+' skipped: daily manual limit)':''),'info');
 };
 
 window.vtReanalyzeInfected=function(){
@@ -962,6 +1070,17 @@ window.vtRefreshDomains=async function(){
 };
 
 // ── Settings ──────────────────────────────────────────────────
+window.vtNotifyUi=function(){
+  document.getElementById('vt-n-opts').classList.toggle('off',!document.getElementById('vt-n-enabled').checked);
+};
+window.vtTestNotify=async function(){
+  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
+  const msg=document.getElementById('vt-n-msg'); msg.style.display='inline'; msg.className='vt-smsg'; msg.textContent='Sending...';
+  const res=await fetch(BASE+'?action=test-notify',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken}}).then(r=>r.json()).catch(()=>({error:'Network error'}));
+  msg.className='vt-smsg '+(res.ok?'ok':'err');
+  msg.textContent=res.ok?'Test e-mail sent to '+res.email:(res.error||'Could not send');
+  setTimeout(()=>{msg.style.display='none';},6000);
+};
 let savedWpOnly=false;
 function loadSettingsForm(cfg){
   const keyInput=document.getElementById('vt-s-apikey');
@@ -973,6 +1092,14 @@ function loadSettingsForm(cfg){
   }
   document.getElementById(cfg.wordpress_only?'vt-s-scope-wp':'vt-s-scope-all').checked=true;
   savedWpOnly=!!cfg.wordpress_only;
+  // Notifications: only offer the recipients this role may use
+  document.getElementById('vt-n-enabled').checked=!!cfg.notify_enabled;
+  const evs=cfg.notify_events||['infected','suspicious'], tos=cfg.notify_to||['me'], allowed=cfg.notify_targets||['me'];
+  document.querySelectorAll('input[name=vt-n-ev]').forEach(c=>c.checked=evs.includes(c.value));
+  document.querySelectorAll('input[name=vt-n-to]').forEach(c=>c.checked=tos.includes(c.value));
+  document.querySelectorAll('.vt-check[data-target]').forEach(l=>l.style.display=allowed.includes(l.dataset.target)?'':'none');
+  vtSet('vt-n-myemail',cfg.my_email?'('+cfg.my_email+')':'(no e-mail address set in your Plesk account)');
+  vtNotifyUi();
   if(cfg.daily_limit)       document.getElementById('vt-s-daily').value    =cfg.daily_limit;
   if(cfg.auto_scan_share)   document.getElementById('vt-s-share').value    =Math.round(cfg.auto_scan_share*100);
   if(cfg.clean_ttl_days)    document.getElementById('vt-s-clean-ttl').value=cfg.clean_ttl_days;
@@ -986,7 +1113,10 @@ window.vtSaveSettings=async function(){
   const cttl =parseInt(document.getElementById('vt-s-clean-ttl').value)||30;
   const ittl =parseInt(document.getElementById('vt-s-inf-ttl').value)||1;
   const wpOnly=document.getElementById('vt-s-scope-wp').checked;
-  const payload={wordpress_only:wpOnly?'true':'false',daily_limit:daily,auto_scan_share:share,clean_ttl_days:cttl,infected_ttl_days:ittl};
+  const checked=n=>[...document.querySelectorAll('input[name='+n+']:checked')].map(c=>c.value).join(',');
+  const payload={wordpress_only:wpOnly?'true':'false',
+    notify_enabled:document.getElementById('vt-n-enabled').checked?'true':'false',
+    notify_events:checked('vt-n-ev'),notify_to:checked('vt-n-to'),daily_limit:daily,auto_scan_share:share,clean_ttl_days:cttl,infected_ttl_days:ittl};
   if(key) payload.api_key=key;
 
   const body=new URLSearchParams(payload);

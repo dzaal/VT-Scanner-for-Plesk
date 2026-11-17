@@ -58,9 +58,32 @@ VT Site Scanner was built to fix that:
 - **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → VT Site Scanner**.
 - **Live scan queue**: one line showing the site being checked right now, or the latest result with its score. An animated bar shows the pause for VirusTotal's 4-requests-per-minute limit, which is waited out automatically instead of failing.
 - **Nightly background scan** (03:00, server time), scheduled automatically through Plesk's own scheduler.
-- **Per-role access:** the admin sees all sites, resellers see their own and their clients' sites, and clients see only their own sites. Each can use their own API key; users without one use the admin's key.
+- **E-mail notifications** when a site's status changes (see [Notifications](#notifications)).
+- **Works for every Plesk user level:** administrator, reseller and client (see [Users and roles](#users-and-roles)).
+- **Category menus:** the small arrow next to each status button (All, Infected, Suspicious, …) opens a menu with **Rescan**, which rescans every site in that category, worst first and never more than today's manual budget allows. The menu next to **All** also has **Refresh site list**.
 - **Log tab** with a colour-coded scan log.
 - **About tab** about the maker, with a *Buy me a coffee* button.
+
+## Users and roles
+
+VT Site Scanner works at all three Plesk user levels. Each user opens it from their own Plesk panel and only ever sees their own sites.
+
+| Level | Sees | Notification recipients they can choose |
+|---|---|---|
+| **Administrator** | Every hosted site on the server | Themselves, the site owner, the reseller |
+| **Reseller** | Their own sites and those of their customers | Themselves, the site owner |
+| **Client** | Only their own sites | Themselves |
+
+Every user has their own settings (API key, budget, notifications). Users without an API key of their own automatically use the administrator's key. The *reseller* option is only offered to the administrator, and the *site owner* option only to administrators and resellers, because for a client those would be the client themselves.
+
+## Notifications
+
+In **Settings → Notifications**, each user can switch on e-mails for when a site's status changes:
+
+- **When a site becomes:** Infected, Suspicious, and/or Clean again (only after it was infected or suspicious, so a first clean result doesn't send mail).
+- **Send the e-mail to:** *Me* (the e-mail address of your Plesk account), *the site owner* (the customer the site belongs to) and/or *the reseller* of that customer. Which of these you see depends on your level (see the table above).
+
+Changes are picked up by the nightly scan and by every lookup or rescan on the dashboard. Each address gets one e-mail per change, even if several users selected it. The e-mail shows the old and new status, the detection score, the vendors that flag the site and links to the VirusTotal report and the scanner. **Send test e-mail** checks that mail reaches you. Mail is sent with the server's own mail system (PHP `mail()` via sendmail), from the administrator's e-mail address.
 
 ## How it saves API calls
 
@@ -145,7 +168,8 @@ Installing registers the nightly background scan automatically. You don't need t
 
 1. Open the **Dashboard** tab. Your hosted websites appear within a few seconds. Sites without a cached result are looked up gradually (at most 10 per page load, 4 per minute); the nightly scan handles the rest.
 2. Click **Rescan** on any site. The **Scan queue** panel shows the scan moving through its steps.
-3. Check that the nightly scan is scheduled:
+3. Optional: switch on e-mails in **Settings → Notifications** and click **Send test e-mail**.
+4. Check that the nightly scan is scheduled:
    ```bash
    crontab -l -u psaadm | grep virustotal-extension
    ```
@@ -193,7 +217,7 @@ rm -rf /usr/local/psa/var/modules/virustotal-extension
 
 | Problem | What to check |
 |---|---|
-| "No sites found" | Click **Refresh** (the site list is cached for a day). Only active domains with web hosting are listed; forwarding-only and suspended domains are skipped. |
+| "No sites found" | Open the arrow menu next to **All** and click **Refresh site list** (the site list is cached for a day). Only active domains with web hosting are listed; forwarding-only and suspended domains are skipped. |
 | "Invalid API key (401)" | Re-paste the key in **Settings**; make sure there are no spaces around it. |
 | Many sites stay "Queued" | VirusTotal has never seen these domains; the first lookup submits them for a scan. They resolve on a later lookup or the next nightly run. |
 | Rescans say "Daily manual rescan limit reached" | The manual share of today's budget is used up. It resets at midnight UTC, or raise the percentage in **Settings**. |

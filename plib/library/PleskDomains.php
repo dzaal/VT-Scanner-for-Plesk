@@ -221,6 +221,21 @@ class PleskDomains
         return $hosts;
     }
 
+    /** Hosted domains (plus WordPress subsites) owned by a login; null if unknown */
+    public static function forLogin(string $login, bool $isReseller): ?array
+    {
+        $own = self::queryDomains($login, $isReseller);
+        return $own === null ? null : ($own ? self::withWordPressSubsites($own) : []);
+    }
+
+    /** Connection to Plesk's psa database (null when unavailable) */
+    public static function pdo(): ?\PDO
+    {
+        static $pdo = false;
+        if ($pdo === false) $pdo = self::pleskPdo();
+        return $pdo;
+    }
+
     private static function pleskPdo(): ?\PDO
     {
         $passFile = '/etc/psa/.psa.shadow';

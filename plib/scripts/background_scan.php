@@ -21,6 +21,7 @@ require_once $plibDir . '/VtCache.php';
 require_once $plibDir . '/VtRateLimiter.php';
 require_once $plibDir . '/VtApi.php';
 require_once $plibDir . '/PleskDomains.php';
+require_once $plibDir . '/VtNotifier.php';
 
 $settings = new VtSettings();
 $apiKey   = $settings->get('api_key');
@@ -83,6 +84,7 @@ foreach ($toScan as $i => $domain) {
     }
 
     $cache->set($domain, $result, false);
+    if ($cache->lastNotified) log_msg("[mail] $domain status change sent to " . implode(', ', $cache->lastNotified));
     $status = $result['status'] ?? 'error';
 
     switch ($status) {

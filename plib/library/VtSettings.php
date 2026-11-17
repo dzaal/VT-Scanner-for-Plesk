@@ -12,6 +12,10 @@ require_once __DIR__ . '/VtDataDir.php';
  *   clean_ttl_days   int      Days before re-checking a clean site (default 30)
  *   infected_ttl_days int     Days before re-checking an infected site (default 1)
  *   wordpress_only   bool     Scan WordPress sites only instead of every hosted website
+ *   notify_enabled   bool     E-mail when a site's status changes
+ *   notify_events    string[] Which new statuses to report: infected, suspicious, clean
+ *   notify_to        string[] Recipients: me, owner, reseller (limited by role)
+ *   login            string   Plesk login these settings belong to (for notifications)
  */
 class VtSettings
 {
@@ -34,6 +38,10 @@ class VtSettings
     private static array $defaults = [
         'api_key'            => '',
         'wordpress_only'     => false, // false = every hosted website, true = WordPress sites only
+        'notify_enabled'     => false,
+        'notify_events'      => ['infected', 'suspicious'],
+        'notify_to'          => ['me'],
+        'login'              => '',
         'daily_limit'        => 500,   // set to 0 for auto-detect via VT quota endpoint
         'auto_scan_share'    => 0.8,   // 80% for background, 20% for manual
         'clean_ttl_days'     => 30,
