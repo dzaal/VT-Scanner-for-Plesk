@@ -36,8 +36,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 
 /* Brand header */
 .vt-brand{display:flex;align-items:center;gap:14px;padding:14px 18px;margin-bottom:14px;border-radius:var(--radius);background:linear-gradient(135deg,#eff6ff 0%,#fff 60%);border:1px solid #dbe5f5}
-.vt-brand-logo{width:44px;height:44px;flex-shrink:0;border-radius:10px;background:linear-gradient(180deg,#2563eb,#1e3a8a);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(37,99,235,.3)}
-.vt-brand-logo svg{width:28px;height:28px}
+.vt-brand-logo{width:48px;height:48px;flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(37,99,235,.25))}
 .vt-brand-text{flex:1;min-width:0}
 .vt-brand-name{font-size:16px;font-weight:700;color:var(--heading);line-height:1.3}
 .vt-brand-ver{font-size:11px;font-weight:600;color:var(--blue);background:#dbeafe;border-radius:10px;padding:1px 7px;vertical-align:2px;margin-left:4px}
@@ -211,12 +210,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 <div id="vt-wrap">
 
   <div class="vt-brand">
-    <div class="vt-brand-logo" aria-hidden="true">
-      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M8 1L2 3.5V8C2 11.5 4.5 14.5 8 15.5C11.5 14.5 14 11.5 14 8V3.5L8 1Z" fill="#fff"/>
-        <path d="M5.6 8.2L7.4 10L10.6 6.6" stroke="#2563eb" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
+    <img class="vt-brand-logo" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/logo-128.png') ?>" alt="" width="48" height="48">
     <div class="vt-brand-text">
       <div class="vt-brand-name">VT Site Scanner<?php if ($this->version): ?> <span class="vt-brand-ver">v<?= htmlspecialchars($this->version) ?></span><?php endif; ?></div>
       <div class="vt-brand-tag">Malware, phishing and spam monitoring for every hosted website on this server, powered by VirusTotal</div>
