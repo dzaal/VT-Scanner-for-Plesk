@@ -153,6 +153,8 @@ class VtSettings
 
     private function save(): void
     {
-        file_put_contents(self::settingsFile($this->userId), json_encode($this->data, JSON_PRETTY_PRINT));
+        $file = self::settingsFile($this->userId);
+        file_put_contents($file, json_encode($this->data, JSON_PRETTY_PRINT));
+        @chmod($file, 0600); // contains the API key — panel user only
     }
 }

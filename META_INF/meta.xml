@@ -4,8 +4,8 @@
     <name>VT Site Scanner by Digizaal</name>
     <description>Monitor all WordPress sites for malware using VirusTotal API. Smart caching, budget control, and daily background scanning.</description>
     <category>security</category>
-    <version>1.0.1</version>
-    <release>2</release>
+    <version>1.1.0</version>
+    <release>1</release>
     <vendor>Digizaal</vendor>
     <url>https://www.digizaal.nl</url>
     <plesk_min_version>18.0</plesk_min_version>

@@ -1,16 +1,20 @@
 <?php
 /**
- * background_scan.php — dagelijkse VirusTotal achtergrond-scan.
+ * background_scan.php — nightly VirusTotal background scan.
  *
- * Plesk extensie-pad: /usr/local/psa/admin/plib/modules/virustotal-extension/scripts/
+ * Scheduled automatically by post-install.php through Plesk's scheduler
+ * (runs as psaadm with Plesk's PHP, every night at 03:00). No manual cron needed.
  *
- * Cron instellen via Plesk → Scheduled Tasks (of root crontab):
- *   0 3 * * * php /usr/local/psa/admin/plib/modules/virustotal-extension/scripts/background_scan.php
+ * Manual run (e.g. to test), as the panel user and with Plesk's PHP 8:
+ *   sudo -u psaadm /usr/local/psa/admin/bin/php  *     /usr/local/psa/admin/plib/modules/virustotal-extension/scripts/background_scan.php
+ *
+ * Do NOT run it as root or with the OS's /usr/bin/php: files created as root
+ * become unwritable for the panel, and older PHP versions can't parse this code.
  */
 
 define('VT_CRON', true);
 
-$plibDir = '/usr/local/psa/admin/plib/modules/virustotal-extension/library';
+$plibDir = dirname(__DIR__) . '/library';
 require_once $plibDir . '/VtDataDir.php';
 require_once $plibDir . '/VtSettings.php';
 require_once $plibDir . '/VtCache.php';
@@ -119,7 +123,9 @@ log_msg(sprintf(
 function log_msg(string $msg): void
 {
     $line = '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL;
-    echo $line;
+    // Echo only when run by hand in a terminal; the scheduled run stays silent
+    // (cron output would otherwise be mailed to the panel user).
+    if (function_exists('posix_isatty') && @posix_isatty(STDOUT)) echo $line;
     // Admin log — cron output is only visible to admin, not resellers/clients
     $logFile = VtDataDir::path('cron_admin.log');
     file_put_contents($logFile, $line, FILE_APPEND);
