@@ -37,7 +37,7 @@ $budget = $cache->budgetInfo();
 $vtRemaining = $api->remainingToday();
 log_msg("Start — VT quota remaining: {$vtRemaining}/500 | budget: auto {$budget['auto_used']}/{$budget['auto_max']}, manual {$budget['manual_used']}/{$budget['manual_max']}");
 
-$domains = PleskDomains::allWordPressDomains();
+$domains = PleskDomains::allDomains((bool)(new VtSettings('admin'))->get('wordpress_only', false));
 if (empty($domains)) {
     log_msg("No domains found. Stopping.");
     exit(0);

@@ -2,62 +2,104 @@
 require_once __DIR__ . '/VtDataDir.php';
 
 /**
- * PleskDomains — WordPress site URLs from Plesk.
+ * PleskDomains: every active domain and subdomain with web hosting in Plesk.
+ *
+ * Read straight from Plesk's `psa` database (domains with htype 'vrt_hst' and
+ * status 0). Forwarding-only domains, domains without hosting and suspended or
+ * disabled domains are skipped: there is no website of ours to check there.
  *
  * Role-based filtering:
- *   - Admin   : all WordPress domains (MySQL scan)
- *   - Reseller: their own + their clients' domains ∩ WordPress sites
- *   - Client  : their own domains ∩ WordPress sites
+ *   - Admin   : all hosted domains
+ *   - Reseller: their own + their clients' hosted domains
+ *   - Client  : their own hosted domains
  *
- * Reseller/client filtering uses the Plesk `psa` MySQL database directly —
+ * WordPress sites on a hostname under a hosted domain that is not a Plesk
+ * subdomain of its own (e.g. 2025.example.com served by example.com) are added
+ * too, found through the `siteurl` option of WordPress databases.
+ *
  * pm_Domain::getAllDomains() does not reliably respect session context in
- * extension modules, so we query ownership ourselves.
+ * extension modules, so ownership is queried from the psa database as well.
  */
 class PleskDomains
 {
-    const DOMAIN_CACHE_TTL  = 86400; // 1 day
+    const DOMAIN_CACHE_TTL = 86400; // 1 day
     private static function domainCacheFile(): string { return VtDataDir::path('vt_domains.json'); }
+    private static function wpCacheFile(): string     { return VtDataDir::path('vt_wp_sites.json'); }
 
     /** Request-level cache: repeated calls within one HTTP request are free */
     private static ?array $requestCache = null;
 
-    /** Return WordPress domain hostnames for the current Plesk user */
-    public static function forCurrentUser(): array
+    /** Hosted domain names visible to the current Plesk user ($wpOnly: WordPress sites only) */
+    public static function forCurrentUser(bool $wpOnly = false): array
     {
-        if (self::$requestCache !== null) return self::$requestCache;
+        if (self::$requestCache === null) self::$requestCache = self::discoverForCurrentUser();
+        return $wpOnly ? self::onlyWordPress(self::$requestCache) : self::$requestCache;
+    }
+
+    /**
+     * Site list from the cache files only, never running discovery (for the Home card).
+     * Returns null when nothing is cached yet.
+     */
+    public static function cachedDomains(bool $wpOnly = false): ?array
+    {
+        $d = is_file(self::domainCacheFile()) ? json_decode((string)file_get_contents(self::domainCacheFile()), true) : null;
+        if (!is_array($d) || !$d) return null;
+        if (!$wpOnly) return $d;
+        $wp = is_file(self::wpCacheFile()) ? json_decode((string)file_get_contents(self::wpCacheFile()), true) : null;
+        return is_array($wp) ? array_values(array_intersect($d, $wp)) : $d;
+    }
+
+    private static function discoverForCurrentUser(): array
+    {
 
         // pm_Session is loaded after pm_Context::init() in the Plesk web context
         if (class_exists('pm_Session')) {
             try {
-                self::$requestCache = self::fromPlesk();
-                return self::$requestCache;
+                return self::fromPlesk();
             } catch (\Throwable $e) {
                 // Could not determine user; fall through to full list
             }
         }
 
-        self::$requestCache = self::allWordPressDomains();
-        return self::$requestCache;
+        return self::allDomains();
     }
 
-    /** All WordPress domains on this server (for admin and cron) */
-    public static function allWordPressDomains(): array
+    /** All hosted domains on this server (for admin and the nightly scan), cached for a day */
+    public static function allDomains(bool $wpOnly = false): array
     {
-        if (file_exists(self::domainCacheFile())
-            && (time() - filemtime(self::domainCacheFile())) < self::DOMAIN_CACHE_TTL) {
-            $d = json_decode(file_get_contents(self::domainCacheFile()), true);
+        $all = self::allHostedDomains();
+        return $wpOnly ? self::onlyWordPress($all) : $all;
+    }
+
+    /** Keep only the hostnames that run WordPress */
+    public static function onlyWordPress(array $domains): array
+    {
+        $wp = array_flip(self::wordPressHosts());
+        return array_values(array_filter($domains, fn($d) => isset($wp[$d])));
+    }
+
+    private static function allHostedDomains(): array
+    {
+        $file = self::domainCacheFile();
+        if (is_file($file) && (time() - filemtime($file)) < self::DOMAIN_CACHE_TTL) {
+            $d = json_decode((string)file_get_contents($file), true);
             if (is_array($d) && $d) return $d;
         }
 
-        $domains = self::fetchFromMysql();
-        file_put_contents(self::domainCacheFile(), json_encode($domains));
-        return $domains;
+        $domains = self::queryDomains(null, false);
+        if ($domains) {
+            $domains = self::withWordPressSubsites($domains);
+            // Never cache an empty list: that would hide every site for a day
+            file_put_contents($file, json_encode($domains));
+        }
+        return $domains ?? [];
     }
 
     public static function invalidateCache(): void
     {
         self::$requestCache = null;
         @unlink(self::domainCacheFile());
+        @unlink(self::wpCacheFile());
     }
 
     // ── Private ─────────────────────────────────────────────────
@@ -67,123 +109,131 @@ class PleskDomains
         $client = pm_Session::getClient();
         if (!$client) throw new \Exception('No Plesk session client');
 
-        // Admin sees all WordPress sites
         if ($client->isAdmin()) {
-            return self::allWordPressDomains();
+            return self::allHostedDomains();
         }
 
-        // Reseller or Client: query their Plesk domains from PSA database,
-        // then intersect with the WordPress site list.
-        $allWp       = self::allWordPressDomains();
-        $userDomains = self::pleskDomainsForUser($client->getLogin(), $client->isReseller());
-
-        // null = MySQL unavailable (safe fallback: show nothing rather than everything)
-        // []   = user has no domains — correct, show empty dashboard
-        if ($userDomains === null) {
-            return [];
-        }
-
-        $userSet = array_flip($userDomains);
-        $result  = array_values(array_filter($allWp, fn($d) => isset($userSet[$d])));
-        sort($result);
-        return $result;
+        // null = DB unavailable or login unknown: show nothing rather than everything
+        $own = self::queryDomains($client->getLogin(), $client->isReseller());
+        return $own ? self::withWordPressSubsites($own) : [];
     }
 
     /**
-     * Query Plesk PSA database for domains owned by a given login.
-     * Returns null on failure (DB unavailable / login not found),
-     * or an array of domain names (possibly empty if user has no domains).
-     * Resellers get their own subscriptions + all direct sub-clients' domains.
+     * Hosted, active domains from the psa database.
+     * $login null = all domains; otherwise only those owned by that login
+     * (resellers also get their direct clients' domains).
+     * Returns null on failure, or a sorted list (possibly empty).
      */
-    private static function pleskDomainsForUser(string $login, bool $isReseller): ?array
+    private static function queryDomains(?string $login, bool $isReseller): ?array
     {
         $pdo = self::pleskPdo();
-        if (!$pdo) return null; // DB unavailable
+        if (!$pdo) return null;
 
+        $sql    = "SELECT LOWER(d.name) FROM domains d WHERE d.htype = 'vrt_hst' AND d.status = 0";
+        $params = [];
         try {
-            $stmt = $pdo->prepare('SELECT id FROM clients WHERE login = ? LIMIT 1');
-            $stmt->execute([$login]);
-            $clientId = $stmt->fetchColumn();
-            if (!$clientId) return null; // Login not found in Plesk DB
+            if ($login !== null) {
+                $stmt = $pdo->prepare('SELECT id FROM clients WHERE login = ? LIMIT 1');
+                $stmt->execute([$login]);
+                $clientId = $stmt->fetchColumn();
+                if (!$clientId) return null;
 
-            if ($isReseller) {
-                // Reseller: own subscriptions + all direct sub-clients' domains
-                $stmt = $pdo->prepare(
-                    'SELECT LOWER(d.name) FROM domains d
-                     WHERE d.cl_id = ?
-                        OR d.cl_id IN (SELECT id FROM clients WHERE parent_id = ?)
-                     ORDER BY d.name'
-                );
-                $stmt->execute([$clientId, $clientId]);
-            } else {
-                // Client: own domains only
-                $stmt = $pdo->prepare(
-                    'SELECT LOWER(d.name) FROM domains d
-                     WHERE d.cl_id = ?
-                     ORDER BY d.name'
-                );
-                $stmt->execute([$clientId]);
+                if ($isReseller) {
+                    $sql   .= ' AND (d.cl_id = ? OR d.cl_id IN (SELECT id FROM clients WHERE parent_id = ?))';
+                    $params = [$clientId, $clientId];
+                } else {
+                    $sql   .= ' AND d.cl_id = ?';
+                    $params = [$clientId];
+                }
             }
-
-            return $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: []; // empty array = no domains
+            $stmt = $pdo->prepare($sql . ' ORDER BY d.name');
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
         } catch (\PDOException $e) {
-            return null; // Query failed
+            return null;
         }
+
+        $domains = [];
+        foreach ($rows as $name) {
+            $name = trim((string)$name);
+            if (!preg_match('/^[a-z0-9.\-]+\.[a-z0-9\-]{2,}$/', $name)) continue;
+            if (preg_match('/(^|\.)localhost$|\.local$|\.test$|\.invalid$/', $name)) continue;
+            $domains[$name] = true;
+        }
+        $domains = array_keys($domains);
+        sort($domains);
+        return $domains;
+    }
+
+    /**
+     * Add WordPress hostnames that fall under one of $hosted but are not in it.
+     * WordPress databases of forwarded or unhosted domains are ignored.
+     */
+    private static function withWordPressSubsites(array $hosted): array
+    {
+        $set = array_flip($hosted);
+        foreach (self::wordPressHosts() as $host) {
+            if (isset($set[$host])) continue;
+            $parts = explode('.', $host);
+            for ($i = 1; $i < count($parts) - 1; $i++) {
+                if (isset($set[implode('.', array_slice($parts, $i))])) { $set[$host] = true; break; }
+            }
+        }
+        $all = array_keys($set);
+        sort($all);
+        return $all;
+    }
+
+    /** Hostnames from the siteurl option of every WordPress database, cached for a day */
+    private static function wordPressHosts(): array
+    {
+        $file = self::wpCacheFile();
+        if (is_file($file) && (time() - filemtime($file)) < self::DOMAIN_CACHE_TTL) {
+            $d = json_decode((string)file_get_contents($file), true);
+            if (is_array($d)) return $d;
+        }
+        $pdo = self::pleskPdo();
+        if (!$pdo) return [];
+
+        $hosts = [];
+        try {
+            $tables = $pdo->query(
+                "SELECT TABLE_SCHEMA, TABLE_NAME FROM information_schema.TABLES
+                 WHERE TABLE_NAME LIKE '%options'
+                   AND TABLE_SCHEMA NOT IN ('information_schema','mysql','performance_schema','sys','psa','apsc','horde','roundcube')"
+            )->fetchAll(\PDO::FETCH_NUM);
+            foreach ($tables as [$db, $tbl]) {
+                try {
+                    $url = $pdo->query('SELECT option_value FROM `' . str_replace('`', '', $db) . '`.`'
+                        . str_replace('`', '', $tbl) . "` WHERE option_name = 'siteurl' LIMIT 1")->fetchColumn();
+                } catch (\PDOException $e) {
+                    continue; // not a WordPress options table
+                }
+                $host = strtolower((string)parse_url(trim((string)$url), PHP_URL_HOST));
+                $host = preg_replace('/^www\./', '', $host);
+                if ($host && preg_match('/^[a-z0-9.\-]+\.[a-z0-9\-]{2,}$/', $host)) $hosts[$host] = true;
+            }
+        } catch (\PDOException $e) {
+            return [];
+        }
+        $hosts = array_keys($hosts);
+        file_put_contents($file, json_encode($hosts));
+        return $hosts;
     }
 
     private static function pleskPdo(): ?\PDO
     {
         $passFile = '/etc/psa/.psa.shadow';
-        if (!file_exists($passFile)) return null;
+        if (!is_readable($passFile)) return null;
         try {
-            $pass = trim(file_get_contents($passFile));
             return new \PDO(
                 'mysql:host=localhost;dbname=psa;charset=utf8',
                 'admin',
-                $pass,
+                trim((string)file_get_contents($passFile)),
                 [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]
             );
         } catch (\PDOException $e) {
             return null;
         }
-    }
-
-    private static function fetchFromMysql(): array
-    {
-        $passFile = '/etc/psa/.psa.shadow';
-        if (!file_exists($passFile)) return [];
-
-        $script = VtDataDir::path('vt_get_domains.sh');
-        file_put_contents($script, <<<'BASH'
-#!/bin/bash
-PASS=$(cat /etc/psa/.psa.shadow)
-MYSQL="mysql -uadmin -p${PASS} -Ns"
-TABLES=$($MYSQL -e "
-SELECT TABLE_SCHEMA, TABLE_NAME
-FROM information_schema.TABLES
-WHERE TABLE_NAME LIKE '%options'
-  AND TABLE_SCHEMA NOT IN ('information_schema','mysql','performance_schema','sys','psa','horde','roundcube')
-ORDER BY TABLE_SCHEMA;" 2>/dev/null)
-while IFS=$'\t' read -r db tbl; do
-    URL=$($MYSQL -e "SELECT option_value FROM \`${db}\`.\`${tbl}\` WHERE option_name='siteurl' LIMIT 1;" 2>/dev/null)
-    [ -n "$URL" ] && echo "$URL"
-done <<< "$TABLES"
-BASH
-        );
-        chmod($script, 0755);
-        $output = shell_exec("bash $script 2>/dev/null") ?? '';
-
-        $domains = [];
-        $seen    = [];
-        foreach (explode("\n", $output) as $url) {
-            $url = preg_replace('#^https?://(www\.)?#', '', rtrim(strtolower(trim($url)), '/'));
-            if (!$url || isset($seen[$url])) continue;
-            if (!preg_match('/^[a-z0-9.\-]+\.[a-z]{2,}$/', $url)) continue;
-            if (preg_match('/localhost|127\.|\.local$|\.test$/', $url)) continue;
-            $seen[$url] = true;
-            $domains[]  = $url;
-        }
-        sort($domains);
-        return $domains;
     }
 }

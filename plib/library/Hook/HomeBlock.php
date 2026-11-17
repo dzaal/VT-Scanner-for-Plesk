@@ -8,6 +8,7 @@
 require_once dirname(__DIR__) . '/VtDataDir.php';
 require_once dirname(__DIR__) . '/VtSettings.php';
 require_once dirname(__DIR__) . '/VtCache.php';
+require_once dirname(__DIR__) . '/PleskDomains.php';
 
 class Modules_VirustotalExtension_Hook_HomeBlock extends \Plesk\SDK\Hook\Home\Block
 {
@@ -81,10 +82,10 @@ class Modules_VirustotalExtension_Hook_HomeBlock extends \Plesk\SDK\Hook\Home\Bl
         if ($this->stats !== null) return $this->stats;
         $s = ['total' => 0, 'infected' => 0, 'suspicious' => 0, 'clean' => 0, 'other' => 0, 'last' => 0, 'flagged' => []];
         try {
-            $results = (new VtCache(new VtSettings('admin')))->all();
-            // Cached site list only: never run MySQL discovery while rendering the Home page
-            $f = VtDataDir::path('vt_domains.json');
-            $domains = is_file($f) ? json_decode((string)file_get_contents($f), true) : null;
+            $settings = new VtSettings('admin');
+            $results  = (new VtCache($settings))->all();
+            // Cached site list only: never run discovery while rendering the Home page
+            $domains = PleskDomains::cachedDomains((bool)$settings->get('wordpress_only', false));
             if (is_array($domains) && $domains) {
                 $results = array_intersect_key($results, array_flip($domains));
                 $neverScanned = count(array_diff($domains, array_keys($results)));

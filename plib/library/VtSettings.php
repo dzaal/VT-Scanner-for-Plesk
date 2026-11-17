@@ -11,6 +11,7 @@ require_once __DIR__ . '/VtDataDir.php';
  *                             Remaining fraction is kept for manual Reanalyze buttons.
  *   clean_ttl_days   int      Days before re-checking a clean site (default 30)
  *   infected_ttl_days int     Days before re-checking an infected site (default 1)
+ *   wordpress_only   bool     Scan WordPress sites only instead of every hosted website
  */
 class VtSettings
 {
@@ -32,7 +33,7 @@ class VtSettings
 
     private static array $defaults = [
         'api_key'            => '',
-        'enabled'            => true,  // master on/off switch
+        'wordpress_only'     => false, // false = every hosted website, true = WordPress sites only
         'daily_limit'        => 500,   // set to 0 for auto-detect via VT quota endpoint
         'auto_scan_share'    => 0.8,   // 80% for background, 20% for manual
         'clean_ttl_days'     => 30,

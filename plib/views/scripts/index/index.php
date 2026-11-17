@@ -164,11 +164,10 @@
 .vt-key-display{margin-top:8px;padding:8px 11px;background:var(--gray-bg);border:1px solid var(--border);border-radius:var(--radius);font-family:monospace;font-size:12px;color:var(--text);word-break:break-all;display:none}
 .vt-key-display .vt-key-label{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
 
-/* Toggle */
-.vt-toggle-track{width:40px;height:22px;background:var(--border);border-radius:11px;position:relative;transition:background .2s;cursor:pointer}
-.vt-toggle-thumb{width:18px;height:18px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
-.vt-toggle-track.on{background:var(--green)}
-.vt-toggle-track.on .vt-toggle-thumb{left:20px}
+/* Radio options */
+.vt-radio{display:flex;align-items:flex-start;gap:10px;padding:8px 0;cursor:pointer;font-size:13px}
+.vt-radio input{margin-top:3px}
+.vt-radio .hint{font-size:12px;color:var(--muted)}
 
 /* Toasts */
 .vt-toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:6px;z-index:9999;pointer-events:none}
@@ -192,7 +191,7 @@
     </div>
     <div class="vt-brand-text">
       <div class="vt-brand-name">VT Site Scanner<?php if ($this->version): ?> <span class="vt-brand-ver">v<?= htmlspecialchars($this->version) ?></span><?php endif; ?></div>
-      <div class="vt-brand-tag">Malware, phishing and spam monitoring for every WordPress site on this server, powered by VirusTotal</div>
+      <div class="vt-brand-tag">Malware, phishing and spam monitoring for every hosted website on this server, powered by VirusTotal</div>
     </div>
     <a class="vt-brand-by" href="https://www.digizaal.nl" target="_blank" rel="noopener">
       <span>by</span> <strong>Digizaal</strong>
@@ -306,14 +305,11 @@
   <!-- Settings -->
   <div class="vt-panel" id="vtpanel-settings">
     <div class="vt-card">
-      <h3>VT Site Scanner — General</h3>
-      <div class="vt-field" style="display:flex;align-items:center;gap:12px;padding:10px 0">
-        <label class="vt-toggle-wrap" style="display:flex;align-items:center;gap:10px;cursor:pointer">
-          <div class="vt-toggle-track on" id="vt-s-enabled" onclick="vtToggleEnabled(this)"><div class="vt-toggle-thumb"></div></div>
-          <span style="font-weight:600;font-size:14px">Scanner enabled</span>
-        </label>
-        <span style="font-size:12px;color:var(--muted)" id="vt-enabled-hint">Scanning is active</span>
-      </div>
+      <h3>Sites to scan</h3>
+      <label class="vt-radio"><input type="radio" name="vt-s-scope" id="vt-s-scope-all" value="all" checked>
+        <span><strong>All hosted websites</strong><br><span class="hint">Every active domain and subdomain with web hosting, whatever it runs</span></span></label>
+      <label class="vt-radio"><input type="radio" name="vt-s-scope" id="vt-s-scope-wp" value="wp">
+        <span><strong>WordPress sites only</strong><br><span class="hint">Only sites with a WordPress database on this server</span></span></label>
     </div>
 
     <div class="vt-card">
@@ -855,12 +851,7 @@ window.vtRefreshDomains=async function(){
 };
 
 // ── Settings ──────────────────────────────────────────────────
-window.vtToggleEnabled=function(el){
-  el.classList.toggle('on');
-  const on=el.classList.contains('on');
-  document.getElementById('vt-enabled-hint').textContent=on?'Scanning is active':'Scanner is disabled';
-};
-
+let savedWpOnly=false;
 function loadSettingsForm(cfg){
   const keyInput=document.getElementById('vt-s-apikey');
   const kd=document.getElementById('vt-key-display');
@@ -869,10 +860,8 @@ function loadSettingsForm(cfg){
     document.getElementById('vt-key-value').textContent=cfg.api_key_readable;
     kd.style.display='block';
   }
-  const tog=document.getElementById('vt-s-enabled');
-  const enabled=cfg.enabled!==false;
-  tog.classList.toggle('on',enabled);
-  document.getElementById('vt-enabled-hint').textContent=enabled?'Scanning is active':'Scanner is disabled';
+  document.getElementById(cfg.wordpress_only?'vt-s-scope-wp':'vt-s-scope-all').checked=true;
+  savedWpOnly=!!cfg.wordpress_only;
   if(cfg.daily_limit)       document.getElementById('vt-s-daily').value    =cfg.daily_limit;
   if(cfg.auto_scan_share)   document.getElementById('vt-s-share').value    =Math.round(cfg.auto_scan_share*100);
   if(cfg.clean_ttl_days)    document.getElementById('vt-s-clean-ttl').value=cfg.clean_ttl_days;
@@ -885,8 +874,8 @@ window.vtSaveSettings=async function(){
   const share=(parseInt(document.getElementById('vt-s-share').value)||80)/100;
   const cttl =parseInt(document.getElementById('vt-s-clean-ttl').value)||30;
   const ittl =parseInt(document.getElementById('vt-s-inf-ttl').value)||1;
-  const enabled=document.getElementById('vt-s-enabled').classList.contains('on');
-  const payload={enabled:enabled?'true':'false',daily_limit:daily,auto_scan_share:share,clean_ttl_days:cttl,infected_ttl_days:ittl};
+  const wpOnly=document.getElementById('vt-s-scope-wp').checked;
+  const payload={wordpress_only:wpOnly?'true':'false',daily_limit:daily,auto_scan_share:share,clean_ttl_days:cttl,infected_ttl_days:ittl};
   if(key) payload.api_key=key;
 
   const body=new URLSearchParams(payload);
@@ -898,8 +887,10 @@ window.vtSaveSettings=async function(){
     msg.className='vt-smsg ok'; msg.textContent='Saved!';
     document.getElementById('vt-api-warning').style.display='none';
     document.getElementById('vt-s-apikey').value='';
+    const scopeChanged=wpOnly!==savedWpOnly;
     const cfg=await vtFetch('?action=get-settings').catch(()=>({}));
     loadSettingsForm(cfg);
+    if(scopeChanged) vtRefreshDomains(); // reload the site list for the new scope
   }else{msg.className='vt-smsg err'; msg.textContent=res.error??'Error saving';}
   setTimeout(()=>{msg.style.display='none';},4000);
 };

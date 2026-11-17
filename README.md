@@ -2,13 +2,13 @@
 
 # VT Site Scanner for Plesk
 
-A Plesk extension that checks every WordPress site on your server against [VirusTotal](https://www.virustotal.com) for malware, phishing and spam, while carefully managing the limited number of API calls in VirusTotal's free tier.
+A Plesk extension that checks every website hosted on your Plesk server against [VirusTotal](https://www.virustotal.com) for malware, phishing and spam, while carefully managing the limited number of API calls in VirusTotal's free tier.
 
 Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web development and hosting company in Amsterdam.
 
 ## Screenshots
 
-**Scanner dashboard:** every WordPress site with its status, detection score and a Rescan button. The scan queue at the top shows what is being checked right now.
+**Scanner dashboard:** every hosted website with its status, detection score and a Rescan button. The scan queue at the top shows what is being checked right now.
 
 ![VT Site Scanner dashboard in Plesk](docs/screenshots/scanner-dashboard.png)
 
@@ -43,7 +43,7 @@ VT Site Scanner was built to fix that:
 
 ## Features
 
-- Dashboard with every WordPress site on the server: status (Infected / Suspicious / Clean / Queued / Error), detection score (e.g. `3/93` engines), IP address, domain age and danger tags (malware, phishing, …), with direct links to the site and to its VirusTotal page.
+- Dashboard with every website hosted on the server (WordPress or not): status (Infected / Suspicious / Clean / Queued / Error), detection score (e.g. `3/93` engines), IP address, domain age and danger tags (malware, phishing, …), with direct links to the site and to its VirusTotal page.
 - **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → VT Site Scanner**.
 - **Live scan queue** for manual rescans: queued → submitted → VT analysis → report → done, with the score before and after. VirusTotal's per-minute limit is waited out automatically instead of failing.
 - **Nightly background scan** (03:00, server time), scheduled automatically through Plesk's own scheduler.
@@ -69,8 +69,7 @@ Every API call is a domain report lookup (`GET /domains/{domain}`), a re-analysi
 ## Requirements
 
 - **Plesk Obsidian 18.0 or newer** on Linux, with root SSH access to the server
-- **WordPress sites in MySQL/MariaDB** on the same server. Sites are found by reading the `siteurl` option from every database with an `…options` table; WP Toolkit is not required.
-- The **`mysql` command-line client** on the server (normally present on Plesk servers)
+- Websites hosted in Plesk. Every active domain and subdomain with web hosting is checked, whatever it runs (WordPress, Joomla, plain HTML, …), plus WordPress sites on a hostname under a hosted domain. Forwarding-only domains, domains without hosting and suspended domains are skipped. The list is read from Plesk's own database. To check WordPress sites only, choose **Settings → Sites to scan → WordPress sites only**.
 - A **VirusTotal API key**. The free key is enough: create an account at [virustotal.com](https://www.virustotal.com), then open your profile menu → **API key**.
 
 The extension runs on Plesk's own bundled PHP (8.x), so the PHP version of your websites doesn't matter.
@@ -128,11 +127,11 @@ Installing registers the nightly background scan automatically. You don't need t
 1. In Plesk, open **VT Site Scanner** (in the left navigation, or under **Extensions → My Extensions**).
 2. Go to the **Settings** tab.
 3. Paste your API key and click **Save settings**.
-4. Optional: adjust the daily limit (500 for the free tier, higher if you have a premium key), the background/manual split, and how long results are cached.
+4. Optional: choose **Sites to scan** (all hosted websites, or WordPress sites only), and adjust the daily limit (500 for the free tier, higher if you have a premium key), the background/manual split, and how long results are cached.
 
 ### Step 4: Check that it works
 
-1. Open the **Dashboard** tab. Your WordPress sites appear within a few seconds. Sites without a cached result are looked up gradually (at most 10 per page load, 4 per minute); the nightly scan handles the rest.
+1. Open the **Dashboard** tab. Your hosted websites appear within a few seconds. Sites without a cached result are looked up gradually (at most 10 per page load, 4 per minute); the nightly scan handles the rest.
 2. Click **Rescan** on any site. The **Scan queue** panel shows the scan moving through its steps.
 3. Check that the nightly scan is scheduled:
    ```bash
@@ -182,7 +181,7 @@ rm -rf /usr/local/psa/var/modules/virustotal-extension
 
 | Problem | What to check |
 |---|---|
-| "No sites found" | Click **Refresh** (the site list is cached for a day). Check that the `mysql` client exists: `which mysql`. |
+| "No sites found" | Click **Refresh** (the site list is cached for a day). Only active domains with web hosting are listed; forwarding-only and suspended domains are skipped. |
 | "Invalid API key (401)" | Re-paste the key in **Settings**; make sure there are no spaces around it. |
 | Many sites stay "Queued" | VirusTotal has never seen these domains; the first lookup submits them for a scan. They resolve on a later lookup or the next nightly run. |
 | Rescans say "Daily manual rescan limit reached" | The manual share of today's budget is used up. It resets at midnight UTC, or raise the percentage in **Settings**. |

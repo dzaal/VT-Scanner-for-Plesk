@@ -2,9 +2,9 @@
 <module>
     <id>virustotal-extension</id>
     <name>VT Site Scanner by Digizaal</name>
-    <description>Monitor all WordPress sites for malware using VirusTotal API. Smart caching, budget control, and daily background scanning.</description>
+    <description>Monitor every website hosted in Plesk for malware, phishing and spam using the VirusTotal API. Smart caching, budget control, and daily background scanning.</description>
     <category>security</category>
-    <version>1.2.1</version>
+    <version>1.3.0</version>
     <release>1</release>
     <vendor>Digizaal</vendor>
     <url>https://www.digizaal.nl</url>

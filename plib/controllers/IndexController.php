@@ -85,7 +85,7 @@ class IndexController extends pm_Controller_Action
     {
         $domain = $this->sanitize($this->_getParam('domain', ''));
         if (!$domain) { $this->respond(['error' => 'invalid']); return; }
-        if (!in_array($domain, PleskDomains::forCurrentUser(), true)) {
+        if (!in_array($domain, PleskDomains::forCurrentUser($this->wpOnly()), true)) {
             $this->respond(['error' => 'forbidden']); return;
         }
 
@@ -97,9 +97,6 @@ class IndexController extends pm_Controller_Action
             $this->respond($cached); return;
         }
 
-        if (!$this->settings->get('enabled', true)) {
-            $this->respond(['status' => 'pending', 'domain' => $domain, 'message' => 'Scanner disabled']); return;
-        }
         if (!$this->effectiveApiKey) {
             $this->respond(['status' => 'error', 'domain' => $domain, 'message' => 'No API key configured']); return;
         }
@@ -157,7 +154,7 @@ class IndexController extends pm_Controller_Action
     {
         $domain = $this->sanitize($this->_getParam('domain', ''));
         if (!$domain) { $this->respond(['error' => 'invalid']); return; }
-        if (!in_array($domain, PleskDomains::forCurrentUser(), true)) {
+        if (!in_array($domain, PleskDomains::forCurrentUser($this->wpOnly()), true)) {
             $this->respond(['error' => 'forbidden']); return;
         }
 
@@ -196,7 +193,7 @@ class IndexController extends pm_Controller_Action
 
     public function allAction(): void
     {
-        $domains    = PleskDomains::forCurrentUser();
+        $domains    = PleskDomains::forCurrentUser($this->wpOnly());
         $allResults = $this->cache->all();
         // Filter cached results to only domains this user has access to
         $results = array_intersect_key($allResults, array_flip($domains));
@@ -212,7 +209,7 @@ class IndexController extends pm_Controller_Action
     public function refreshDomainsAction(): void
     {
         PleskDomains::invalidateCache();
-        $this->respond(['domains' => PleskDomains::forCurrentUser()]);
+        $this->respond(['domains' => PleskDomains::forCurrentUser($this->wpOnly())]);
     }
 
     public function budgetAction(): void
@@ -271,7 +268,7 @@ class IndexController extends pm_Controller_Action
         $raw = $this->getRequest()->getRawBody();
         $input = ($raw && $raw[0] === '{') ? (json_decode($raw, true) ?? []) : $this->getRequest()->getPost();
 
-        $allowed = ['api_key', 'enabled', 'daily_limit', 'auto_scan_share', 'clean_ttl_days', 'infected_ttl_days'];
+        $allowed = ['api_key', 'wordpress_only', 'daily_limit', 'auto_scan_share', 'clean_ttl_days', 'infected_ttl_days'];
         $save    = [];
         foreach ($allowed as $k) {
             if (!isset($input[$k])) continue;
@@ -279,7 +276,7 @@ class IndexController extends pm_Controller_Action
                 $v = trim((string)$input[$k]);
                 if ($v === '') continue;
                 $save[$k] = $v;
-            } elseif ($k === 'enabled') {
+            } elseif ($k === 'wordpress_only') {
                 $save[$k] = filter_var($input[$k], FILTER_VALIDATE_BOOLEAN);
             } elseif (in_array($k, ['daily_limit', 'clean_ttl_days', 'infected_ttl_days'])) {
                 $save[$k] = max(1, (int)$input[$k]);
@@ -297,6 +294,12 @@ class IndexController extends pm_Controller_Action
     }
 
     // ── Helpers ─────────────────────────────────────────────────
+
+    /** Scan WordPress sites only, instead of every hosted website */
+    private function wpOnly(): bool
+    {
+        return (bool)$this->settings->get('wordpress_only', false);
+    }
 
     private function userLogFile(): string
     {
