@@ -1247,6 +1247,13 @@ window.vtRefreshDomains=async function(){
   const data=await vtFetch('?action=refresh-domains').catch(()=>({}));
   if(data.domains){
     domains=data.domains; vtSet('vt-cnt-all',domains.length);
+    // Orphan databases too (the server cache was just cleared, so a deleted database drops out)
+    const all=await vtFetch('?action=all').catch(()=>null);
+    if(all){
+      related=all.related||[]; relSet=new Set(related); orphans=all.orphans||{};
+      Object.assign(results,all.results||{});
+      for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d};
+    }
     scanQueue=domains.filter(d=>!results[d]); renderTable(); updateCounts(); pump();
   }
 };
