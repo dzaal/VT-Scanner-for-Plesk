@@ -68,7 +68,7 @@ VT Site Scanner was built to fix that:
 - **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → VT Site Scanner**.
 - **Live scan queue**: one line showing the site being checked right now, or the latest result with its score. An animated bar shows the pause for VirusTotal's 4-requests-per-minute limit, which is waited out automatically instead of failing.
 - **Nightly background scan** (03:00, server time), scheduled automatically through Plesk's own scheduler.
-- **Trend graph:** infected, suspicious and cleaned sites per day over the last 1, 2 or 3 months (see [Trend](#trend)).
+- **Trend graph:** infected, suspicious and cleaned sites per day over the last 1, 2 or 3 months, for the whole server or per reseller (see [Trend](#trend)).
 - **Helps you solve it, not just report it.** Click the score of an infected or suspicious site to see which vendors flag it, with a link per vendor to ask for a review (see [Cleaned, but still red?](#cleaned-but-still-red)).
 - **E-mail notifications:** one summary e-mail with status changes and the full list of infected sites (see [Notifications](#notifications)).
 - **Works for every Plesk user level:** administrator, reseller and client (see [Users and roles](#users-and-roles)).
@@ -139,7 +139,7 @@ Mail is sent with the server's own mail system (PHP `mail()` via sendmail), from
 
 ## Trend
 
-The **Trend** tab (administrator only) shows how infections on the server develop, per day, over the last **1, 2 or 3 months**:
+The **Trend** tab shows how infections develop, per day, over the last **1, 2 or 3 months**. The administrator sees the whole server; a **reseller** sees only their own customers and sites:
 
 - **Infected** and **suspicious** sites per day, as lines.
 - **Sites cleaned per day**: sites that were infected or suspicious and are clean again, as bars.
@@ -150,7 +150,7 @@ The **Trend** tab (administrator only) shows how infections on the server develo
 
 *This screenshot uses demo data (the shaded part): many infected sites, a big clean-up two months ago, and a slow rise since.*
 
-The totals are saved once a day: by the nightly scan, and whenever the administrator opens the dashboard. The history is kept for about a year in `vt_history.json` in the data folder.
+The totals are saved once a day: by the nightly scan (for the server and for every reseller), and whenever an administrator or reseller opens the dashboard. The history is kept for about a year in the data folder (`vt_history.json` for the server, `vt_history_r_<login>.json` per reseller). Demo data is only ever added to the server history, never to a reseller.
 
 To see what the graph looks like before there is any history, you can fill the last 92 days with made-up example data (clearly marked as *demo*, shaded in the graph, and replaced by real totals day by day):
 

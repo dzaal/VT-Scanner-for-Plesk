@@ -217,8 +217,9 @@ class IndexController extends pm_Controller_Action
         $results = array_intersect_key($allResults, array_flip(array_merge($domains, $related)));
         $budgetInfo = $this->cache->budgetInfo();
         $budgetInfo['vt_quota_used'] = VtRateLimiter::todayCountForKey($this->effectiveApiKey);
-        if ($this->role() === 'admin') {
-            // Today's server totals for the trend graph (the admin sees every site)
+        if (in_array($this->role(), ['admin', 'reseller'], true)) {
+            // Today's totals for the trend graph: the whole server for the admin, a reseller's own sites otherwise
+            VtHistory::scope($this->role() === 'admin' ? 'admin' : $this->settings->getUserId());
             VtHistory::record(array_map(fn($d) => (string)($allResults[$d]['status'] ?? 'unknown'), array_combine($domains, $domains)));
         }
         $this->respond([
@@ -587,11 +588,13 @@ class IndexController extends pm_Controller_Action
         $this->respond($out);
     }
 
-    /** Daily server totals for the trend graph (administrator only) */
+    /** Daily totals for the trend graph: the whole server (administrator) or the reseller's sites */
     public function historyAction(): void
     {
-        if ($this->role() !== 'admin') { $this->respond(['error' => 'Only the administrator can see the server trend']); return; }
-        $this->respond(['days' => VtHistory::days(92)]);
+        $role = $this->role();
+        if (!in_array($role, ['admin', 'reseller'], true)) { $this->respond(['error' => 'The trend is available to the administrator and resellers']); return; }
+        VtHistory::scope($role === 'admin' ? 'admin' : $this->settings->getUserId());
+        $this->respond(['days' => VtHistory::days(92), 'scope' => $role === 'admin' ? 'server' : 'reseller']);
     }
 
     /** A site of this user, or a related hostname under one of the user's domains */

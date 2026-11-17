@@ -1,8 +1,9 @@
 <?php
 /**
- * Daily totals for the whole server: infected, suspicious and clean sites, plus how many
+ * Daily totals per scope ('admin' = the whole server, or a reseller's login = that reseller's
+ * customers and own sites): infected, suspicious and clean sites, plus how many
  * sites were cleaned (infected/suspicious -> clean) and newly infected that day.
- * Used for the trend graph. Stored in vt_history.json:
+ * Used for the trend graph. Stored in vt_history.json (server) or vt_history_r_<login>.json:
  *   days: { "2026-11-17": {infected, suspicious, clean, total, cleaned, new_infected, demo?} }
  *   last: { domain: status }  (statuses at the previous snapshot, to count changes)
  */
@@ -12,7 +13,16 @@ class VtHistory
 {
     const KEEP_DAYS = 400;
 
-    private static function file(): string { return VtDataDir::path('vt_history.json'); }
+    private static string $scope = 'admin';
+
+    private static function file(): string
+    {
+        return VtDataDir::path(self::$scope === 'admin' ? 'vt_history.json'
+            : 'vt_history_r_' . preg_replace('/[^a-z0-9_\-]/i', '_', self::$scope) . '.json');
+    }
+
+    /** Work on the history of 'admin' (the whole server) or of a reseller (its login) */
+    public static function scope(string $scope): void { self::$scope = $scope !== '' ? $scope : 'admin'; }
 
     public static function load(): array
     {

@@ -491,7 +491,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
   <!-- Log -->
   <div class="vt-panel" id="vtpanel-trend">
     <div class="vt-card" style="max-width:100%">
-      <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Infections on this server
+      <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span id="vt-tr-h">Infections on this server</span>
         <span class="hint" style="font-weight:400" id="vt-tr-sub"></span>
         <span style="flex:1"></span>
         <span class="vt-seg" id="vt-tr-range">
@@ -730,7 +730,7 @@ async function init(){
   const cfg=await vtFetch('?action=get-settings').catch(()=>({}));
   if(!cfg.has_key||cfg.api_key_invalid) document.getElementById('vt-api-warning').style.display='flex';
   loadSettingsForm(cfg);
-  if(cfg.role==='admin') document.getElementById('vtab-trend').style.display='';
+  if(cfg.role==='admin'||cfg.role==='reseller') document.getElementById('vtab-trend').style.display='';
   if(!cfg.has_key||cfg.api_key_invalid){
     // Without a working key every lookup fails: show the sites as waiting for a key, not as errors
     noKey=true;
@@ -1036,6 +1036,7 @@ let trDays=[], trRange=92;
 window.vtLoadTrend=async function(){
   const r=await vtFetch('?action=history').catch(()=>null);
   trDays=r?.days||[];
+  document.getElementById('vt-tr-h').textContent=r?.scope==='reseller'?'Infections on your sites':'Infections on this server';
   vtTrendRange(trRange);
 };
 window.vtTrendRange=function(n){
@@ -1065,7 +1066,7 @@ function vtTrendDraw(){
   const demo=days.filter(d=>d.demo);
   document.getElementById('vt-tr-note').innerHTML=demo.length
     ?'<strong>Demo data:</strong> the days up to '+trDate(demo[demo.length-1].date,1)+' (shaded) are made-up example figures. Real totals replace them day by day.'
-    :'Totals are saved once a day, by the nightly scan and when the administrator opens the dashboard.';
+    :'Totals are saved once a day, by the nightly scan and when you open the dashboard.';
 
   const W=Math.max(320,document.getElementById('vt-tr-lines').clientWidth||900), L=36, R=14, T=10;
   const n=days.length, step=(W-L-R)/Math.max(1,n-1), x=i=>L+(n<=1?0:i*step), bw=Math.max(2,Math.min(24,(W-L-R)/n-2));
