@@ -16,6 +16,13 @@ require_once $_vtLib . '/PleskDomains.php';
  */
 class IndexController extends pm_Controller_Action
 {
+    /**
+     * PayPal.Me username for the "Buy me a coffee" button on the About tab.
+     * Leave empty to hide the button.
+     */
+    private const PAYPAL_ME = '';
+    private const COFFEE_PRICE = '3USD';
+
     /** @var VtSettings */
     private $settings;
     /** @var VtApi */
@@ -75,7 +82,10 @@ class IndexController extends pm_Controller_Action
             $version = (string)($info->version ?? '');
         } catch (\Throwable $e) {
         }
-        $this->view->version = $version;
+        $this->view->version   = $version;
+        $this->view->paypalUrl = self::PAYPAL_ME !== ''
+            ? 'https://www.paypal.com/paypalme/' . rawurlencode(self::PAYPAL_ME) . '/' . self::COFFEE_PRICE
+            : '';
         // All scan data is fetched via AJAX
     }
 

@@ -17,6 +17,23 @@
 body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 #vt-wrap{padding-top:8px}
 
+/* About */
+.vt-about{max-width:760px}
+.vt-about .vt-card{max-width:none}
+.vt-about p{font-size:13px;line-height:1.6;color:var(--text);margin:10px 0}
+.vt-about-hero{display:flex;gap:18px;align-items:flex-start}
+.vt-about-mark{width:64px;height:64px;flex-shrink:0;border-radius:16px;background:linear-gradient(135deg,#b91c1c,#7f1d1d);color:#fff;font-weight:800;font-size:22px;display:flex;align-items:center;justify-content:center;letter-spacing:1px}
+.vt-about-sub{font-size:13px;color:var(--muted)}
+.vt-about-sub a{color:#b91c1c;font-weight:600;text-decoration:none}
+.vt-about-list{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.6}
+.vt-about-list li{margin-bottom:6px}
+.vt-coffee{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#fffbeb,#fff 70%);border-color:#fde68a}
+.vt-coffee-cup{font-size:34px;line-height:1}
+.vt-paypal{flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:24px;background:#ffc439;color:#111827;font-weight:700;font-size:13px;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.vt-paypal:hover{background:#f2b52e;color:#111827}
+.vt-paypal-pp{font-style:italic;font-weight:800;color:#003087}.vt-paypal-pp b{color:#009cde}
+@media (max-width:640px){.vt-about-hero,.vt-coffee{flex-direction:column;align-items:flex-start}}
+
 /* Brand header */
 .vt-brand{display:flex;align-items:center;gap:14px;padding:14px 18px;margin-bottom:14px;border-radius:var(--radius);background:linear-gradient(135deg,#eff6ff 0%,#fff 60%);border:1px solid #dbe5f5}
 .vt-brand-logo{width:44px;height:44px;flex-shrink:0;border-radius:10px;background:linear-gradient(180deg,#2563eb,#1e3a8a);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(37,99,235,.3)}
@@ -132,7 +149,14 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-q-title{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.4px}
 .vt-q-sum{font-size:12px;color:var(--muted)}
 .vt-q-head .vt-row-btn{margin-left:4px}
-.vt-q-list{max-height:320px;overflow-y:auto}
+.vt-q-list{}
+/* Animated pause bar for VirusTotal's 4 requests/minute limit */
+.vt-q-pause{display:none;align-items:center;gap:12px;padding:8px 13px;border-top:1px solid var(--border);background:#fafbff;font-size:12px;color:var(--muted)}
+.vt-q-ptrack{flex:0 0 180px;height:8px;border-radius:4px;background:var(--border);overflow:hidden}
+.vt-q-pfill{height:100%;width:0;border-radius:4px;transition:width 1s linear;
+  background:repeating-linear-gradient(-45deg,#2563eb 0 6px,#60a5fa 6px 12px);background-size:17px 17px;animation:vt-stripes .8s linear infinite}
+.vt-q-pfill.limit{background:repeating-linear-gradient(-45deg,#d97706 0 6px,#fbbf24 6px 12px);background-size:17px 17px}
+@keyframes vt-stripes{to{background-position:17px 0}}
 .vt-q-item{display:flex;align-items:center;gap:12px;padding:8px 13px;border-bottom:1px solid var(--border);font-size:13px}
 .vt-q-item:last-child{border-bottom:none}
 .vt-q-item.done,.vt-q-item.failed{background:var(--gray-bg)}
@@ -197,7 +221,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
       <div class="vt-brand-name">VT Site Scanner<?php if ($this->version): ?> <span class="vt-brand-ver">v<?= htmlspecialchars($this->version) ?></span><?php endif; ?></div>
       <div class="vt-brand-tag">Malware, phishing and spam monitoring for every hosted website on this server, powered by VirusTotal</div>
     </div>
-    <a class="vt-brand-by" href="https://www.digizaal.nl" target="_blank" rel="noopener">
+    <a class="vt-brand-by" href="#about" onclick="vtShowTab('about');return false;" title="About the maker">
       <span>by</span> <strong>Digizaal</strong>
     </a>
   </div>
@@ -206,6 +230,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
     <div class="vt-tab active" id="vtab-dashboard" onclick="vtShowTab('dashboard')">Dashboard</div>
     <div class="vt-tab" id="vtab-settings" onclick="vtShowTab('settings')">Settings</div>
     <div class="vt-tab" id="vtab-log" onclick="vtShowTab('log');vtLoadLog()">Log</div>
+    <div class="vt-tab" id="vtab-about" onclick="vtShowTab('about')">About</div>
   </div>
 
   <!-- Dashboard -->
@@ -269,9 +294,12 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
         <span class="vt-q-sum" id="vt-q-sum"></span>
         <div class="vt-spacer"></div>
         <button class="vt-row-btn" id="vt-q-cancel" onclick="vtCancelWaiting()">Cancel waiting</button>
-        <button class="vt-row-btn" id="vt-q-clear" onclick="vtClearFinished()">Clear finished</button>
       </div>
       <div class="vt-q-list" id="vt-q-list"></div>
+      <div class="vt-q-pause" id="vt-q-pause">
+        <div class="vt-q-ptrack"><div class="vt-q-pfill" id="vt-q-pfill"></div></div>
+        <span id="vt-q-ptext"></span>
+      </div>
     </div>
 
     <div class="vt-prog-wrap"><div class="vt-prog-fill" id="vt-prog"></div></div>
@@ -376,6 +404,49 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
     </div>
   </div>
 
+  <!-- About -->
+  <div class="vt-panel" id="vtpanel-about">
+    <div class="vt-about">
+      <div class="vt-card vt-about-hero">
+        <div class="vt-about-mark">DZ</div>
+        <div>
+          <h3 style="margin:0 0 4px">Made by Dirk Zaal</h3>
+          <div class="vt-about-sub"><a href="https://www.digizaal.nl" target="_blank" rel="noopener">Digizaal</a> · web development and hosting, Amsterdam</div>
+          <p>Digizaal builds and hosts websites for its customers, about 600 of them WordPress sites on one Plesk server.
+          I built VT Site Scanner because I needed it myself: one hacked site can hurt its visitors, get the server's
+          IP address blacklisted and drag every other site on the server down with it.</p>
+          <a class="vt-btn ghost" href="https://www.digizaal.nl" target="_blank" rel="noopener">Visit digizaal.nl &rarr;</a>
+        </div>
+      </div>
+
+      <div class="vt-card">
+        <h3>Who this tool is for</h3>
+        <p>For hosting companies, agencies and server admins who look after <strong>more sites than VirusTotal's free API can check in a day</strong>.
+        The free key allows 500 requests per day and 4 per minute. With 500 sites or more you can't check them all daily,
+        and a simple scanner burns the whole quota before you get to the site you just cleaned up.</p>
+        <ul class="vt-about-list">
+          <li><strong>Every site gets its turn.</strong> The nightly scan picks up where it stopped, so all sites are checked in rotation, however many there are.</li>
+          <li><strong>Quota left for you.</strong> Part of the daily budget is always kept for manual rescans, for the moment you need one.</li>
+          <li><strong>No wasted calls.</strong> Results are cached: clean sites are re-checked after 30 days, infected or suspicious sites after 1 day.</li>
+          <li><strong>One overview.</strong> All sites with their status on one page and on the Plesk Home page, so a flagged site stands out right away.</li>
+        </ul>
+      </div>
+
+      <div class="vt-card vt-coffee">
+        <div class="vt-coffee-cup" aria-hidden="true">&#9749;</div>
+        <div style="flex:1">
+          <h3 style="margin:0 0 4px">Buy me a cup of coffee</h3>
+          <p style="margin:0">VT Site Scanner is free. If it saves you time or catches a hacked site, a coffee is a nice way to say thanks.</p>
+        </div>
+        <?php if ($this->paypalUrl): ?>
+          <a class="vt-paypal" href="<?= htmlspecialchars($this->paypalUrl) ?>" target="_blank" rel="noopener">
+            <span class="vt-paypal-pp">Pay<b>Pal</b></span> Buy me a coffee &middot; $3
+          </a>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
 </div><!-- #vt-wrap -->
 
 <div class="vt-toasts" id="vt-toasts"></div>
@@ -436,7 +507,7 @@ window.vtShowTab=function(name){
 // ── Scan pump ─────────────────────────────────────────────────
 // Sequential with delay — stays within VT free tier (4 req/min).
 // Manual rescans bypass the pump entirely (they use vtReanalyzeSingle directly).
-let pumpRunning=false, pumpCurrent=null, pumpWaitUntil=0;
+let pumpRunning=false, pumpCurrent=null, pumpPauseFrom=0, pumpPauseUntil=0, pumpPauseLimit=false;
 async function pump(){
   if(pumpRunning) return;
   pumpRunning=true;
@@ -454,9 +525,9 @@ async function pump(){
         // Per-minute limit (shared with manual rescans): wait it out and retry
         scanQueue.unshift(d);
         const wait=Math.max(5,Number(data.wait||data.retry_after||60));
-        inFlight=0; pumpCurrent=null; pumpWaitUntil=Date.now()+wait*1000; updateProgress();
+        inFlight=0; pumpCurrent=null; pumpPauseFrom=Date.now(); pumpPauseUntil=pumpPauseFrom+wait*1000; pumpPauseLimit=true; updateProgress();
         await delay(wait*1000);
-        pumpWaitUntil=0;
+        pumpPauseUntil=0; pumpPauseLimit=false;
         continue;
       }
       results[d]=data; updateRow(d,data); updateCounts();
@@ -470,7 +541,11 @@ async function pump(){
     }
     inFlight=0; pumpCurrent=null;
     updateProgress();
-    if(scanQueue.length) await delay(PUMP_DELAY); // respect 4 req/min limit
+    if(scanQueue.length){ // respect 4 req/min limit
+      pumpPauseFrom=Date.now(); pumpPauseUntil=pumpPauseFrom+PUMP_DELAY; pumpPauseLimit=false; renderQueue();
+      await delay(PUMP_DELAY);
+      pumpPauseUntil=0;
+    }
   }
   pumpRunning=false; pumpCurrent=null;
   updateProgress();
@@ -670,7 +745,7 @@ async function vtCallRetry(j,url,stepState){
     const data=await vtFetch(url).catch(()=>({status:'error',message:'Network error'}));
     if(data.status!=='ratelimit') return data;
     const wait=Math.max(5,Number(data.wait||data.retry_after||60));
-    setJob(j,{state:'ratewait',until:Date.now()+wait*1000});
+    setJob(j,{state:'ratewait',waitFrom:Date.now(),until:Date.now()+wait*1000});
     await delay(wait*1000);
   }
   return {status:'ratelimit'};
@@ -829,6 +904,15 @@ function jobHTML(j){
     +'<div class="vt-q-right">'+right+'</div></div>';
 }
 
+function liveHTML(d){
+  return '<div class="vt-q-item"><div class="vt-q-icon"><span class="vt-spin"></span></div>'
+    +'<div class="vt-q-main"><div class="vt-q-dom">'+vtEsc(d)+'<span class="vt-q-kind">Auto</span></div>'
+    +'<div class="vt-q-msg">Fetching the report from VirusTotal...</div></div>'
+    +'<div class="vt-q-right"></div></div>';
+}
+
+// One line only: what is being checked right now, otherwise the latest result.
+// Below it, an animated bar while waiting for VirusTotal's 4 requests/minute limit.
 function renderQueue(){
   const box=document.getElementById('vt-queue');
   if(!box) return;
@@ -841,28 +925,37 @@ function renderQueue(){
   const waiting=jobs.filter(j=>j.state==='queued');
   const finished=jobs.filter(j=>!ACTIVE.has(j.state)).sort((a,b)=>b.endedAt-a.endedAt);
 
-  let html=running.concat(waiting).map(jobHTML).join('');
-  if(pumpBusy){
-    const msg=pumpCurrent?'Fetching cached/initial report...'
-      :pumpWaitUntil?'VT rate limit — next in '+fmtSecs(pumpWaitUntil-Date.now())
-      :'Pausing between requests (4/min limit)';
-    html+='<div class="vt-q-item">'
-      +'<div class="vt-q-icon">'+(pumpCurrent?'<span class="vt-spin"></span>':'⋯')+'</div>'
-      +'<div class="vt-q-main"><div class="vt-q-dom">'+vtEsc(pumpCurrent||'Auto-load')+'<span class="vt-q-kind">Auto</span></div>'
-      +'<div class="vt-q-msg">'+vtEsc(msg)+'</div></div>'
-      +'<div class="vt-q-right">'+scanQueue.length+' more waiting</div></div>';
-  }
-  html+=finished.slice(0,100).map(jobHTML).join('');
+  let html='';
+  if(running.length)       html=jobHTML(running[0]);
+  else if(pumpCurrent)     html=liveHTML(pumpCurrent);
+  else if(finished.length) html=jobHTML(finished[0]);
+  else if(waiting.length)  html=jobHTML(waiting[0]);
   document.getElementById('vt-q-list').innerHTML=html;
 
+  // Pause bar
+  const now=Date.now(), rw=running.find(j=>j.state==='ratewait');
+  let from=0, until=0, limit=false;
+  if(rw){ from=rw.waitFrom||now; until=rw.until; limit=true; }
+  else if(pumpPauseUntil>now){ from=pumpPauseFrom; until=pumpPauseUntil; limit=pumpPauseLimit; }
+  const bar=document.getElementById('vt-q-pause');
+  if(until>now){
+    bar.style.display='flex';
+    const fill=document.getElementById('vt-q-pfill');
+    fill.classList.toggle('limit',limit);
+    fill.style.width=Math.min(100,Math.round((now-from)/Math.max(1,until-from)*100))+'%';
+    vtSet('vt-q-ptext',(limit?'VirusTotal rate limit reached, waiting':'Pausing for VirusTotal\'s limit of 4 requests per minute')
+      +' — next check in '+fmtSecs(until-now));
+  }else{
+    bar.style.display='none';
+  }
+
+  const left=waiting.length+scanQueue.length;
   const parts=[];
-  if(running.length) parts.push(running.length+' running');
-  if(waiting.length) parts.push(waiting.length+' waiting');
-  if(pumpBusy) parts.push((scanQueue.length+(pumpCurrent?1:0))+' auto');
-  if(finished.length) parts.push(finished.length+' finished');
+  if(running.length||pumpCurrent) parts.push('checking 1');
+  if(left) parts.push(left+' waiting');
+  if(finished.length) parts.push(finished.length+' done');
   vtSet('vt-q-sum',parts.join(' · '));
   document.getElementById('vt-q-cancel').style.display=waiting.length?'':'none';
-  document.getElementById('vt-q-clear').style.display=finished.length?'':'none';
 }
 
 window.vtRefreshDomains=async function(){

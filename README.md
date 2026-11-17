@@ -6,6 +6,17 @@ A Plesk extension that checks every website hosted on your Plesk server against 
 
 Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web development and hosting company in Amsterdam.
 
+## Who it's for
+
+Hosting companies, agencies and server admins who look after **more sites than VirusTotal's free API can check in a day**. The free key allows 500 requests per day and 4 per minute. With 500 sites or more you can't check them all every day, and a simple scanner burns the whole quota before you get to the one site you just cleaned up.
+
+VT Site Scanner makes that quota go a long way:
+
+- **Every site gets its turn.** The nightly scan picks up where it stopped the night before, so all sites are checked in rotation, however many there are.
+- **Quota left for you.** Part of the daily budget is always kept for manual rescans.
+- **No wasted calls.** Clean sites are re-checked after 30 days, infected or suspicious sites after 1 day.
+- **One overview.** All sites with their status on one page and on the Plesk Home page, so a flagged site stands out right away.
+
 ## Screenshots
 
 **Scanner dashboard:** every hosted website with its status, detection score and a Rescan button. The scan queue at the top shows what is being checked right now.
@@ -45,10 +56,11 @@ VT Site Scanner was built to fix that:
 
 - Dashboard with every website hosted on the server (WordPress or not): status (Infected / Suspicious / Clean / Queued / Error), detection score (e.g. `3/93` engines), IP address, domain age and danger tags (malware, phishing, …), with direct links to the site and to its VirusTotal page.
 - **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → VT Site Scanner**.
-- **Live scan queue** for manual rescans: queued → submitted → VT analysis → report → done, with the score before and after. VirusTotal's per-minute limit is waited out automatically instead of failing.
+- **Live scan queue**: one line showing the site being checked right now, or the latest result with its score. An animated bar shows the pause for VirusTotal's 4-requests-per-minute limit, which is waited out automatically instead of failing.
 - **Nightly background scan** (03:00, server time), scheduled automatically through Plesk's own scheduler.
 - **Per-role access:** the admin sees all sites, resellers see their own and their clients' sites, and clients see only their own sites. Each can use their own API key; users without one use the admin's key.
 - **Log tab** with a colour-coded scan log.
+- **About tab** about the maker, with a *Buy me a coffee* button.
 
 ## How it saves API calls
 
