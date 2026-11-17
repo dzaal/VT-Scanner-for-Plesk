@@ -211,7 +211,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-n-group.hint{color:var(--muted)}
 /* File scanners (ClamAV, maldet, …) */
 .vt-sbar{display:inline-flex;border:1px solid var(--border);border-radius:5px;overflow:hidden;vertical-align:middle;margin-right:6px}
-.vt-sbtn{padding:4px 8px;border:0;border-left:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.vt-sbtn{padding:4px 9px;border:0;border-left:1px solid var(--border);background:var(--gray-bg);color:#374151;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .vt-sbtn:first-child{border-left:0}
 .vt-sbtn:hover{color:var(--blue);background:var(--blue-bg)}
 .vt-sbtn.open{color:var(--blue);background:var(--blue-bg);box-shadow:inset 0 -2px 0 var(--blue)}
