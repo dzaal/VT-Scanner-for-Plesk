@@ -4,7 +4,7 @@
     <name>VT Site Scanner by Digizaal</name>
     <description>Monitor every website hosted in Plesk for malware, phishing and spam using the VirusTotal API. Smart caching, budget control, and daily background scanning.</description>
     <category>security</category>
-    <version>1.10.2</version>
+    <version>1.10.3</version>
     <release>1</release>
     <vendor>Digizaal</vendor>
     <url>https://www.digizaal.nl</url>
