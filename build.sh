@@ -10,9 +10,9 @@ OUT="dist/${EXT_ID}-${VERSION}.zip"
 BUILD=$(mktemp -d)
 trap 'rm -rf "$BUILD"' EXIT
 
-# Package layout: <ext-id>/meta.xml + htdocs/ + plib/
+# Package layout: <ext-id>/meta.xml + htdocs/ + plib/ + _meta/ (catalog icons)
 mkdir -p "$BUILD/$EXT_ID" dist
-cp -r htdocs plib "$BUILD/$EXT_ID/"
+cp -r htdocs plib _meta "$BUILD/$EXT_ID/"
 cp META_INF/meta.xml "$BUILD/$EXT_ID/meta.xml"
 rm -f "$OUT"
 

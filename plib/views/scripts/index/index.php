@@ -13,6 +13,19 @@
   --radius:8px;
 }
 
+/* Brand header */
+.vt-brand{display:flex;align-items:center;gap:14px;padding:14px 18px;margin-bottom:14px;border-radius:var(--radius);background:linear-gradient(135deg,#eff6ff 0%,#fff 60%);border:1px solid #dbe5f5}
+.vt-brand-logo{width:44px;height:44px;flex-shrink:0;border-radius:10px;background:linear-gradient(180deg,#2563eb,#1e3a8a);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(37,99,235,.3)}
+.vt-brand-logo svg{width:28px;height:28px}
+.vt-brand-text{flex:1;min-width:0}
+.vt-brand-name{font-size:16px;font-weight:700;color:var(--heading);line-height:1.3}
+.vt-brand-ver{font-size:11px;font-weight:600;color:var(--blue);background:#dbeafe;border-radius:10px;padding:1px 7px;vertical-align:2px;margin-left:4px}
+.vt-brand-tag{font-size:12px;color:var(--muted);margin-top:2px}
+.vt-brand-by{flex-shrink:0;font-size:12px;color:var(--muted);text-decoration:none;padding:6px 12px;border:1px solid var(--border);border-radius:20px;background:#fff}
+.vt-brand-by strong{color:#b91c1c;font-weight:700;letter-spacing:.2px}
+.vt-brand-by:hover{border-color:#b91c1c}
+@media (max-width:640px){.vt-brand-tag{display:none}}
+
 /* Tabs */
 .vt-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:16px}
 .vt-tab{padding:10px 18px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
@@ -169,6 +182,22 @@
 </style>
 
 <div id="vt-wrap">
+
+  <div class="vt-brand">
+    <div class="vt-brand-logo" aria-hidden="true">
+      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 1L2 3.5V8C2 11.5 4.5 14.5 8 15.5C11.5 14.5 14 11.5 14 8V3.5L8 1Z" fill="#fff"/>
+        <path d="M5.6 8.2L7.4 10L10.6 6.6" stroke="#2563eb" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="vt-brand-text">
+      <div class="vt-brand-name">VT Site Scanner<?php if ($this->version): ?> <span class="vt-brand-ver">v<?= htmlspecialchars($this->version) ?></span><?php endif; ?></div>
+      <div class="vt-brand-tag">Malware, phishing and spam monitoring for every WordPress site on this server, powered by VirusTotal</div>
+    </div>
+    <a class="vt-brand-by" href="https://www.digizaal.nl" target="_blank" rel="noopener">
+      <span>by</span> <strong>Digizaal</strong>
+    </a>
+  </div>
 
   <div class="vt-tabs">
     <div class="vt-tab active" id="vtab-dashboard" onclick="vtShowTab('dashboard')">Dashboard</div>
@@ -353,7 +382,7 @@
 
 <script>
 (function(){
-const BASE = location.pathname;
+const BASE = <?= json_encode($this->baseUrl ?: '') ?> || location.pathname;
 let domains=[], results={}, budget={}, activeFilter='all';
 let scanQueue=[], inFlight=0;
 const MAX_C=1;          // one at a time to stay within VT rate limits

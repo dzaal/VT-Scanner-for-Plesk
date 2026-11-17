@@ -66,7 +66,17 @@ class IndexController extends pm_Controller_Action
 
     public function indexAction(): void
     {
-        // All data is fetched via AJAX — no PHP variables needed in view
+        // Page title completes Plesk's breadcrumb: Home > Extensions > VT Site Scanner
+        $this->view->pageTitle = 'VT Site Scanner';
+        $this->view->baseUrl   = pm_Context::getBaseUrl();
+        $version = '';
+        try {
+            $info = pm_Context::getModuleInfo();
+            $version = (string)($info->version ?? '');
+        } catch (\Throwable $e) {
+        }
+        $this->view->version = $version;
+        // All scan data is fetched via AJAX
     }
 
     // ── AJAX ────────────────────────────────────────────────────
