@@ -22,7 +22,8 @@ require_once __DIR__ . '/VtDataDir.php';
  */
 class PleskDomains
 {
-    const DOMAIN_CACHE_TTL = 86400; // 1 day
+    const DOMAIN_CACHE_TTL = 86400; // 1 day: WordPress database scan (slow)
+    const LIST_CACHE_TTL   = 600;   // 10 min: hosted-domain list (cheap), so disabled sites drop out quickly
     private static function domainCacheFile(): string { return VtDataDir::path('vt_domains.json'); }
     private static function wpCacheFile(): string     { return VtDataDir::path('vt_wp_sites.json'); }
 
@@ -81,7 +82,7 @@ class PleskDomains
     private static function allHostedDomains(): array
     {
         $file = self::domainCacheFile();
-        if (is_file($file) && (time() - filemtime($file)) < self::DOMAIN_CACHE_TTL) {
+        if (is_file($file) && (time() - filemtime($file)) < self::LIST_CACHE_TTL) {
             $d = json_decode((string)file_get_contents($file), true);
             if (is_array($d) && $d) return $d;
         }
@@ -171,9 +172,10 @@ class PleskDomains
      */
     private static function withWordPressSubsites(array $hosted): array
     {
-        $set = array_flip($hosted);
+        $set  = array_flip($hosted);
+        $skip = self::inactiveDomains();
         foreach (self::wordPressHosts() as $host) {
-            if (isset($set[$host])) continue;
+            if (isset($set[$host]) || isset($skip[$host])) continue; // disabled/suspended/no hosting in Plesk
             $parts = explode('.', $host);
             for ($i = 1; $i < count($parts) - 1; $i++) {
                 if (isset($set[implode('.', array_slice($parts, $i))])) { $set[$host] = true; break; }
@@ -182,6 +184,20 @@ class PleskDomains
         $all = array_keys($set);
         sort($all);
         return $all;
+    }
+
+    /** Domains Plesk knows but that are disabled, suspended or have no hosting (as a set) */
+    private static function inactiveDomains(): array
+    {
+        $pdo = self::pleskPdo();
+        if (!$pdo) return [];
+        try {
+            $rows = $pdo->query("SELECT LOWER(name) FROM domains WHERE NOT (htype = 'vrt_hst' AND status = 0)")
+                        ->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+        } catch (\PDOException $e) {
+            return [];
+        }
+        return array_flip(array_map('trim', $rows));
     }
 
     /** Hostnames from the siteurl option of every WordPress database, cached for a day */
