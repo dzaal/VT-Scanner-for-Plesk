@@ -14,7 +14,7 @@ require_once __DIR__ . '/VtDataDir.php';
  *   wordpress_only   bool     Scan WordPress sites only instead of every hosted website
  *   notify_enabled   bool     E-mail when a site's status changes
  *   notify_events    string[] Which new statuses to report: infected, suspicious, clean
- *   notify_to        string[] Recipients: me, owner, reseller (limited by role)
+ *   notify_email     string   Address for the summary e-mail (empty = the user's Plesk address)
  *   login            string   Plesk login these settings belong to (for notifications)
  */
 class VtSettings
@@ -40,7 +40,7 @@ class VtSettings
         'wordpress_only'     => false, // false = every hosted website, true = WordPress sites only
         'notify_enabled'     => false,
         'notify_events'      => ['infected', 'suspicious'],
-        'notify_to'          => ['me'],
+        'notify_email'       => '',
         'login'              => '',
         'daily_limit'        => 500,   // set to 0 for auto-detect via VT quota endpoint
         'auto_scan_share'    => 0.8,   // 80% for background, 20% for manual

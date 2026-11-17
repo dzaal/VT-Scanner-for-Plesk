@@ -44,7 +44,7 @@ class VtCache
         return $this->results[$domain] ?? null;
     }
 
-    /** Addresses e-mailed by the last set() call (status change notifications) */
+    /** Logins a status change was queued for by the last set() call (summary e-mail) */
     public array $lastNotified = [];
 
     public function set(string $domain, array $result, bool $manual = false): void

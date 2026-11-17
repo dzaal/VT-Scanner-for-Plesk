@@ -1,34 +1,30 @@
 <?php
 require_once __DIR__ . '/VtDataDir.php';
 require_once __DIR__ . '/VtSettings.php';
+require_once __DIR__ . '/VtCache.php';
 require_once __DIR__ . '/PleskDomains.php';
 
 /**
- * VtNotifier: e-mails when a site's status changes (clean / suspicious / infected).
+ * VtNotifier: one summary e-mail with status changes and the full list of infected sites.
  *
- * Every Plesk user (admin, reseller, client) sets their own notifications in
- * Settings. When a site's status changes, each user who can see that site and
- * subscribed to that change gets one e-mail, sent to the addresses they chose:
- *   me       the user's own e-mail address in Plesk
- *   owner    the customer who owns the site       (admin and resellers only)
- *   reseller the reseller the site belongs to      (admin only)
- * Each address gets at most one e-mail per change, even if several users chose it.
+ * Every Plesk user (admin, reseller, client) can switch notifications on in
+ * Settings and enter one e-mail address. When one of their sites changes status,
+ * the change is collected instead of mailed straight away. The collected changes
+ * go out as one summary e-mail, together with the complete list of their sites
+ * that are infected right now:
+ *   - at the end of the nightly scan, and
+ *   - during the day, once the oldest collected change is 10 minutes old
+ *     (checked whenever the dashboard looks up or rescans a site).
  */
 class VtNotifier
 {
-    const STATUSES = ['clean', 'suspicious', 'infected'];
-    const EVENTS   = ['infected', 'suspicious', 'clean'];
-
-    /** Recipient options a role may choose from */
-    public static function allowedTargets(string $role): array
-    {
-        if ($role === 'admin')    return ['me', 'owner', 'reseller'];
-        if ($role === 'reseller') return ['me', 'owner'];
-        return ['me'];
-    }
+    const STATUSES  = ['clean', 'suspicious', 'infected'];
+    const EVENTS    = ['infected', 'suspicious', 'clean'];
+    const DAY_DELAY = 600; // seconds a daytime change waits, so several changes share one e-mail
 
     /**
-     * Called after a new result is stored. Returns the addresses that were e-mailed.
+     * Collect a status change for every user who wants to hear about it.
+     * Returns the logins it was queued for.
      */
     public static function statusChanged(string $domain, ?array $old, array $new): array
     {
@@ -39,32 +35,53 @@ class VtNotifier
         // "Clean" only counts as news when a flagged site recovers, not on a first scan
         if ($to === 'clean' && !in_array($from, ['suspicious', 'infected'], true)) return [];
 
-        $recipients = [];
+        $queued = [];
         foreach (self::subscribers() as $sub) {
             if (!in_array($to, (array)$sub['notify_events'], true)) continue;
-            if (!self::userCanSee($sub, $domain)) continue;
-            foreach (self::addressesFor($sub, $domain) as $email) $recipients[strtolower($email)] = $email;
+            if (!in_array($domain, self::domainsOf($sub), true)) continue;
+            $q = self::loadQueue($sub['login']);
+            $q[$domain] = [   // the latest change per site wins
+                'domain' => $domain, 'from' => $q[$domain]['from'] ?? $from, 'to' => $to,
+                'malicious' => $new['malicious'] ?? null, 'total' => $new['total'] ?? null,
+                'flagged_by' => array_slice((array)($new['flagged_by'] ?? []), 0, 6),
+                'at' => $q[$domain]['at'] ?? time(),
+            ];
+            // A site that went back to where it started is no news
+            if ($q[$domain]['from'] === $to) unset($q[$domain]);
+            self::saveQueue($sub['login'], $q);
+            $queued[] = $sub['login'];
         }
-        if (!$recipients) return [];
+        return $queued;
+    }
 
-        [$subject, $body] = self::message($domain, $from, $new);
+    /**
+     * Send the summary e-mails that are due ($force: all of them, e.g. after the nightly scan).
+     * Returns the addresses that were e-mailed.
+     */
+    public static function flush(bool $force = false): array
+    {
         $sent = [];
-        foreach ($recipients as $email) {
-            if (self::send($email, $subject, $body)) $sent[] = $email;
+        foreach (self::subscribers() as $sub) {
+            $q = self::loadQueue($sub['login']);
+            if (!$q) continue;
+            $oldest = min(array_column($q, 'at'));
+            if (!$force && time() - $oldest < self::DAY_DELAY) continue;
+            [$subject, $body] = self::digest($sub, array_values($q));
+            if (self::send($sub['email'], $subject, $body)) {
+                self::saveQueue($sub['login'], []);
+                $sent[] = $sub['email'];
+            }
         }
         return $sent;
     }
 
-    /** Send a test e-mail to the given user's own address. Returns the address or null. */
-    public static function sendTest(string $login): ?string
+    /** Send a sample summary (current infected list) to the user's address. Returns it or null. */
+    public static function sendTest(string $login, string $email): ?string
     {
-        $email = self::emailOfLogin($login);
-        if (!$email) return null;
-        $body = "This is a test message from VT Site Scanner on " . self::host() . ".\n\n"
-              . "Notifications are working: you will get an e-mail like this when a site's\n"
-              . "status changes to one of the statuses you selected in Settings.\n\n"
-              . "Open the scanner: " . self::panelUrl() . "\n";
-        return self::send($email, '[VT Site Scanner] Test notification', $body) ? $email : null;
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return null;
+        $sub = ['login' => $login, 'role' => $login === 'admin' ? 'admin' : self::roleOf($login), 'email' => $email];
+        [$subject, $body] = self::digest($sub, [], true);
+        return self::send($email, $subject, $body) ? $email : null;
     }
 
     /** E-mail address of a Plesk login (the admin account included) */
@@ -88,9 +105,11 @@ class VtNotifier
 
     // ── Private ─────────────────────────────────────────────────
 
-    /** Users with notifications switched on, from their settings files */
+    /** Users with notifications on and a valid address, from their settings files */
     private static function subscribers(): array
     {
+        static $subs = null;
+        if ($subs !== null) return $subs;
         $subs = [];
         foreach (glob(VtDataDir::path('vt_settings_*.json')) ?: [] as $file) {
             $d = json_decode((string)@file_get_contents($file), true);
@@ -98,11 +117,11 @@ class VtNotifier
             $login = (string)($d['login'] ?? '');
             if ($login === '' && basename($file) === 'vt_settings_admin.json') $login = 'admin';
             if ($login === '') continue;
-            $d['login'] = $login;
-            $d['role']  = $login === 'admin' ? 'admin' : self::roleOf($login);
-            if (!$d['role']) continue;
-            $d['notify_to'] = array_values(array_intersect((array)($d['notify_to'] ?? []), self::allowedTargets($d['role'])));
-            $subs[] = $d;
+            $email = trim((string)($d['notify_email'] ?? '')) ?: self::emailOfLogin($login);
+            if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) continue;
+            $role = $login === 'admin' ? 'admin' : self::roleOf($login);
+            if (!$role) continue;
+            $subs[] = array_merge($d, ['login' => $login, 'role' => $role, 'email' => $email]);
         }
         return $subs;
     }
@@ -123,95 +142,97 @@ class VtNotifier
         return $t ? 'client' : null;
     }
 
-    private static function userCanSee(array $sub, string $domain): bool
+    /** The sites this user sees in the scanner */
+    private static function domainsOf(array $sub): array
     {
-        if ($sub['role'] === 'admin') return true;
         static $lists = [];
-        $lists[$sub['login']] ??= PleskDomains::forLogin($sub['login'], $sub['role'] === 'reseller') ?? [];
-        return in_array($domain, $lists[$sub['login']], true);
-    }
-
-    private static function addressesFor(array $sub, string $domain): array
-    {
-        $out = [];
-        foreach ($sub['notify_to'] as $target) {
-            if ($target === 'me') {
-                $e = self::emailOfLogin($sub['login']);
-            } else {
-                $owner = self::ownerOf($domain);
-                $e = $target === 'owner' ? ($owner['email'] ?? null) : ($owner['reseller_email'] ?? null);
-            }
-            if ($e && filter_var($e, FILTER_VALIDATE_EMAIL)) $out[] = $e;
+        if (!isset($lists[$sub['login']])) {
+            $wpOnly = (bool)(new VtSettings($sub['login']))->get('wordpress_only', false);
+            $all = $sub['role'] === 'admin'
+                ? PleskDomains::allDomains()
+                : (PleskDomains::forLogin($sub['login'], $sub['role'] === 'reseller') ?? []);
+            $lists[$sub['login']] = $wpOnly ? PleskDomains::onlyWordPress($all) : $all;
         }
-        return $out;
+        return $lists[$sub['login']];
     }
 
-    /**
-     * Owner of a site and the reseller above it. Sites on a hostname that is not
-     * a Plesk domain itself (e.g. a WordPress subsite) belong to the parent domain.
-     */
-    private static function ownerOf(string $domain): array
+    private static function queueFile(string $login): string
     {
-        static $cache = [];
-        if (isset($cache[$domain])) return $cache[$domain];
-        $pdo = PleskDomains::pdo();
-        $res = [];
-        if ($pdo) {
-            $parts = explode('.', $domain);
-            try {
-                $st = $pdo->prepare(
-                    'SELECT c.email, c.type, p.email AS parent_email, p.type AS parent_type
-                     FROM domains d JOIN clients c ON c.id = d.cl_id LEFT JOIN clients p ON p.id = c.parent_id
-                     WHERE d.name = ? LIMIT 1');
-                for ($i = 0; $i < count($parts) - 1 && !$res; $i++) {
-                    $st->execute([implode('.', array_slice($parts, $i))]);
-                    $row = $st->fetch(\PDO::FETCH_ASSOC);
-                    if (!$row) continue;
-                    // A reseller's own subscription: the reseller is both owner and reseller
-                    $res = [
-                        'email'          => $row['type'] === 'admin' ? null : $row['email'],
-                        'reseller_email' => $row['type'] === 'reseller' ? $row['email']
-                                          : ($row['parent_type'] === 'reseller' ? $row['parent_email'] : null),
-                    ];
-                }
-            } catch (\PDOException $e) {
-            }
+        return VtDataDir::path('vt_notify_' . preg_replace('/[^a-z0-9_\-]/i', '_', $login) . '.json');
+    }
+
+    private static function loadQueue(string $login): array
+    {
+        $d = json_decode((string)@file_get_contents(self::queueFile($login)), true);
+        return is_array($d) ? $d : [];
+    }
+
+    private static function saveQueue(string $login, array $q): void
+    {
+        file_put_contents(self::queueFile($login), json_encode($q, JSON_PRETTY_PRINT));
+    }
+
+    private static function score(array $r): string
+    {
+        return isset($r['malicious'], $r['total']) ? $r['malicious'] . '/' . $r['total'] : '-';
+    }
+
+    /** Subject and body of a summary e-mail */
+    private static function digest(array $sub, array $changes, bool $test = false): array
+    {
+        $results  = (new VtCache(new VtSettings('admin')))->all();
+        $mine     = array_flip(self::domainsOf($sub));
+        $infected = $suspicious = [];
+        foreach ($results as $d => $r) {
+            if (!isset($mine[$d])) continue;
+            if (($r['status'] ?? '') === 'infected')   $infected[$d] = $r;
+            if (($r['status'] ?? '') === 'suspicious') $suspicious[$d] = $r;
         }
-        return $cache[$domain] = $res;
-    }
+        uasort($infected, fn($a, $b) => ($b['malicious'] ?? 0) <=> ($a['malicious'] ?? 0));
+        ksort($suspicious);
 
-    private static function message(string $domain, ?string $from, array $new): array
-    {
-        $to    = $new['status'];
-        $label = ['infected' => 'INFECTED', 'suspicious' => 'SUSPICIOUS', 'clean' => 'CLEAN again'][$to];
-        $score = isset($new['malicious'], $new['total']) ? "{$new['malicious']}/{$new['total']}" : '';
-        $subject = "[VT Site Scanner] $domain is $label" . ($score && $to !== 'clean' ? " ($score)" : '');
+        $n = count($changes);
+        $subject = '[VT Site Scanner] '
+            . ($test ? 'Test: ' : '')
+            . ($n ? $n . ' status change' . ($n === 1 ? '' : 's') . ', ' : '')
+            . count($infected) . ' infected site' . (count($infected) === 1 ? '' : 's');
 
-        $lines = [
-            "The VirusTotal status of $domain has changed.",
-            '',
-            'Site:       ' . $domain,
-            'Status:     ' . ucfirst($from ?: 'not checked yet') . ' -> ' . ucfirst($to),
-        ];
-        if ($score) $lines[] = 'Detections: ' . $score . ' security vendors flag this site';
-        if (!empty($new['flagged_by'])) $lines[] = 'Flagged by: ' . implode(', ', array_slice((array)$new['flagged_by'], 0, 8));
-        $lines[] = '';
-        if ($to === 'infected') {
-            $lines[] = 'Check the site for malware or phishing pages, clean it up, and then click';
-            $lines[] = 'Rescan in VT Site Scanner. If the site is clean, ask the vendors above to';
-            $lines[] = 'review it as a false positive.';
-        } elseif ($to === 'suspicious') {
-            $lines[] = 'A few vendors flag this site. Check it, and click Rescan once it is cleaned up.';
+        $L = [];
+        if ($test) {
+            $L[] = 'This is a test of your VT Site Scanner notifications. Real e-mails look';
+            $L[] = 'like this, with the status changes at the top.';
+            $L[] = '';
+        }
+        if ($changes) {
+            $L[] = 'STATUS CHANGES';
+            $L[] = str_repeat('-', 60);
+            usort($changes, fn($a, $b) => array_search($a['to'], ['infected', 'suspicious', 'clean']) <=> array_search($b['to'], ['infected', 'suspicious', 'clean']));
+            foreach ($changes as $c) {
+                $L[] = sprintf('%-34s %s -> %s  (%s)', $c['domain'], ucfirst($c['from'] ?: 'new'), strtoupper($c['to']), self::score($c));
+                if (!empty($c['flagged_by']) && $c['to'] !== 'clean') $L[] = '    flagged by: ' . implode(', ', $c['flagged_by']);
+            }
+            $L[] = '';
+        }
+        $L[] = 'INFECTED NOW (' . count($infected) . ')';
+        $L[] = str_repeat('-', 60);
+        if ($infected) {
+            foreach ($infected as $d => $r) $L[] = sprintf('%-34s %s', $d, self::score($r));
         } else {
-            $lines[] = 'No vendor flags this site anymore.';
+            $L[] = 'None.';
         }
-        $lines[] = '';
-        $lines[] = 'VirusTotal report: https://www.virustotal.com/gui/domain/' . rawurlencode($domain);
-        $lines[] = 'VT Site Scanner:   ' . self::panelUrl();
-        $lines[] = '';
-        $lines[] = '-- ';
-        $lines[] = 'VT Site Scanner on ' . self::host() . '. Change or switch off these e-mails in Settings.';
-        return [$subject, implode("\n", $lines) . "\n"];
+        $L[] = '';
+        if ($suspicious) {
+            $L[] = 'Also suspicious (' . count($suspicious) . '): ' . implode(', ', array_keys($suspicious));
+            $L[] = '';
+        }
+        $L[] = 'Infected or suspicious often means one or a few vendors flag the site, which';
+        $L[] = 'can be a false alarm. Check the site, clean it if needed, then click Rescan.';
+        $L[] = '';
+        $L[] = 'VT Site Scanner: ' . self::panelUrl();
+        $L[] = '';
+        $L[] = '-- ';
+        $L[] = 'VT Site Scanner on ' . self::host() . '. Change or switch off these e-mails in Settings.';
+        return [$subject, implode("\n", $L) . "\n"];
     }
 
     private static function send(string $to, string $subject, string $body): bool

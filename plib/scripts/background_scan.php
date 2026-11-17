@@ -84,7 +84,6 @@ foreach ($toScan as $i => $domain) {
     }
 
     $cache->set($domain, $result, false);
-    if ($cache->lastNotified) log_msg("[mail] $domain status change sent to " . implode(', ', $cache->lastNotified));
     $status = $result['status'] ?? 'error';
 
     switch ($status) {
@@ -113,6 +112,14 @@ foreach ($toScan as $i => $domain) {
             $counts['other']++;
             log_msg("[~] $status $domain");
     }
+}
+
+// Send the collected status changes as one summary e-mail per user
+try {
+    $mailed = VtNotifier::flush(true);
+    if ($mailed) log_msg('[mail] summary sent to ' . implode(', ', $mailed));
+} catch (\Throwable $e) {
+    log_msg('[mail] could not send summary: ' . $e->getMessage());
 }
 
 $budget = $cache->budgetInfo();

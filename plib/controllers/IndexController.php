@@ -147,8 +147,10 @@ class IndexController extends pm_Controller_Action
             }
             if ($result['status'] !== 'ratelimit' && $result['status'] !== 'quota_exceeded') {
                 $this->cache->set($domain, $result, false);
-                if ($this->cache->lastNotified) {
-                    $this->appendLog("[mail] $domain status change sent to " . implode(', ', $this->cache->lastNotified));
+                try {
+                    $mailed = VtNotifier::flush(false); // summaries whose oldest change waited 10 min
+                    if ($mailed) $this->appendLog('[mail] summary sent to ' . implode(', ', $mailed));
+                } catch (\Throwable $e) {
                 }
                 $this->respond($result); return;
             }
@@ -262,7 +264,6 @@ class IndexController extends pm_Controller_Action
         $ownKey = $s['api_key'] ?? '';
         $s['api_key_readable'] = $ownKey;
         $s['role']             = $this->role();
-        $s['notify_targets']   = VtNotifier::allowedTargets($this->role());
         $s['my_email']         = VtNotifier::emailOfLogin($this->settings->getUserId()) ?? '';
         $s['has_key']          = !empty($ownKey) || $this->usingAdminKey;
         $s['using_admin_key']  = false; // Never expose admin key fallback to non-admin users
@@ -285,7 +286,7 @@ class IndexController extends pm_Controller_Action
         $raw = $this->getRequest()->getRawBody();
         $input = ($raw && $raw[0] === '{') ? (json_decode($raw, true) ?? []) : $this->getRequest()->getPost();
 
-        $allowed = ['api_key', 'wordpress_only', 'notify_enabled', 'notify_events', 'notify_to', 'daily_limit', 'auto_scan_share', 'clean_ttl_days', 'infected_ttl_days'];
+        $allowed = ['api_key', 'wordpress_only', 'notify_enabled', 'notify_events', 'notify_email', 'daily_limit', 'auto_scan_share', 'clean_ttl_days', 'infected_ttl_days'];
         $save    = [];
         foreach ($allowed as $k) {
             if (!isset($input[$k])) continue;
@@ -293,10 +294,15 @@ class IndexController extends pm_Controller_Action
                 $v = trim((string)$input[$k]);
                 if ($v === '') continue;
                 $save[$k] = $v;
-            } elseif ($k === 'notify_events' || $k === 'notify_to') {
-                $list  = array_filter(array_map('trim', explode(',', (string)$input[$k])));
-                $valid = $k === 'notify_events' ? VtNotifier::EVENTS : VtNotifier::allowedTargets($this->role());
-                $save[$k] = array_values(array_intersect($list, $valid));
+            } elseif ($k === 'notify_events') {
+                $list = array_filter(array_map('trim', explode(',', (string)$input[$k])));
+                $save[$k] = array_values(array_intersect($list, VtNotifier::EVENTS));
+            } elseif ($k === 'notify_email') {
+                $v = trim((string)$input[$k]);
+                if ($v !== '' && !filter_var($v, FILTER_VALIDATE_EMAIL)) {
+                    $this->respond(['error' => 'Please enter a valid e-mail address']); return;
+                }
+                $save[$k] = $v;
             } elseif ($k === 'wordpress_only' || $k === 'notify_enabled') {
                 $save[$k] = filter_var($input[$k], FILTER_VALIDATE_BOOLEAN);
             } elseif (in_array($k, ['daily_limit', 'clean_ttl_days', 'infected_ttl_days'])) {
@@ -323,7 +329,10 @@ class IndexController extends pm_Controller_Action
         if (!$this->getRequest()->isPost()) {
             $this->respond(['error' => 'POST required']); return;
         }
-        $sent = VtNotifier::sendTest($this->settings->getUserId());
+        $login = $this->settings->getUserId();
+        $to    = trim((string)$this->getRequest()->getPost('email', ''));
+        if ($to === '') $to = (string)($this->settings->get('notify_email') ?: VtNotifier::emailOfLogin($login));
+        $sent  = VtNotifier::sendTest($login, $to);
         $this->respond($sent ? ['ok' => true, 'email' => $sent]
                              : ['error' => 'No valid e-mail address found for your Plesk account']);
     }

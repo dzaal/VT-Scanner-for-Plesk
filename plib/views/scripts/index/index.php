@@ -206,6 +206,9 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-n-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
 .vt-check{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:13px;cursor:pointer}
 .vt-check .hint{font-size:12px;color:var(--muted)}
+.vt-n-email{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 11px;font-size:13px;width:100%;max-width:340px;outline:none}
+.vt-n-email:focus{border-color:var(--blue)}
+.vt-n-group.hint{color:var(--muted)}
 #vt-n-opts{margin-left:0}
 #vt-n-opts>.vt-btn{margin-left:26px}
 #vt-n-opts.off{opacity:.45;pointer-events:none}
@@ -395,7 +398,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
     <div class="vt-card">
       <h3>Notifications</h3>
       <label class="vt-radio"><input type="checkbox" id="vt-n-enabled" onchange="vtNotifyUi()">
-        <span><strong>E-mail me when a site's status changes</strong><br><span class="hint">Checked by the nightly scan and by every lookup or rescan on this page</span></span></label>
+        <span><strong>E-mail me when a site's status changes</strong><br><span class="hint">One summary with the changes and all infected sites</span></span></label>
       <div id="vt-n-opts">
         <div class="vt-n-group">
           <div class="vt-n-label">When a site becomes</div>
@@ -404,10 +407,13 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
           <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="clean"> <span class="vt-dot dot-g"></span> Clean again <span class="hint">(after being infected or suspicious)</span></label>
         </div>
         <div class="vt-n-group">
-          <div class="vt-n-label">Send the e-mail to</div>
-          <label class="vt-check" data-target="me"><input type="checkbox" name="vt-n-to" value="me"> Me <span class="hint" id="vt-n-myemail"></span></label>
-          <label class="vt-check" data-target="owner"><input type="checkbox" name="vt-n-to" value="owner"> The site owner <span class="hint">(the customer the site belongs to)</span></label>
-          <label class="vt-check" data-target="reseller"><input type="checkbox" name="vt-n-to" value="reseller"> The reseller <span class="hint">(of the customer the site belongs to)</span></label>
+          <div class="vt-n-label">Send to</div>
+          <input type="email" id="vt-n-email" class="vt-n-email" placeholder="" autocomplete="email">
+          <div class="hint" style="margin-top:4px">One address. Leave empty to use the address of your Plesk account.</div>
+        </div>
+        <div class="vt-n-group hint" style="font-size:12px;line-height:1.5">
+          You get <strong>one summary e-mail</strong> with the status changes and the full list of your infected sites:
+          after the nightly scan, and during the day 10 minutes after a change (so several changes share one e-mail).
         </div>
         <button class="vt-btn ghost" type="button" onclick="vtTestNotify()">Send test e-mail</button>
         <span class="vt-smsg" id="vt-n-msg"></span>
@@ -1076,7 +1082,8 @@ window.vtNotifyUi=function(){
 window.vtTestNotify=async function(){
   const fpToken=document.getElementById('forgery_protection_token')?.content||'';
   const msg=document.getElementById('vt-n-msg'); msg.style.display='inline'; msg.className='vt-smsg'; msg.textContent='Sending...';
-  const res=await fetch(BASE+'?action=test-notify',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken}}).then(r=>r.json()).catch(()=>({error:'Network error'}));
+  const body=new URLSearchParams({email:document.getElementById('vt-n-email').value.trim()});
+  const res=await fetch(BASE+'?action=test-notify',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body}).then(r=>r.json()).catch(()=>({error:'Network error'}));
   msg.className='vt-smsg '+(res.ok?'ok':'err');
   msg.textContent=res.ok?'Test e-mail sent to '+res.email:(res.error||'Could not send');
   setTimeout(()=>{msg.style.display='none';},6000);
@@ -1094,11 +1101,11 @@ function loadSettingsForm(cfg){
   savedWpOnly=!!cfg.wordpress_only;
   // Notifications: only offer the recipients this role may use
   document.getElementById('vt-n-enabled').checked=!!cfg.notify_enabled;
-  const evs=cfg.notify_events||['infected','suspicious'], tos=cfg.notify_to||['me'], allowed=cfg.notify_targets||['me'];
+  const evs=cfg.notify_events||['infected','suspicious'];
   document.querySelectorAll('input[name=vt-n-ev]').forEach(c=>c.checked=evs.includes(c.value));
-  document.querySelectorAll('input[name=vt-n-to]').forEach(c=>c.checked=tos.includes(c.value));
-  document.querySelectorAll('.vt-check[data-target]').forEach(l=>l.style.display=allowed.includes(l.dataset.target)?'':'none');
-  vtSet('vt-n-myemail',cfg.my_email?'('+cfg.my_email+')':'(no e-mail address set in your Plesk account)');
+  const em=document.getElementById('vt-n-email');
+  em.value=cfg.notify_email||'';
+  em.placeholder=cfg.my_email||'name@example.com';
   vtNotifyUi();
   if(cfg.daily_limit)       document.getElementById('vt-s-daily').value    =cfg.daily_limit;
   if(cfg.auto_scan_share)   document.getElementById('vt-s-share').value    =Math.round(cfg.auto_scan_share*100);
@@ -1116,7 +1123,7 @@ window.vtSaveSettings=async function(){
   const checked=n=>[...document.querySelectorAll('input[name='+n+']:checked')].map(c=>c.value).join(',');
   const payload={wordpress_only:wpOnly?'true':'false',
     notify_enabled:document.getElementById('vt-n-enabled').checked?'true':'false',
-    notify_events:checked('vt-n-ev'),notify_to:checked('vt-n-to'),daily_limit:daily,auto_scan_share:share,clean_ttl_days:cttl,infected_ttl_days:ittl};
+    notify_events:checked('vt-n-ev'),notify_email:document.getElementById('vt-n-email').value.trim(),daily_limit:daily,auto_scan_share:share,clean_ttl_days:cttl,infected_ttl_days:ittl};
   if(key) payload.api_key=key;
 
   const body=new URLSearchParams(payload);
