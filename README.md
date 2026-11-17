@@ -13,6 +13,8 @@ Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web developm
 >
 > **[Sign up as a beta tester](https://github.com/dzaal/VT-Scanner-for-Plesk/issues/new?template=beta-signup.yml)** · install with [one command](#installation) · **[send feedback](https://github.com/dzaal/VT-Scanner-for-Plesk/issues/new?template=beta-feedback.yml)**
 
+![From an infected site to the vendors that flag it, each with a link to ask for a review (demo names)](docs/screenshots/why-flagged-demo.gif)
+
 ## Who it's for
 
 Hosting companies, agencies and server admins who look after **more sites than VirusTotal's free API can check in a day**. The free key allows 500 requests per day and 4 per minute. With 500 sites or more you can't check them all every day, and a simple scanner burns the whole quota before you get to the one site you just cleaned up.
