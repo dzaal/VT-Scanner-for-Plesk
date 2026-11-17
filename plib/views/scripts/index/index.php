@@ -254,6 +254,7 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 .vt-why-steps{margin:10px 0 4px 18px;padding:0;font-size:12.5px;line-height:1.55}
 .vt-why-steps li{margin-bottom:5px}
 .vt-why-tbl td:first-child{font-family:inherit;font-weight:600}
+.vt-why-tip{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35}
 #vt-n-opts{margin-left:0}
 #vt-n-opts>.vt-btn{margin-left:26px}
 #vt-n-opts.off{opacity:.45;pointer-events:none}
@@ -1337,9 +1338,9 @@ const VT_FP={
   alibaba:'virustotal@list.alibaba-inc.com', alienvault:'otx-support@alienvault.com', alphamountain:'https://www.alphamountain.ai/false-positive/',
   alphasoc:'virustotal@alphasoc.com', antiy:'avlsdk_support@antiy.cn', arcsight:'virustotalsupport@opentext.com',
   avira:'https://www.avira.com/en/analysis/submit-url', antivir:'https://www.avira.com/en/analysis/submit-url',
-  avast:'DL-Virus@gendigital.com', avg:'http://www.avg.com/us-en/whitelist', bitdefender:'virus_submission@bitdefender.com',
-  bfore:'https://bfore.ai/support', blueliv:'klabs_services@outpost24.com', certego:'fp@certego.net', chainpatrol:'dispute@chainpatrol.io',
-  chongluadao:'info@chongluadao.vn', cins:'http://cinsscore.com/#contact', cleanmx:'abuse@clean-mx.de', cluster25:'threatintel@cluster25.io',
+  avast:'DL-Virus@gendigital.com', avg:'http://www.avg.com/us-en/whitelist', bitdefender:'https://www.bitdefender.com/submit',
+  bfore:'https://portal.bfore.ai/knowledge-base/kb-tickets/new', blueliv:'klabs_services@outpost24.com', certego:'fp@certego.net', chainpatrol:'dispute@chainpatrol.io',
+  chongluadao:'https://chongluadao.vn/en/report/reportmistake', cins:'http://cinsscore.com/#contact', cleanmx:'abuse@clean-mx.de', cluster25:'threatintel@cluster25.io',
   crdf:'https://threatcenter.crdf.fr/false_positive.html', criminalip:'support@aispera.com', crowdstrike:'VTscanner@crowdstrike.com',
   csis:'abuse-reporting@csis.com', cyble:'cyblevt_patnership@cyble.com', cyradar:'virustotal@cyradar.com',
   desenmascara:'vt-falsepositives@desenmascara.me', dns8:'dns8@layer8.pt', drweb:'vms@drweb.com', elastic:'https://discuss.elastic.co/t/submitting-false-positives/232322',
@@ -1359,26 +1360,44 @@ const VT_FP={
   quttera:'support@quttera.com', safetoopen:'virustotal@safetoopen.com', sansec:'virustotal@sansec.io', scantitan:'fp@scantitan.com',
   scumware:'https://www.scumware.org/removals.php', seclookup:'info@seclookup.com', securolytics:'https://tickets.securolytics.io/portal/en/kb/securolytics-1',
   sentinelone:'report@sentinelone.com', skyhigh:'gatewayantimalwarefpsubmission@skyhighsecurity.com', socradar:'vt@socradar.io',
-  sophos:'samples@sophos.com', spam404:'https://www.spam404.com/revision-request-domain.html', spamhaus:'https://www.spamhaus.org/dbl/removal/form/',
+  sophos:'https://support.sophos.com/support/s/filesubmission', spam404:'https://www.spam404.com/revision-request-domain.html', spamhaus:'https://www.spamhaus.org/dbl/removal/form/',
   stopforumspam:'https://www.stopforumspam.com/removal', sucuri:'soc@sucuri.net', symantec:'https://symsubmit.symantec.com',
   tencent:'TAVfp@tencent.com', trellix:'datasubmission@trellix.com', trendmicro:'https://www.trendmicro.com/en_us/about/legal/detection-reevaluation.html',
-  trustwave:'LevelBlueVirusTotalEscalations@levelblue.com', levelblue:'LevelBlueVirusTotalEscalations@levelblue.com', urlhaus:'vt-fp@abuse.ch',
+  trustwave:'https://support.trustwave.com/virustotal-detection-review/', levelblue:'LevelBlueVirusTotalEscalations@levelblue.com', urlhaus:'vt-fp@abuse.ch',
   urlquery:'contact@urlquery.net', viettel:'cyberthreat@viettel.com.vn', vipre:'https://helpdesk.vipre.com/hc/en-us/requests/new',
   virusdie:'partners@virusdie.com', webroot:'https://support.threatintel.opentext.com/tools/change-request.php', xcitium:'support@xcitium.com',
   comodo:'support@xcitium.com', yandexsafebrowsing:'sbapi@support.yandex.ru', yandex:'yandex-antivir@support.yandex.ru', zerofox:'ask@zerofox.com',
   zillya:'support@zillya.com', zonealarm:'zonealarm_VT_reports@checkpoint.com', zoner:'false@zonerantivirus.com'
 };
-function vtFpContact(vendor){
+// Short tips per vendor, from their own help pages and what site owners report
+const VT_FP_TIP={
+  alphamountain:'Ticket form; you have to log in or sign up first. Takes up to 24 h to apply after approval.',
+  gridinsoft:'Website form. Give the full address and proof the site was cleaned; no passwords or tokens in the URL.',
+  sophos:'Choose "Web Address (URL)". No Sophos account needed; usually 24–72 h.',
+  bitdefender:'Choose "False positive" and "URL". Mention you own the site and add the VirusTotal link.',
+  fortinet:'Choose a category dispute for the URL.',
+  chongluadao:'Complaint form for mislabelled sites.',
+  trustwave:'Form for VirusTotal detections.',
+  bfore:'Ticket form.',
+  googlesafebrowsing:'Site owners can also ask for a review in Google Search Console.',
+  socradar:'No form; e-mail with the VirusTotal link. Site owners report this works.',
+  cyradar:'No form; e-mail with the VirusTotal link.',
+  malwareurl:'No form; e-mail with the VirusTotal link.',
+  spamhaus:'Check the domain first; removal needs the cause fixed.'
+};
+function vtFpKey(vendor){
   const n=String(vendor).toLowerCase().replace(/[^a-z0-9]/g,'');
   let best='';
   for(const k in VT_FP) if(n.startsWith(k)&&k.length>best.length) best=k;
-  return best?VT_FP[best]:'';
+  return best;
 }
+function vtFpContact(vendor){const k=vtFpKey(vendor);return k?VT_FP[k]:'';}
 function vtFpLink(vendor,domain){
-  const c=vtFpContact(vendor);
+  const k=vtFpKey(vendor), c=k?VT_FP[k]:'', tip=k&&VT_FP_TIP[k]?'<div class="vt-why-tip">'+vtEsc(VT_FP_TIP[k])+'</div>':'';
   if(!c) return '<a href="'+VT_FP_LIST+'" target="_blank" rel="noopener">find the contact</a>';
-  if(c.includes('@')) return '<a href="mailto:'+vtEsc(c)+'?subject='+encodeURIComponent('Review request: '+domain+' has been cleaned')+'">'+vtEsc(c)+'</a>';
-  return '<a href="'+vtEsc(c)+'" target="_blank" rel="noopener">request a review ↗</a>';
+  if(c.includes('@')) return '<a href="mailto:'+vtEsc(c)+'?subject='+encodeURIComponent('Review request: '+domain+' has been cleaned')
+    +'&body='+encodeURIComponent('Hello,\n\nThe website '+domain+' is flagged by your service on VirusTotal:\nhttps://www.virustotal.com/gui/domain/'+domain+'/detection\n\nThe site has been cleaned and secured. Could you review it and remove it from your list?\n\nThank you.')+'">'+vtEsc(c)+'</a>'+tip;
+  return '<a href="'+vtEsc(c)+'" target="_blank" rel="noopener">request a review ↗</a>'+tip;
 }
 function vtWhyRowHTML(domain,st){
   const d=results[domain]||{}, e=vtEsca(domain);

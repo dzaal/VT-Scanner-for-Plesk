@@ -143,6 +143,29 @@ Click the **score** of a flagged site (for example *8/92 · Why?*). A second lin
   4. **Google:** if Chrome shows a red warning, the site owner can request a review in [Google Search Console → Security issues](https://search.google.com/search-console/security-issues).
   5. **Rescan again after a few days** to see who has removed it. Infected and suspicious sites are also re-checked daily by the background scan. If a vendor says it has removed the site but VirusTotal still shows it, open the `www.` and `http://` versions of the address on virustotal.com and click **Reanalyze** on each: VirusTotal keeps a separate report for each version.
 
+**Vendors that often flag websites**, and where to ask for a review (checked November 2026):
+
+| Vendor | Where | Notes |
+|---|---|---|
+| alphaMountain.ai | [false-positive page](https://www.alphamountain.ai/false-positive/) | Ticket form; you have to log in or sign up. After approval it takes up to 24 hours to apply; then reanalyze on VirusTotal. Many site owners complain about slow answers. |
+| Gridinsoft | [portal.gridinsoft.com/false-positive](https://portal.gridinsoft.com/false-positive) | Gridinsoft's own form for websites (not their support desk). Give the full address and proof the site was cleaned. Gridinsoft also looks at other vendors' verdicts, so ask the others first. |
+| Fortinet | [classification dispute](https://www.fortiguard.com/faq/classificationdispute) | Web form. |
+| Sophos | [Submit a sample](https://support.sophos.com/support/s/filesubmission) | Choose *Web Address (URL)*; no Sophos account needed. Usually 24–72 hours; you may not get a reply. |
+| BitDefender | [bitdefender.com/submit](https://www.bitdefender.com/submit) | Choose *False positive* and *URL*; mention you own the site and add the VirusTotal link. |
+| CRDF | [false-positive form](https://threatcenter.crdf.fr/false_positive.html) | Web form. |
+| G-Data | [submit a URL](https://www.gdata.de/help/en/general/GeneralInformation/submitFileAppURL/) | Web form. |
+| Lionic | [report a false positive](https://www.lionic.com/supports/report-false-positive/) | Web form. |
+| Chong Lua Dao | [report a mistake](https://chongluadao.vn/en/report/reportmistake) | Complaint form for mislabelled sites. |
+| Trustwave | [VirusTotal detection review](https://support.trustwave.com/virustotal-detection-review/) | Web form. |
+| Bfore.Ai PreCrime | [ticket form](https://portal.bfore.ai/knowledge-base/kb-tickets/new) | Ticket form. |
+| Webroot | [change request](https://support.threatintel.opentext.com/tools/change-request.php) | Web form. |
+| SOCRadar | vt@socradar.io | No form; e-mail with the VirusTotal link. Site owners report that it works. |
+| CyRadar | virustotal@cyradar.com | No form; e-mail with the VirusTotal link. |
+| MalwareURL | team@malwareurl.com | No form; e-mail with the VirusTotal link. |
+| Google Safe Browsing | [Search Console → Security issues](https://search.google.com/search-console/security-issues) | For the site owner; otherwise the [report form](https://safebrowsing.google.com/safebrowsing/report_error/). |
+
+For vendors with only an e-mail address, the link in the extension opens an e-mail with the subject and a short message already filled in, including the VirusTotal link. If a vendor has confirmed the removal but VirusTotal still shows it after reanalyzing, you can send that confirmation to VirusTotal through its [false positive page](https://docs.virustotal.com/docs/false-positive).
+
 The extension does not send review requests itself: each vendor has its own form or address, and a request should come from someone who can vouch that the site is clean.
 
 ## How it saves API calls
