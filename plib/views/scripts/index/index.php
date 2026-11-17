@@ -247,6 +247,13 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 .vt-sw input:checked+span:before{transform:translateX(16px)}
 .vt-sw input:disabled+span{opacity:.45;cursor:not-allowed}
 .vt-fs-note{color:var(--muted);font-size:11.5px;margin-top:6px;line-height:1.45}
+.vt-why-btn{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:3px 6px;margin:-3px -6px;border-radius:6px}
+.vt-why-btn:hover,.vt-why-btn.open{background:var(--gray-bg)}
+.vt-why-lbl{font-size:10.5px;color:#2563eb;font-weight:600}
+.vt-why-note{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:6px;padding:8px 11px;font-size:12.5px;line-height:1.5;margin:8px 0}
+.vt-why-steps{margin:10px 0 4px 18px;padding:0;font-size:12.5px;line-height:1.55}
+.vt-why-steps li{margin-bottom:5px}
+.vt-why-tbl td:first-child{font-family:inherit;font-weight:600}
 #vt-n-opts{margin-left:0}
 #vt-n-opts>.vt-btn{margin-left:26px}
 #vt-n-opts.off{opacity:.45;pointer-events:none}
@@ -558,6 +565,19 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
         </ul>
       </div>
 
+      <div class="vt-card">
+        <h3>Cleaned, but still red?</h3>
+        <p>The status in this extension comes from <strong>VirusTotal</strong>, not from the files on your server. VirusTotal shows what dozens of
+        security vendors think of the site, and each vendor keeps its own blocklist. After you clean a site, it can stay
+        <strong>infected</strong> or <strong>suspicious</strong> here for days or even weeks, until those vendors check it again and take it off their list.</p>
+        <ul class="vt-about-list">
+          <li><strong>Click the score</strong> (for example <em>8/92 · Why?</em>) to see which vendors flag the site, with a link per vendor to ask for a review.</li>
+          <li><strong>Click Rescan</strong> after cleaning. VirusTotal then asks all vendors again; the ones that find nothing turn clean right away.</li>
+          <li><strong>Ask the rest for a review</strong>, and for Chrome warnings use Google Search Console. Then rescan again after a few days.</li>
+        </ul>
+        <p class="hint">Before asking for a review, make sure the site is really clean and safe: updates installed, unused plugins removed and all passwords changed. Otherwise it is soon hacked again and listed again.</p>
+      </div>
+
       <div class="vt-card vt-coffee">
         <div class="vt-coffee-cup" aria-hidden="true">&#9749;</div>
         <div style="flex:1">
@@ -781,6 +801,9 @@ function rowHTML(domain,data){
     const c=data.malicious>0?'infected':'clean';
     const scoreNum=data.malicious>0?'<strong>'+data.malicious+'</strong>/'+data.total:data.malicious+'/'+data.total;
     score='<div class="vt-score"><div class="vt-sbar"><div class="vt-sbar-fill '+c+'" style="width:'+pct+'%"></div></div><span class="vt-snum '+c+'">'+scoreNum+'</span></div>';
+    if(data.malicious>0||st==='suspicious'||(data.flagged_by||[]).length){
+      score='<button type="button" class="vt-why-btn'+(fsOpen[domain]==='vt'?' open':'')+'" title="Which vendors flag this site, and how to get it reviewed after cleaning" onclick="vtWhyClick(\''+vtEsca(domain)+'\')">'+score+'<span class="vt-why-lbl">Why? ▾</span></button>';
+    }
   }else if(isScanning){score='<span class="vt-spin"></span>';}
   else if(st==='loading'){score='<span class="vt-spin"></span>';}
   else if(st==='error'){score='<span style="color:var(--red);font-size:12px">No result</span>';}
@@ -1304,8 +1327,89 @@ function fsBarHTML(domain){
     return '<button type="button" class="vt-sbtn'+(open?' open':'')+'" title="Scan the files of this site with '+vtEsc(sc.name)+'" onclick="vtFsClick(\''+e+'\',\''+sc.id+'\')">'+vtEsc(sc.name)+mark+'</button>';
   }).join('')+'</span>';
 }
+// ── Why flagged, and how to get delisted after cleaning ─────────
+// Review / false-positive contacts per vendor, from VirusTotal's list:
+// https://docs.virustotal.com/docs/false-positive-contacts
+const VT_FP_LIST='https://docs.virustotal.com/docs/false-positive-contacts';
+const VT_FP={
+  abusix:'https://lookup.abusix.com/', adminus:'samples@adminus.net', rising:'fp@rising.com.cn', acronis:'virustotal-falsepositive@acronis.com', ailabs:'aicc@monitorapp.com',
+  alibaba:'virustotal@list.alibaba-inc.com', alienvault:'otx-support@alienvault.com', alphamountain:'support@alphamountain.ai',
+  alphasoc:'virustotal@alphasoc.com', antiy:'avlsdk_support@antiy.cn', arcsight:'virustotalsupport@opentext.com',
+  avira:'https://www.avira.com/en/analysis/submit-url', antivir:'https://www.avira.com/en/analysis/submit-url',
+  avast:'DL-Virus@gendigital.com', avg:'http://www.avg.com/us-en/whitelist', bitdefender:'virus_submission@bitdefender.com',
+  bfore:'https://bfore.ai/support', blueliv:'klabs_services@outpost24.com', certego:'fp@certego.net', chainpatrol:'dispute@chainpatrol.io',
+  chongluadao:'info@chongluadao.vn', cins:'http://cinsscore.com/#contact', cleanmx:'abuse@clean-mx.de', cluster25:'threatintel@cluster25.io',
+  crdf:'https://threatcenter.crdf.fr/false_positive.html', criminalip:'support@aispera.com', crowdstrike:'VTscanner@crowdstrike.com',
+  csis:'abuse-reporting@csis.com', cyble:'cyblevt_patnership@cyble.com', cyradar:'virustotal@cyradar.com',
+  desenmascara:'vt-falsepositives@desenmascara.me', dns8:'dns8@layer8.pt', drweb:'vms@drweb.com', elastic:'https://discuss.elastic.co/t/submitting-false-positives/232322',
+  emsisoft:'fp@emsisoft.com', estsecurity:'esrc@estsecurity.com', alyac:'esrc@estsecurity.com', emergingthreats:'support@emergingthreats.net', ermes:'support-vt@ermes.company',
+  eset:'https://support.eset.com/kb141/?page=content&id=SOLN141', forcepoint:'reviewmysite@forcepoint.com',
+  fortinet:'https://www.fortiguard.com/faq/classificationdispute', gdata:'https://www.gdata.de/help/en/general/GeneralInformation/submitFileAppURL/',
+  googlesafebrowsing:'https://safebrowsing.google.com/safebrowsing/report_error/?hl=en', greensnow:'https://greensnow.co/contact',
+  gridinsoft:'virus@gridinsoft.com', guardpot:'virustotal@guardpot.com', heimdal:'report-vt@heimdalsecurity.com', ikarus:'fp@ikarus.at',
+  ipsum:'https://github.com/stamparm/ipsum', k7:'reportfp@labs.k7computing.com', kaspersky:'newvirus@kaspersky.com',
+  lionic:'https://www.lionic.com/supports/report-false-positive/', lumu:'vt@lumu.io', malbeacon:'vtreport@malbeacon.com',
+  malwarebytes:'https://forums.malwarebytes.com/forum/122-false-positives/', malwarepatrol:'fp@malwarepatrol.net', malwareurl:'team@malwareurl.com',
+  mcafee:'https://www.mcafee.com/support/s/article/000001921', microsoft:'https://www.microsoft.com/en-us/wdsi/filesubmission',
+  mimecast:'bep-soc@mimecast.com', netcraft:'https://report.netcraft.com/report/mistake', openphish:'support@openphish.com',
+  paloalto:'vt-pan-false-positive@paloaltonetworks.com', panda:'falsepositives@pandasecurity.com',
+  phishingdatabase:'https://github.com/phishing-Database/Phishing.Database/?tab=readme-ov-file#requests--support', phishlabs:'info@phishlabs.com',
+  phishtank:'https://www.phishtank.com/contact.php', prebytes:'https://www.support.prebytes.com/helpcenter/removals/', quickheal:'viruslab@quickheal.com',
+  quttera:'support@quttera.com', safetoopen:'virustotal@safetoopen.com', sansec:'virustotal@sansec.io', scantitan:'fp@scantitan.com',
+  scumware:'https://www.scumware.org/removals.php', seclookup:'info@seclookup.com', securolytics:'https://tickets.securolytics.io/portal/en/kb/securolytics-1',
+  sentinelone:'report@sentinelone.com', skyhigh:'gatewayantimalwarefpsubmission@skyhighsecurity.com', socradar:'vt@socradar.io',
+  sophos:'samples@sophos.com', spam404:'https://www.spam404.com/revision-request-domain.html', spamhaus:'https://www.spamhaus.org/dbl/removal/form/',
+  stopforumspam:'https://www.stopforumspam.com/removal', sucuri:'soc@sucuri.net', symantec:'https://symsubmit.symantec.com',
+  tencent:'TAVfp@tencent.com', trellix:'datasubmission@trellix.com', trendmicro:'https://www.trendmicro.com/en_us/about/legal/detection-reevaluation.html',
+  trustwave:'LevelBlueVirusTotalEscalations@levelblue.com', levelblue:'LevelBlueVirusTotalEscalations@levelblue.com', urlhaus:'vt-fp@abuse.ch',
+  urlquery:'contact@urlquery.net', viettel:'cyberthreat@viettel.com.vn', vipre:'https://helpdesk.vipre.com/hc/en-us/requests/new',
+  virusdie:'partners@virusdie.com', webroot:'https://support.threatintel.opentext.com/tools/change-request.php', xcitium:'support@xcitium.com',
+  comodo:'support@xcitium.com', yandexsafebrowsing:'sbapi@support.yandex.ru', yandex:'yandex-antivir@support.yandex.ru', zerofox:'ask@zerofox.com',
+  zillya:'support@zillya.com', zonealarm:'zonealarm_VT_reports@checkpoint.com', zoner:'false@zonerantivirus.com'
+};
+function vtFpContact(vendor){
+  const n=String(vendor).toLowerCase().replace(/[^a-z0-9]/g,'');
+  let best='';
+  for(const k in VT_FP) if(n.startsWith(k)&&k.length>best.length) best=k;
+  return best?VT_FP[best]:'';
+}
+function vtFpLink(vendor,domain){
+  const c=vtFpContact(vendor);
+  if(!c) return '<a href="'+VT_FP_LIST+'" target="_blank" rel="noopener">find the contact</a>';
+  if(c.includes('@')) return '<a href="mailto:'+vtEsc(c)+'?subject='+encodeURIComponent('Review request: '+domain+' has been cleaned')+'">'+vtEsc(c)+'</a>';
+  return '<a href="'+vtEsc(c)+'" target="_blank" rel="noopener">request a review ↗</a>';
+}
+function vtWhyRowHTML(domain,st){
+  const d=results[domain]||{}, e=vtEsca(domain);
+  const list=(d.flagged_by||[]).map(s=>{const i=String(s).indexOf(': ');return i>0?[s.slice(0,i),s.slice(i+2)]:[s,''];});
+  const close='<a onclick="vtFsClose(\''+e+'\')">Close</a>';
+  let h='<div class="vt-fs-head"><strong>VirusTotal</strong>'
+    +(list.length?'<span class="bad">flagged by '+list.length+' vendor'+(list.length===1?'':'s')+'</span>':'<span>'+vtEsc(LABELS[st]||st)+'</span>')
+    +(d.last_scan?'<span>last checked '+vtEsc(d.last_scan)+'</span>':'')
+    +'<span class="sp"></span><a href="https://www.virustotal.com/gui/domain/'+vtEsc(domain)+'/detection" target="_blank" rel="noopener">Full report ↗</a> · '+close+'</div>';
+  h+='<div class="vt-why-note"><strong>Already cleaned the site, and it is still red or orange?</strong> That is normal for a while. '
+    +'This status comes from VirusTotal, not from the files on the server. Each vendor below keeps its own blocklist and updates it on its own schedule: '
+    +'some within hours, others only after days or weeks, and some only when you ask.</div>';
+  if(list.length){
+    h+='<table class="vt-fs-tbl vt-why-tbl"><thead><tr><th>Vendor</th><th>Verdict</th><th>Ask for a review</th></tr></thead><tbody>'
+      +list.map(([v,r])=>'<tr><td>'+vtEsc(v)+'</td><td>'+vtEsc(r)+'</td><td>'+vtFpLink(v,domain)+'</td></tr>').join('')+'</tbody></table>';
+  }
+  h+='<ol class="vt-why-steps">'
+    +'<li><strong>Clean the site first.</strong> Use the scanner buttons to find infected files. Update WordPress, plugins and themes, remove plugins you don\'t use, change all passwords (admin, FTP/SFTP, database, hosting) and remove admin users you don\'t know. Otherwise the site is infected again soon and the vendors list it again.</li>'
+    +'<li><strong>Click Rescan.</strong> VirusTotal then asks all vendors to check the site again (this uses one manual call). Vendors that no longer find anything turn clean right away; the score drops.</li>'
+    +'<li><strong>Ask the vendors that still flag it for a review.</strong> Use the links above. Mention the site address, that it has been cleaned and what you did. Most answer within a few days.</li>'
+    +'<li><strong>Google:</strong> if Chrome shows a red warning, the site owner can ask Google for a review in <a href="https://search.google.com/search-console/security-issues" target="_blank" rel="noopener">Search Console → Security issues</a>. Google usually handles this within a few days.</li>'
+    +'<li><strong>Click Rescan again after a few days</strong> to see which vendors have removed the site from their list. Results of infected sites are refreshed every day by the background scan anyway.</li>'
+    +'</ol><div class="vt-fs-note">Contacts from <a href="'+VT_FP_LIST+'" target="_blank" rel="noopener">VirusTotal\'s list of vendor contacts</a>. VT Site Scanner never changes anything on the site; cleaning is up to you.</div>';
+  return '<tr class="vt-fs-row" id="vtfs-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(inQueue(domain)?' data-job="1"':'')+'><td colspan="5"><div class="vt-fs">'+h+'</div></td></tr>';
+}
+window.vtWhyClick=function(domain){
+  if(fsOpen[domain]==='vt'){vtFsClose(domain);return;}
+  fsOpen[domain]='vt'; vtFsRefresh(domain);
+};
 function fsRowHTML(domain,st){
   const id=fsOpen[domain]; if(!id) return '';
+  if(id==='vt') return vtWhyRowHTML(domain,st);
   const r=fsGet(domain,id), full=fsFull[domain+'|'+id], name=vtEsc(fsName(id)), e=vtEsca(domain);
   const close='<a onclick="vtFsClose(\''+e+'\')">Close</a>';
   let h;
