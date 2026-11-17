@@ -1,0 +1,158 @@
+<?php
+require_once __DIR__ . '/VtDataDir.php';
+
+/**
+ * VtSettings — persistent settings stored in extension data dir.
+ *
+ * Settings:
+ *   api_key          string   VirusTotal API key
+ *   daily_limit      int      Max API calls per day (auto-detected or manual)
+ *   auto_scan_share  float    Fraction of daily_limit reserved for background scan (default 0.8)
+ *                             Remaining fraction is kept for manual Reanalyze buttons.
+ *   clean_ttl_days   int      Days before re-checking a clean site (default 30)
+ *   infected_ttl_days int     Days before re-checking an infected site (default 1)
+ */
+class VtSettings
+{
+    private string $userId;
+
+    /** File per user: vt_settings_admin.json, vt_settings_reseller1.json, … */
+    public static function settingsFile(string $userId = 'admin'): string
+    {
+        return VtDataDir::path('vt_settings_' . preg_replace('/[^a-z0-9_\-]/i', '_', $userId) . '.json');
+    }
+
+    // VirusTotal free API limits
+    const VT_FREE_DAILY   = 500;
+    const VT_FREE_PER_MIN = 4;
+
+    // VirusTotal premium API limits (approximate)
+    const VT_PREMIUM_DAILY   = 100000;
+    const VT_PREMIUM_PER_MIN = 1000;
+
+    private static array $defaults = [
+        'api_key'            => '',
+        'enabled'            => true,  // master on/off switch
+        'daily_limit'        => 500,   // set to 0 for auto-detect via VT quota endpoint
+        'auto_scan_share'    => 0.8,   // 80% for background, 20% for manual
+        'clean_ttl_days'     => 30,
+        'infected_ttl_days'  => 1,
+        'tier'               => 'free', // 'free' | 'premium' | 'custom'
+    ];
+
+    private array $data;
+
+    public function __construct(string $userId = 'admin')
+    {
+        $this->userId = $userId;
+        VtDataDir::ensureExists();
+        $this->data = array_merge(self::$defaults, $this->load());
+    }
+
+    public function get(string $key, $default = null)
+    {
+        return $this->data[$key] ?? $default;
+    }
+
+    public function set(string $key, $value): void
+    {
+        $this->data[$key] = $value;
+        $this->save();
+    }
+
+    public function setAll(array $values): void
+    {
+        foreach ($values as $k => $v) {
+            if (array_key_exists($k, self::$defaults)) {
+                $this->data[$k] = $v;
+            }
+        }
+        // Recompute tier label
+        $limit = (int)($this->data['daily_limit'] ?? 500);
+        if ($limit <= 500)        $this->data['tier'] = 'free';
+        elseif ($limit >= 100000) $this->data['tier'] = 'premium';
+        else                      $this->data['tier'] = 'custom';
+
+        $this->save();
+    }
+
+    public function all(): array
+    {
+        return $this->data;
+    }
+
+    /** Max background scan calls per day */
+    public function maxAutoPerDay(): int
+    {
+        $limit = (int)($this->data['daily_limit'] ?? 500);
+        $share = (float)($this->data['auto_scan_share'] ?? 0.8);
+        return (int)floor($limit * $share);
+    }
+
+    /** Max manual reanalyze calls per day */
+    public function maxManualPerDay(): int
+    {
+        $limit = (int)($this->data['daily_limit'] ?? 500);
+        return $limit - $this->maxAutoPerDay();
+    }
+
+    /** Try to auto-detect tier by calling VT quota endpoint */
+    public function detectTierFromApi(): array
+    {
+        $apiKey = $this->data['api_key'] ?? '';
+        if (!$apiKey) return ['error' => 'No API key configured'];
+
+        $ch = curl_init('https://www.virustotal.com/api/v3/users/' . $apiKey . '/api_usage');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['x-apikey: ' . $apiKey],
+        ]);
+        $body = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($code !== 200) {
+            // Try the user endpoint instead
+            $ch2 = curl_init('https://www.virustotal.com/api/v3/users/self');
+            curl_setopt_array($ch2, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_HTTPHEADER     => ['x-apikey: ' . $apiKey],
+            ]);
+            $body2 = curl_exec($ch2);
+            $code2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+            curl_close($ch2);
+
+            if ($code2 === 200) {
+                $user = json_decode($body2, true);
+                $quota = $user['data']['attributes']['quotas']['api_requests_daily']['allowed'] ?? null;
+                if ($quota) {
+                    $this->data['daily_limit'] = (int)$quota;
+                    $this->save();
+                    return ['detected' => true, 'daily_limit' => (int)$quota];
+                }
+            }
+            return ['error' => "API returned HTTP $code"];
+        }
+
+        $data = json_decode($body, true);
+        // VT usage endpoint gives daily totals — use it to infer tier
+        return ['raw' => $data];
+    }
+
+    public function getUserId(): string { return $this->userId; }
+
+    private function load(): array
+    {
+        $file = self::settingsFile($this->userId);
+        if (!file_exists($file)) return [];
+        $d = json_decode(file_get_contents($file), true);
+        return is_array($d) ? $d : [];
+    }
+
+    private function save(): void
+    {
+        file_put_contents(self::settingsFile($this->userId), json_encode($this->data, JSON_PRETTY_PRINT));
+    }
+}
