@@ -150,13 +150,15 @@ The **Trend** tab shows how infections develop, per day, over the last **1, 2 or
 
 *This screenshot uses demo data (the shaded part): many infected sites, a big clean-up two months ago, and a slow rise since.*
 
-The totals are saved once a day: by the nightly scan (for the server, every reseller and every customer), and whenever someone opens the dashboard. The history is kept for about a year in the data folder (`vt_history.json` for the server, `vt_history_r_<login>.json` per reseller, `vt_history_c_<login>.json` per customer). Demo data is only ever added to the server history, never to a reseller or customer.
+The totals are saved once a day: by the nightly scan (for the server, every reseller and every customer), and whenever someone opens the dashboard. The history is kept for about a year in the data folder (`vt_history.json` for the server, `vt_history_r_<login>.json` per reseller, `vt_history_c_<login>.json` per customer). Demo data is only added when you run the demo script below.
 
 To see what the graph looks like before there is any history, you can fill the last 92 days with made-up example data (clearly marked as *demo*, shaded in the graph, and replaced by real totals day by day):
 
 ```bash
 sudo -u psaadm /usr/local/psa/admin/bin/php /usr/local/psa/admin/plib/modules/virustotal-extension/scripts/seed_demo_history.php
 ```
+
+Options: `--resellers` also fills every reseller's history, `--customers` every customer's. The demo figures are scaled to the number of sites (never more infected sites than there are) and end at today's real totals. `--remove` deletes all demo days again, everywhere. Resellers and customers see the same *Demo data* note and shading, so they can tell it's example data.
 
 ## Orphan databases
 

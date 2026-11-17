@@ -23,6 +23,27 @@ class VtHistory
         return VtDataDir::path('vt_history_' . ($type === 'c' ? 'c' : 'r') . '_' . preg_replace('/[^a-z0-9_\-]/i', '_', $login) . '.json');
     }
 
+    /** All reseller and customer histories that exist: ['r:login', 'c:login', ...] */
+    public static function scopes(): array
+    {
+        $out = [];
+        foreach (glob(VtDataDir::path('vt_history_[rc]_*.json')) ?: [] as $f) {
+            if (preg_match('/vt_history_([rc])_(.+)\.json$/', basename($f), $m)) $out[] = $m[1] . ':' . $m[2];
+        }
+        return $out;
+    }
+
+    /** Remove the demo days from the current history; returns how many were removed */
+    public static function removeDemo(): int
+    {
+        $h = self::load();
+        $before = count($h['days']);
+        $h['days'] = array_filter($h['days'], fn($v) => empty($v['demo']));
+        $n = $before - count($h['days']);
+        if ($n) self::save($h);
+        return $n;
+    }
+
     /** Work on the history of 'admin' (the whole server), 'r:<login>' (a reseller) or 'c:<login>' (a customer) */
     public static function scope(string $scope): void { self::$scope = $scope !== '' ? $scope : 'admin'; }
 
@@ -91,7 +112,7 @@ class VtHistory
         $h = self::load();
         mt_srand(20261117);
         // The shape is drawn for a server of about 275 sites and scaled to this one
-        $f   = max(0.05, $total / 275);
+        $f   = $total / 275;
         $rnd = fn(int $a, int $b) => mt_rand($a, $b) * $f;
         $cleanupStart = (int)round($days * 0.66); // days ago
         for ($ago = $days; $ago >= 1; $ago--) {
@@ -113,7 +134,7 @@ class VtHistory
                 $cln = $rnd(0, 3);
             }
             $inf = (int)round($inf); $sus = (int)round($sus); $cln = (int)round($cln);
-            $inf = max(0, $inf); $sus = max(0, $sus);
+            $inf = min($total, max(0, $inf)); $sus = min($total - $inf, max(0, $sus)); // never more than there are sites
             $h['days'][$date] = ['infected' => $inf, 'suspicious' => $sus, 'clean' => max(0, $total - $inf - $sus),
                                  'total' => $total, 'cleaned' => $cln, 'new_infected' => (int)round($rnd(0, 3)), 'demo' => true];
         }
