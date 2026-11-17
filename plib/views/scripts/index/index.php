@@ -558,6 +558,9 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 
 
 <script>
+// Opened inside a Plesk frame (e.g. a custom button with "Open URL in Plesk"):
+// that nests a second Plesk UI, so notifications appear twice. Break out.
+try{ if(window.top!==window && top.location.origin===location.origin) top.location.replace(location.href); }catch(e){}
 (function(){
 const BASE = <?= json_encode($this->baseUrl ?: '') ?> || location.pathname;
 let domains=[], results={}, budget={}, activeFilter='all';
