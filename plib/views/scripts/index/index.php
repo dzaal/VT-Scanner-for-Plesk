@@ -446,6 +446,7 @@ async function pump(){
     if(activeJob(d)) continue; // being manually rescanned
     if(st&&st!=='error'&&st!=='ratelimit'&&st!=='quota_exceeded'&&st!=='pending') continue; // already has a valid result
     inFlight=1; pumpCurrent=d;
+    const prev=results[d]||null, t0=Date.now();
     updateProgress();
     try{
       const data=await withVtSlot(()=>vtFetch('?action=scan&domain='+encodeURIComponent(d)));
@@ -459,11 +460,13 @@ async function pump(){
         continue;
       }
       results[d]=data; updateRow(d,data); updateCounts();
-      if(data.status==='quota_exceeded'){ scanQueue=[]; break; }
+      logAutoJob(d,prev,data,t0);
+      if(data.status==='quota_exceeded'){ scanQueue=[]; inFlight=0; pumpCurrent=null; break; }
       // Bump counters locally — no extra server round-trip needed
       if(data.status!=='error'){ budget.auto_used=(budget.auto_used??0)+1; budget.vt_quota_used=(budget.vt_quota_used??0)+1; updateBudget(); }
     }catch(e){
       results[d]={status:'error',domain:d}; updateRow(d,results[d]);
+      logAutoJob(d,prev,results[d],t0);
     }
     inFlight=0; pumpCurrent=null;
     updateProgress();
@@ -713,6 +716,18 @@ async function runJob(j){
   else if(fresh.status==='clean') vtToast('Clean: '+j.domain,'ok');
 }
 
+// Finished automatic lookups stay in the scan queue with their result
+function logAutoJob(domain,prev,data,t0){
+  const ok=['clean','suspicious','infected','pending'].includes(data.status);
+  const msgs={quota_exceeded:'VT daily quota exhausted — resumes after midnight UTC',
+              budget_exceeded:'Daily background budget used up — the nightly scan continues',
+              error:data.message||'Lookup failed'};
+  jobs.push({id:++jobSeq,domain,kind:'auto',state:ok?'done':'failed',prev,result:data,
+             msg:ok?'':(msgs[data.status]||data.message||data.status),
+             createdAt:t0,startedAt:t0,endedAt:Date.now()});
+  renderQueue();
+}
+
 function enqueueRescan(domain){
   if(activeJob(domain)) return false;
   scanQueue=scanQueue.filter(d=>d!==domain); // manual takes priority over auto pump
@@ -768,7 +783,11 @@ function jobMsg(j){
     case 'ratewait':   return 'VT rate limit (4/min) — retrying in '+fmtSecs(j.until-now);
     case 'processing': return 'VT is analysing ('+(j.vtState||'queued')+') — check '+(j.polls||0)+'/'+POLL_MAX;
     case 'fetch':      return 'Fetching the new report...';
-    case 'done':       return 'Finished in '+fmtSecs(j.endedAt-(j.startedAt||j.createdAt));
+    case 'done':
+      if(j.kind==='auto') return j.result&&j.result.status==='pending'
+        ?'New to VirusTotal — submitted for a first scan, result follows later'
+        :'Report fetched at '+new Date(j.endedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      return 'Finished at '+new Date(j.endedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})+' in '+fmtSecs(j.endedAt-(j.startedAt||j.createdAt));
     case 'failed':     return j.msg||'Failed';
   }
   return '';
@@ -790,13 +809,14 @@ function jobHTML(j){
     else if(i===4&&j.state==='failed') c='bad';
     return '<span class="'+c+'">'+(i===4&&j.state==='failed'?'Failed':s)+'</span>';
   }).join('')+'</div>';
+  const auto=j.kind==='auto';
   const pbar=j.state==='processing'?'<div class="vt-q-pbar"><div style="width:'+Math.round((j.polls||0)/POLL_MAX*100)+'%"></div></div>':'';
 
   let right;
   if(j.state==='done'&&j.result){
     const st=j.result.status, dc=DOT_CLS[st];
     right='<span class="vt-badge '+st+'">'+(dc?'<span class="vt-dot '+dc+'"></span>':'')+(LABELS[st]??st)+'</span>'
-      +'<div>'+scoreTxt(j.prev)+' → <strong>'+scoreTxt(j.result)+'</strong></div>';
+      +'<div>'+(j.prev&&j.prev.malicious!==undefined?scoreTxt(j.prev)+' → ':'')+'<strong>'+scoreTxt(j.result)+'</strong></div>';
   }else if(fin){
     right='<div>was '+scoreTxt(j.prev)+'</div>';
   }else{
@@ -804,8 +824,8 @@ function jobHTML(j){
   }
 
   return '<div class="vt-q-item '+j.state+'">'+icon
-    +'<div class="vt-q-main"><div class="vt-q-dom">'+vtEsc(j.domain)+'<span class="vt-q-kind">Rescan</span></div>'
-    +'<div class="vt-q-msg">'+vtEsc(jobMsg(j))+'</div>'+steps+pbar+'</div>'
+    +'<div class="vt-q-main"><div class="vt-q-dom">'+vtEsc(j.domain)+'<span class="vt-q-kind">'+(auto?'Auto':'Rescan')+'</span></div>'
+    +'<div class="vt-q-msg">'+vtEsc(jobMsg(j))+'</div>'+(auto?'':steps)+pbar+'</div>'
     +'<div class="vt-q-right">'+right+'</div></div>';
 }
 
@@ -832,7 +852,7 @@ function renderQueue(){
       +'<div class="vt-q-msg">'+vtEsc(msg)+'</div></div>'
       +'<div class="vt-q-right">'+scanQueue.length+' more waiting</div></div>';
   }
-  html+=finished.slice(0,25).map(jobHTML).join('');
+  html+=finished.slice(0,100).map(jobHTML).join('');
   document.getElementById('vt-q-list').innerHTML=html;
 
   const parts=[];
