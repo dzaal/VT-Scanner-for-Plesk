@@ -59,7 +59,7 @@ With that many sites, VirusTotal's free API quota (500 requests per day) runs ou
 VT Site Scanner was built to fix that:
 
 - **Careful with API calls.** Every call goes through a rate limiter, results are cached, and the daily budget is split between background scans and manual rescans.
-- **Interactive.** A live dashboard shows all sites, lets you filter on infected or suspicious ones, and rescans a site on demand, with a visible queue that shows each step of each scan.
+- **Interactive.** A live dashboard shows all sites, grouped by reseller and customer (click a customer to fold its sites away; the search box also finds customers), lets you filter on infected or suspicious ones, and rescans a site on demand, with a visible queue that shows each step of each scan.
 - **Hands-off.** A nightly background scan works through all sites in turn and picks up where it left off the night before.
 
 ## Features

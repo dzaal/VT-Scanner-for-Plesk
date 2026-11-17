@@ -321,6 +321,40 @@ class PleskDomains
         return $out;
     }
 
+    /**
+     * Owner of each site, for grouping the list: [domain => [c: customer name, cl: customer login,
+     * ct: admin|reseller|client, r: reseller name ('' = the administrator's own customers), rl: reseller login]].
+     * Hostnames that are not a Plesk domain (WordPress subsites) take the owner of their parent domain.
+     */
+    public static function owners(array $domains): array
+    {
+        $pdo = self::pleskPdo();
+        if (!$pdo || !$domains) return [];
+        try {
+            $rows = $pdo->query("SELECT LOWER(d.name), c.type, COALESCE(NULLIF(TRIM(c.cname),''), c.pname), c.login,
+                                        p.type, COALESCE(NULLIF(TRIM(p.cname),''), p.pname), p.login
+                                 FROM domains d JOIN clients c ON c.id = d.cl_id
+                                 LEFT JOIN clients p ON p.id = c.parent_id")->fetchAll(\PDO::FETCH_NUM);
+        } catch (\PDOException $e) {
+            return [];
+        }
+        $byName = [];
+        foreach ($rows as [$dn, $ct, $cn, $cl, $pt, $pn, $pl]) {
+            if ($ct === 'reseller')      $o = ['c' => $cn, 'cl' => $cl, 'ct' => 'reseller', 'r' => $cn, 'rl' => $cl];   // the reseller's own sites
+            elseif ($ct === 'admin')     $o = ['c' => 'Administrator', 'cl' => $cl, 'ct' => 'admin', 'r' => '', 'rl' => ''];
+            elseif ($pt === 'reseller')  $o = ['c' => $cn, 'cl' => $cl, 'ct' => 'client', 'r' => $pn, 'rl' => $pl];
+            else                         $o = ['c' => $cn, 'cl' => $cl, 'ct' => 'client', 'r' => '', 'rl' => ''];
+            $byName[$dn] = $o;
+        }
+        $out = [];
+        foreach ($domains as $d) {
+            for ($n = $d; $n !== '' && substr_count($n, '.') >= 1; $n = substr($n, strpos($n, '.') + 1)) {
+                if (isset($byName[$n])) { $out[$d] = $byName[$n]; break; }
+            }
+        }
+        return $out;
+    }
+
     /** Database id and the subscription (webspace) it belongs to, from Plesk: [db name => [id, webspace]] */
     public static function pleskDatabases(): array
     {

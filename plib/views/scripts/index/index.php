@@ -249,6 +249,14 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 .vt-sw input:disabled+span{opacity:.45;cursor:not-allowed}
 .vt-fs-note{color:var(--muted);font-size:11.5px;margin-top:6px;line-height:1.45}
 .vt-rel{margin-top:4px}
+tr.vt-grp-r>td{background:#eef2f7;font-size:13px;padding:9px 12px!important;border-top:2px solid #cbd5e1;color:#1f2937}
+tr.vt-grp-c>td{background:#f8fafc;font-size:12.5px;padding:6px 12px 6px 22px!important;cursor:pointer;color:#374151;font-weight:600}
+tr.vt-grp-c:hover>td{background:#f1f5f9}
+.vt-grp-login{font-weight:400;color:var(--muted);font-size:11.5px}
+.vt-grp-n{font-weight:400;color:var(--muted);font-size:11.5px;margin-left:6px}
+.vt-grp-n .bad{color:#b91c1c;font-weight:600}
+.vt-grp-caret{display:inline-block;transition:transform .15s;color:var(--muted)}
+tr.vt-grp-c.closed .vt-grp-caret{transform:rotate(-90deg)}
 .vt-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .vt-seg button{all:unset;cursor:pointer;font-size:12px;padding:5px 12px;color:var(--text);border-left:1px solid var(--border)}
 .vt-seg button:first-child{border-left:0}
@@ -372,7 +380,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
     </div>
 
     <div class="vt-toolbar">
-      <input class="vt-search" type="text" id="vt-search" placeholder="Search domain..." oninput="vtApplyFilter()">
+      <input class="vt-search" type="text" id="vt-search" placeholder="Search domain or customer..." oninput="vtApplyFilter()">
       <div class="vt-filters">
         <div class="vt-fgroup" data-f="all">
           <button class="vt-fbtn active" data-f="all" onclick="vtSetFilter('all')">All <strong id="vt-cnt-all">—</strong></button>
@@ -704,7 +712,7 @@ const LABELS={
   ratelimit:'Rate limit',quota_exceeded:'Quota exceeded',budget_exceeded:'Daily limit',
   scanning:'Scanning...',waiting:'VT processing...',nokey:'Needs API key',unchecked:'Not checked'
 };
-let related=[], relSet=new Set(), orphans={}; // hostnames from WordPress databases that are not in DNS, and their databases
+let related=[], relSet=new Set(), orphans={}, owners={}, grpClosed=new Set(); // hostnames from WordPress databases that are not in DNS, and their databases
 let noKey=false; // no (valid) VirusTotal API key: don't look anything up yet
 const DOT_CLS={infected:'dot-r',suspicious:'dot-y',clean:'dot-g',pending:'dot-b'};
 // Dangerous VT tags to highlight
@@ -713,7 +721,7 @@ const DANGER_TAGS=['malware','phishing','spam','ransomware','trojan','malicious'
 // ── Init ──────────────────────────────────────────────────────
 async function init(){
   const data=await vtFetch('?action=all').catch(()=>({}));
-  domains=data.domains||[]; related=data.related||[]; relSet=new Set(related); orphans=data.orphans||{}; results=data.results||{};
+  domains=data.domains||[]; related=data.related||[]; relSet=new Set(related); orphans=data.orphans||{}; owners=data.owners||{}; results=data.results||{};
   for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||{}; scanners=data.scanners||[]; scans=data.scans||{};
   for(const d in scans) for(const id in scans[d]) if(fsBusy(d,id)) vtFsPoll(d,id);
   vtSet('vt-cnt-all', domains.length);
@@ -881,7 +889,7 @@ window.vtDumpDb=async function(domain,db,btn){
 function renderTable(){
   const tbody=document.getElementById('vt-tbody');
   if(!domains.length){tbody.innerHTML='<tr class="vt-empty"><td colspan="5">No sites found. Click Refresh.</td></tr>';return;}
-  tbody.innerHTML=domains.map(d=>rowHTML(d,results[d]||null)).join('');
+  tbody.innerHTML=groupedRowsHTML();
   vtSet('vt-rel-cnt',related.length); vtSet('vt-cnt-orphan',related.length);
   document.getElementById('vt-fgroup-orphan').style.display=related.length?'':'none';
   if(!related.length&&activeFilter==='orphan') activeFilter='all';
@@ -889,6 +897,52 @@ function renderTable(){
   vtApplyFilter();
 }
 
+// ── Grouping by reseller and customer ─────────────────────────
+function grpKey(o){return (o.rl||'-')+'|'+o.cl;}
+function groupedRowsHTML(){
+  const withOwner=domains.filter(d=>owners[d]);
+  const custs=new Set(withOwner.map(d=>grpKey(owners[d])));
+  if(custs.size<2) return domains.map(d=>rowHTML(d,results[d]||null)).join(''); // one customer: no headers
+  const resellers=new Set(withOwner.map(d=>owners[d].rl).filter(Boolean));
+  const byRes={};
+  for(const d of domains){
+    const o=owners[d]||{c:'Unknown owner',cl:'?',ct:'client',r:'',rl:''};
+    const rk=o.rl||'-';
+    (byRes[rk]=byRes[rk]||{name:o.r,cust:{}});
+    const ck=grpKey(o);
+    (byRes[rk].cust[ck]=byRes[rk].cust[ck]||{o,list:[]}).list.push(d);
+  }
+  const cmp=(a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'});
+  const resKeys=Object.keys(byRes).sort((a,b)=>a==='-'?-1:b==='-'?1:cmp(byRes[a].name,byRes[b].name));
+  const bad=list=>list.filter(d=>['infected','suspicious'].includes(results[d]?.status)).length;
+  let h='';
+  for(const rk of resKeys){
+    const R=byRes[rk], all=Object.values(R.cust).flatMap(c=>c.list);
+    if(resellers.size){
+      const b=bad(all);
+      h+='<tr class="vt-grp-r" data-res="'+vtEsc(rk)+'"><td colspan="5">'
+        +(rk==='-'?'Customers of the administrator':'Reseller <strong>'+vtEsc(R.name)+'</strong> <span class="vt-grp-login">'+vtEsc(rk)+'</span>')
+        +' <span class="vt-grp-n">'+all.length+' site'+(all.length===1?'':'s')+(b?' · <span class="bad">'+b+' flagged</span>':'')+'</span></td></tr>';
+    }
+    const custKeys=Object.keys(R.cust).sort((a,b)=>{const A=R.cust[a].o,B=R.cust[b].o;
+      const w=o=>o.ct==='admin'||o.ct==='reseller'?0:1; return w(A)-w(B)||cmp(A.c,B.c);});
+    for(const ck of custKeys){
+      const C=R.cust[ck], b=bad(C.list), closed=grpClosed.has(ck);
+      const label=C.o.ct==='reseller'?'Own sites of the reseller':C.o.ct==='admin'?'Administrator':vtEsc(C.o.c);
+      h+='<tr class="vt-grp-c'+(closed?' closed':'')+'" data-res="'+vtEsc(rk)+'" data-gk="'+vtEsc(ck)+'" onclick="vtGrpToggle(this)"><td colspan="5">'
+        +'<span class="vt-grp-caret">▾</span> '+label+(C.o.ct==='client'?' <span class="vt-grp-login">'+vtEsc(C.o.cl)+'</span>':'')
+        +' <span class="vt-grp-n">'+C.list.length+' site'+(C.list.length===1?'':'s')+(b?' · <span class="bad">'+b+' flagged</span>':'')+'</span></td></tr>';
+      h+=C.list.sort(cmp).map(d=>rowHTML(d,results[d]||null)).join('');
+    }
+  }
+  return h;
+}
+window.vtGrpToggle=function(tr){
+  const k=tr.dataset.gk;
+  if(grpClosed.has(k)) grpClosed.delete(k); else grpClosed.add(k);
+  tr.classList.toggle('closed',grpClosed.has(k));
+  vtApplyFilter();
+};
 function updateRow(domain,data){
   const row=document.getElementById('vtr-'+rid(domain));
   if(!row){renderTable();return;}
@@ -965,7 +1019,9 @@ function rowHTML(domain,data){
   }
   actionBtn=(relSet.has(domain)?orphanBtns(domain):fsBarHTML(domain))+actionBtn; // orphan databases have no files to scan
 
-  return '<tr id="vtr-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(inQueue(domain)?' data-job="1"':'')+'>'
+  const own=owners[domain];
+  return '<tr id="vtr-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(inQueue(domain)?' data-job="1"':'')
+    +(own?' data-grp="'+vtEsc(grpKey(own))+'" data-own="'+vtEsc((own.c+' '+own.cl+' '+own.r).toLowerCase())+'"':'')+'>'
     +'<td>'+statusCell+'</td>'
     +'<td>'+domainCell+'</td>'
     +'<td>'+score+'</td>'
@@ -1091,9 +1147,18 @@ window.vtApplyFilter=function(){
     const st=row.dataset.status;
     const match=activeFilter==='all'||st===activeFilter
       ||(activeFilter==='pending'&&(row.dataset.job==='1'||st==='scanning'||st==='waiting'));
-    const show=match&&(!q||row.dataset.domain.includes(q));
-    row.style.display=show?'':'none';
+    const show=match&&(!q||row.dataset.domain.includes(q)||(row.dataset.own||'').includes(q));
+    row.dataset.vis=show?'1':'';
+    row.style.display=show&&!grpClosed.has(row.dataset.grp)?'':'none';
   });
+  // Group headers: only when the group has a site that matches the filter
+  const tb=document.getElementById('vt-tbody'), resVis={};
+  tb.querySelectorAll('tr.vt-grp-c').forEach(hd=>{
+    const any=[...tb.querySelectorAll('tr[data-domain]')].some(r=>r.dataset.grp===hd.dataset.gk&&r.dataset.vis==='1');
+    hd.style.display=any?'':'none';
+    if(any) resVis[hd.dataset.res]=1;
+  });
+  tb.querySelectorAll('tr.vt-grp-r').forEach(hd=>{hd.style.display=resVis[hd.dataset.res]?'':'none';});
 };
 
 function updateCounts(){
@@ -1403,7 +1468,7 @@ window.vtRefreshDomains=async function(){
     // Orphan databases too (the server cache was just cleared, so a deleted database drops out)
     const all=await vtFetch('?action=all').catch(()=>null);
     if(all){
-      related=all.related||[]; relSet=new Set(related); orphans=all.orphans||{};
+      related=all.related||[]; relSet=new Set(related); orphans=all.orphans||{}; owners=all.owners||{};
       Object.assign(results,all.results||{});
       for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d};
     }
