@@ -153,6 +153,17 @@ function scanners(): array
     return $list;
 }
 
+/** Short description of how a found scanner will be used */
+function scanner_detail(array $s): string
+{
+    switch ($s['id']) {
+        case 'clamav':  return $s['mode'] === 'clamd' ? 'running clamd (' . $s['conf'] . ')' : 'clamscan';
+        case 'maldet':  return $s['bin'];
+        case 'imunify': return $s['bin'] . ', results only';
+    }
+    return '';
+}
+
 function count_files(string $root): int
 {
     return (int)trim((string)shell_exec('find ' . escapeshellarg($root) . ' -type f 2>/dev/null | wc -l'));
@@ -212,7 +223,16 @@ function finish(array $base, string $id, array $scanner, string $root, int $star
 
 $mode = $argv[1] ?? '';
 if ($mode === 'list') {
-    out(['scanners' => array_values(array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name'], 'instant' => !empty($s['instant'])], scanners()))]);
+    // Every known scanner, installed or not, so the settings can show what was found
+    $names = ['clamav' => 'ClamAV', 'maldet' => 'Maldet', 'imunify' => 'Imunify'];
+    $found = scanners();
+    $list  = [];
+    foreach (SCANNERS as $id) {
+        $s = $found[$id] ?? null;
+        $list[] = ['id' => $id, 'name' => $s['name'] ?? $names[$id], 'installed' => (bool)$s,
+                   'instant' => !empty($s['instant']), 'detail' => $s ? scanner_detail($s) : ''];
+    }
+    out(['scanners' => $list]);
 }
 if ($mode !== 'start' && $mode !== '--run') out(['error' => 'usage: site-scan list | start <scanner> <hostname>']);
 

@@ -220,19 +220,19 @@ class IndexController extends pm_Controller_Action
             'results' => $results,
             'budget'  => $budgetInfo,
             'scans'    => self::scanResults($domains),
-            'scanners' => self::scanners(),
+            'scanners' => self::enabledScanners(),
         ]);
     }
 
     // ── File scanners (ClamAV, maldet, …), on demand ───────────
 
-    /** Scanners installed on this server (asked from the root helper, cached for an hour) */
-    private static function scanners(): array
+    /** All known scanners with 'installed' (asked from the root helper, cached for an hour) */
+    private static function scanners(bool $fresh = false): array
     {
         $cache = VtDataDir::path('vt_scanners.json');
-        if (is_file($cache) && time() - filemtime($cache) < 3600) {
+        if (!$fresh && is_file($cache) && time() - filemtime($cache) < 3600) {
             $d = json_decode((string)file_get_contents($cache), true);
-            if (is_array($d)) return $d;
+            if (is_array($d) && (!$d || isset($d[0]['installed']))) return $d;
         }
         try {
             $res  = pm_ApiCli::callSbin('site-scan', ['list'], pm_ApiCli::RESULT_FULL);
@@ -245,11 +245,57 @@ class IndexController extends pm_Controller_Action
         return $list;
     }
 
+    /** Scanners switched off by the administrator (server-wide) */
+    private static function disabledScanners(): array
+    {
+        $d = (new VtSettings('admin'))->get('scanners_disabled', []);
+        return is_array($d) ? $d : [];
+    }
+
+    /** Scanners that are installed and switched on: these get a button on every site */
+    private static function enabledScanners(): array
+    {
+        $off = array_flip(self::disabledScanners());
+        return array_values(array_filter(self::scanners(), fn($s) => !empty($s['installed']) && !isset($off[$s['id']])));
+    }
+
+    /** All scanners with installed/enabled state, for the settings page */
+    private static function scannerSettings(bool $fresh = false): array
+    {
+        $off = array_flip(self::disabledScanners());
+        return array_map(fn($s) => $s + ['enabled' => !isset($off[$s['id']])], self::scanners($fresh));
+    }
+
+    /** Detect the installed scanners again (after installing or removing one) */
+    public function detectScannersAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        $this->respond(['scanners' => self::scannerSettings(true)]);
+    }
+
+    /** Switch a scanner on or off for the whole server (administrator only) */
+    public function saveScannerAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        if ($this->role() !== 'admin') { $this->respond(['error' => 'Only the administrator can change the scanners']); return; }
+        $id = (string)$this->_getParam('scanner', '');
+        if (!in_array($id, array_column(self::scanners(), 'id'), true)) { $this->respond(['error' => 'Unknown scanner']); return; }
+        $on  = filter_var($this->_getParam('enabled', ''), FILTER_VALIDATE_BOOLEAN);
+        $off = array_values(array_diff(self::disabledScanners(), [$id]));
+        if (!$on) $off[] = $id;
+        (new VtSettings('admin'))->setAll(['scanners_disabled' => $off]);
+        $this->appendLog('[files] ' . $id . ' scanner ' . ($on ? 'switched on' : 'switched off'));
+        $this->respond(['ok' => true, 'scanners' => self::scannerSettings()]);
+    }
+
     private function scanParams(): ?array
     {
         $domain  = $this->sanitize($this->_getParam('domain', ''));
         $scanner = (string)$this->_getParam('scanner', '');
         if (!$domain || !preg_match('/^[a-z0-9]+$/', $scanner)) { $this->respond(['error' => 'invalid']); return null; }
+        if (!in_array($scanner, array_column(self::enabledScanners(), 'id'), true)) {
+            $this->respond(['error' => 'This scanner is switched off or not installed']); return null;
+        }
         if (!in_array($domain, PleskDomains::forCurrentUser($this->wpOnly()), true)) {
             $this->respond(['error' => 'forbidden']); return null;
         }
@@ -310,10 +356,11 @@ class IndexController extends pm_Controller_Action
     private static function scanResults(array $domains): array
     {
         $want = array_flip($domains);
+        $on   = array_flip(array_column(self::enabledScanners(), 'id'));
         $out  = [];
         foreach (glob(VtDataDir::path('vt_scan_*.json')) ?: [] as $f) {
             $d = json_decode((string)@file_get_contents($f), true);
-            if (!is_array($d) || !isset($d['domain'], $d['scanner'], $want[$d['domain']])) continue;
+            if (!is_array($d) || !isset($d['domain'], $d['scanner'], $want[$d['domain']], $on[$d['scanner']])) continue;
             $r = self::scanResult($d['scanner'], $d['domain']);
             unset($r['found']);
             $out[$d['domain']][$d['scanner']] = $r;
@@ -365,6 +412,8 @@ class IndexController extends pm_Controller_Action
         $s['role']             = $this->role();
         $s['my_email']         = VtNotifier::emailOfLogin($this->settings->getUserId()) ?? '';
         $s['has_key']          = !empty($ownKey) || $this->usingAdminKey;
+        $s['scanners']         = self::scannerSettings();
+        unset($s['scanners_disabled']);
         $s['using_admin_key']  = false; // Never expose admin key fallback to non-admin users
         // Quick auth check using the effective key (own or admin fallback)
         if ($this->effectiveApiKey) {

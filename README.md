@@ -83,7 +83,19 @@ Clicking a button opens a second line under the site. It shows the scan while it
 - **Detection only.** The extension asks every scanner to report, never to clean, quarantine or delete. maldet runs with its own quarantine setting, which is off by default; leave `quarantine_hits=0` in `/usr/local/maldetect/conf.maldet`.
 - **Why Imunify is read-only:** Imunify handles what it finds according to its own settings (*Default action on detect*, for example *cleanup*). Starting an Imunify scan from here could therefore change files, so the extension only reads its results.
 - Scans run at low CPU and disk priority. A large site takes a few minutes (about 17,000 files took 5–6 minutes with ClamAV in testing).
+- Scans from this extension run one at a time. maldet's own daily cron scan (installed with maldet) runs outside the extension and can overlap with a scan you start here.
 - Scanners don't always agree, and VirusTotal can flag a site for spam or phishing content in its database while its files are clean. Signatures starting with `PUA.` or `Heuristics.` are often false alarms.
+
+### Switching scanners on and off
+
+**Settings → File scanners** lists every scanner the extension knows (ClamAV, Maldet, Imunify), with what was found on the server:
+
+- **Installed**, with how it will be used: for ClamAV a running `clamd` (and its config file) or `clamscan`; for maldet and Imunify the program path. Imunify is marked *results only*.
+- **Not installed on this server**: the switch is greyed out and there is no button for it on the sites.
+
+Each installed scanner has an on/off switch. A scanner that is switched off gets no button on any site, its earlier results are hidden, and it cannot be started. The setting is saved right away and applies to the whole server, so it is the same for every user; only the administrator can change it. Resellers and customers see the list, but the switches are locked for them.
+
+The extension checks which scanners are installed once an hour. After you install or remove a scanner, click **Detect again** to update the list immediately. A newly found scanner is switched on.
 
 How it works: website files belong to the subscription users, so the scans run through a small root helper (`sbin/site-scan`) that Plesk installs with the extension and calls through its own `callSbin` mechanism. The helper only accepts a scanner name and a hostname, and looks up the folder in Plesk's database. Each scanner is a small adapter in that file (detect, scan, read the result), so another scanner can be added the same way.
 
@@ -136,7 +148,7 @@ Every API call is a domain report lookup (`GET /domains/{domain}`), a re-analysi
 - **Plesk Obsidian 18.0 or newer** on Linux, with root SSH access to the server
 - Websites hosted in Plesk. Every active domain and subdomain with web hosting is checked, whatever it runs (WordPress, Joomla, plain HTML, …), plus WordPress sites on a hostname under a hosted domain. Forwarding-only domains, domains without hosting and suspended domains are skipped. The list is read from Plesk's own database. To check WordPress sites only, choose **Settings → Sites to scan → WordPress sites only**.
 - A **VirusTotal API key**. The free key is enough: create an account at [virustotal.com](https://www.virustotal.com), then open your profile menu → **API key**.
-- Optional: **ClamAV**, **maldet** and/or **ImunifyAV / Imunify360** for the file scans. The extension uses whichever are installed; none of them is required.
+- Optional: **ClamAV**, **maldet** and/or **ImunifyAV / Imunify360** for the file scans. The extension uses whichever are installed; none of them is required. You can switch each one off in **Settings → File scanners**.
 
 The extension runs on Plesk's own bundled PHP (8.x), so the PHP version of your websites doesn't matter.
 

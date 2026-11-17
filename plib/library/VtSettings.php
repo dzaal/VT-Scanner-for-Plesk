@@ -47,6 +47,7 @@ class VtSettings
         'clean_ttl_days'     => 30,
         'infected_ttl_days'  => 1,
         'tier'               => 'free', // 'free' | 'premium' | 'custom'
+        'scanners_disabled'  => [],     // file scanners switched off (admin settings only, server-wide)
     ];
 
     private array $data;

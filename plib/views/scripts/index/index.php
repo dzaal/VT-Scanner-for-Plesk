@@ -234,6 +234,18 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 .vt-fs-tbl td:first-child{font-family:ui-monospace,Consolas,monospace;word-break:break-all}
 .vt-fs-tbl td:last-child{color:var(--red);white-space:nowrap}
 .vt-fs-tbl tr.handled td{color:var(--muted)!important;text-decoration:line-through}
+.vt-sc-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--border)}
+.vt-sc-row:first-child{border-top:0}
+.vt-sc-row .vt-sc-name{font-weight:700;min-width:80px}
+.vt-sc-row .vt-sc-info{flex:1;font-size:12px;color:var(--muted);word-break:break-all}
+.vt-sc-row.missing .vt-sc-name{color:var(--muted)}
+.vt-sw{position:relative;width:36px;height:20px;flex:none}
+.vt-sw input{opacity:0;width:0;height:0;position:absolute}
+.vt-sw span{position:absolute;inset:0;border-radius:20px;background:#cbd5e1;cursor:pointer;transition:.15s}
+.vt-sw span:before{content:"";position:absolute;width:16px;height:16px;left:2px;top:2px;border-radius:50%;background:#fff;transition:.15s}
+.vt-sw input:checked+span{background:#16a34a}
+.vt-sw input:checked+span:before{transform:translateX(16px)}
+.vt-sw input:disabled+span{opacity:.45;cursor:not-allowed}
 .vt-fs-note{color:var(--muted);font-size:11.5px;margin-top:6px;line-height:1.45}
 #vt-n-opts{margin-left:0}
 #vt-n-opts>.vt-btn{margin-left:26px}
@@ -444,6 +456,15 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
         <button class="vt-btn ghost" type="button" onclick="vtTestNotify()">Send test e-mail</button>
         <span class="vt-smsg" id="vt-n-msg"></span>
       </div>
+    </div>
+
+    <div class="vt-card">
+      <h3 style="display:flex;align-items:center;gap:10px">File scanners
+        <div style="flex:1"></div>
+        <button class="vt-btn ghost" type="button" onclick="vtDetectScanners()" id="vt-sc-detect">Detect again</button></h3>
+      <div class="hint" style="margin-bottom:10px">Malware scanners found on this server. Each one that is switched on gets a button on every site in the dashboard. They only detect and report; nothing on the sites is changed.</div>
+      <div id="vt-sc-list"><span class="hint">Loading…</span></div>
+      <span class="vt-smsg" id="vt-sc-msg"></span>
     </div>
 
     <div class="vt-card">
@@ -1150,7 +1171,52 @@ function loadSettingsForm(cfg){
   if(cfg.auto_scan_share)   document.getElementById('vt-s-share').value    =Math.round(cfg.auto_scan_share*100);
   if(cfg.clean_ttl_days)    document.getElementById('vt-s-clean-ttl').value=cfg.clean_ttl_days;
   if(cfg.infected_ttl_days) document.getElementById('vt-s-inf-ttl').value  =cfg.infected_ttl_days;
+  vtRenderScanners(cfg.scanners||[],cfg.role==='admin');
 }
+
+// ── File scanners on/off (server-wide, administrator) ─────────
+let scIsAdmin=false;
+function vtRenderScanners(list,isAdmin){
+  scIsAdmin=isAdmin;
+  const el=document.getElementById('vt-sc-list');
+  document.getElementById('vt-sc-detect').style.display=isAdmin?'':'none';
+  if(!list.length){el.innerHTML='<span class="hint">Could not ask the server which scanners are installed.</span>';return;}
+  el.innerHTML=list.map(s=>{
+    const info=s.installed
+      ?'Installed: '+vtEsc(s.detail||'')+(s.instant?' · shows the results of Imunify scans, starts no scan':'')
+      :'Not installed on this server';
+    return '<div class="vt-sc-row'+(s.installed?'':' missing')+'">'
+      +'<label class="vt-sw" title="'+(isAdmin?'Switch on or off':'Set by the administrator')+'"><input type="checkbox" '+(s.installed&&s.enabled?'checked ':'')
+      +((!s.installed||!isAdmin)?'disabled ':'')+'onchange="vtToggleScanner(\''+s.id+'\',this.checked)"><span></span></label>'
+      +'<span class="vt-sc-name">'+vtEsc(s.name)+'</span>'
+      +'<span class="vt-sc-info">'+info+(s.installed&&!s.enabled?' · <strong>switched off</strong>':'')+'</span></div>';
+  }).join('')+(isAdmin?'':'<div class="hint" style="margin-top:6px">Only the administrator can switch scanners on or off.</div>');
+}
+function vtScMsg(ok,text){
+  const m=document.getElementById('vt-sc-msg');
+  m.style.display='inline';m.className='vt-smsg '+(ok?'ok':'err');m.textContent=text;
+  setTimeout(()=>{m.style.display='none';},4000);
+}
+function vtApplyScanners(list){
+  scanners=list.filter(s=>s.installed&&s.enabled).map(s=>({id:s.id,name:s.name,instant:s.instant}));
+  vtRenderScanners(list,scIsAdmin);
+  renderTable();
+}
+window.vtToggleScanner=async function(id,on){
+  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
+  const res=await fetch(BASE+'?action=save-scanner',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},
+    body:new URLSearchParams({scanner:id,enabled:on?'true':'false'})}).then(r=>r.json()).catch(()=>({error:'Network error'}));
+  if(res.ok){vtApplyScanners(res.scanners);vtScMsg(true,'Saved');}
+  else{vtScMsg(false,res.error||'Could not save');const cfg=await vtFetch('?action=get-settings').catch(()=>({}));vtRenderScanners(cfg.scanners||[],cfg.role==='admin');}
+};
+window.vtDetectScanners=async function(){
+  const b=document.getElementById('vt-sc-detect');b.disabled=true;b.textContent='Detecting…';
+  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
+  const res=await fetch(BASE+'?action=detect-scanners',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken}}).then(r=>r.json()).catch(()=>({error:'Network error'}));
+  b.disabled=false;b.textContent='Detect again';
+  if(res.scanners){vtApplyScanners(res.scanners);vtScMsg(true,res.scanners.filter(s=>s.installed).length+' scanner(s) found');}
+  else vtScMsg(false,res.error||'Could not detect');
+};
 
 window.vtSaveSettings=async function(){
   const key  =document.getElementById('vt-s-apikey').value.trim();
