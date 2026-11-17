@@ -215,7 +215,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-clam.bad{color:var(--red);font-weight:600}
 .vt-clam.err,.vt-clam.run{color:var(--muted)}
 .vt-clam a{color:inherit;text-decoration:underline;cursor:pointer}
-.vt-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:10000;padding:16px}
+.vt-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:2147483000;padding:16px}
 .vt-modal-bg.open{display:flex}
 .vt-modal{background:var(--surface);color:inherit;border-radius:10px;max-width:760px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.25)}
 .vt-modal-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
@@ -590,6 +590,7 @@ async function init(){
   scanQueue=domains
     .filter(d=>!results[d]||['error','ratelimit','pending'].includes(results[d].status))
     .slice(0, MAX_PUMP);
+  renderTable(); updateCounts();
   pump();
 }
 
@@ -637,7 +638,7 @@ async function pump(){
       }
       results[d]=data; updateRow(d,data); updateCounts();
       logAutoJob(d,prev,data,t0);
-      if(data.status==='quota_exceeded'){ scanQueue=[]; inFlight=0; pumpCurrent=null; break; }
+      if(data.status==='quota_exceeded'){ scanQueue=[]; inFlight=0; pumpCurrent=null; renderTable(); updateCounts(); break; }
       // Bump counters locally — no extra server round-trip needed
       if(data.status!=='error'){ budget.auto_used=(budget.auto_used??0)+1; budget.vt_quota_used=(budget.vt_quota_used??0)+1; updateBudget(); }
     }catch(e){
@@ -645,7 +646,7 @@ async function pump(){
       logAutoJob(d,prev,results[d],t0);
     }
     inFlight=0; pumpCurrent=null;
-    updateProgress();
+    updateProgress(); updateCounts();
     if(scanQueue.length){ // respect 4 req/min limit
       pumpPauseFrom=Date.now(); pumpPauseUntil=pumpPauseFrom+PUMP_DELAY; pumpPauseLimit=false; renderQueue();
       await delay(PUMP_DELAY);
@@ -778,7 +779,7 @@ function rowHTML(domain,data){
       +(running?'<span class="vt-spin"></span> ClamAV':'Scan files')+'</button> '+actionBtn;
   }
 
-  return '<tr id="vtr-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(job?' data-job="1"':'')+'>'
+  return '<tr id="vtr-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(inQueue(domain)?' data-job="1"':'')+'>'
     +'<td>'+statusCell+'</td>'
     +'<td>'+domainCell+'</td>'
     +'<td>'+score+'</td>'
@@ -809,7 +810,7 @@ function updateCounts(){
   for(const d of domains){
     const s=results[d]?.status??'loading';
     if(s in c) c[s]++;
-    if(s!=='pending'&&activeJob(d)) c.pending++; // in the rescan queue
+    if(s!=='pending'&&inQueue(d)) c.pending++; // in the rescan queue or waiting for an automatic lookup
   }
   vtSet('vt-cnt-infected',c.infected);
   vtSet('vt-cnt-suspicious',c.suspicious);
@@ -829,6 +830,7 @@ const JOB_SHORT={submit:'Submitting...',ratewait:'Rate limit wait',processing:'V
 const STEPS=['Queued','Submit','VT analysis','Report','Done'];
 const POLL_MAX=12, POLL_MS=5000;
 
+function inQueue(d){return !!activeJob(d)||d===pumpCurrent||scanQueue.includes(d);}
 function activeJob(d){return jobs.find(j=>j.domain===d&&ACTIVE.has(j.state));}
 function queuePos(j){return jobs.filter(x=>x.state==='queued').indexOf(j)+1;}
 function withVtSlot(fn){const p=vtLock.then(fn);vtLock=p.catch(()=>{});return p;}
@@ -1106,7 +1108,7 @@ window.vtRefreshDomains=async function(){
   const data=await vtFetch('?action=refresh-domains').catch(()=>({}));
   if(data.domains){
     domains=data.domains; vtSet('vt-cnt-all',domains.length);
-    renderTable(); scanQueue=domains.filter(d=>!results[d]); pump();
+    scanQueue=domains.filter(d=>!results[d]); renderTable(); updateCounts(); pump();
   }
 };
 
@@ -1270,6 +1272,7 @@ window.vtClamShow=async function(domain){
   const b=document.getElementById('vt-clam-body');
   b.innerHTML='<span class="vt-spin"></span> Loading…';
   document.getElementById('vt-clam-again').onclick=()=>{vtClamClose();vtClamScan(domain);};
+  if(m.parentNode!==document.body) document.body.appendChild(m); // above Plesk's own header and menus
   m.classList.add('open');
   const r=await vtFetch('?action=clam-result&domain='+encodeURIComponent(domain)).catch(()=>null);
   const c=r?.clam;
