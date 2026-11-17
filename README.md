@@ -132,6 +132,16 @@ The summary goes out at the end of the nightly scan, and during the day 10 minut
 
 Mail is sent with the server's own mail system (PHP `mail()` via sendmail), from the administrator's e-mail address. Keep in mind that a single vendor flagging a site can be a false alarm, so check a site before alarming its owner.
 
+## Related hostnames
+
+At the bottom of the dashboard, **Related hostnames** lists hostnames that are named in a WordPress database on the server, under one of your domains, but that don't exist in DNS: usually old copies, test or staging sites (`staging.`, `test.`, `2025.`, …) whose database was never removed.
+
+Nobody can visit them, but VirusTotal often still has them on file, sometimes as infected, and that can count against the main domain. So they are worth a look:
+
+- They are **not looked up automatically**, to save API calls. Click **Rescan** to check one; the score and **Why?** work as for any other site.
+- There is no file scan button, because there are no files to scan.
+- If the copy is no longer needed, delete its database (or its tables) in Plesk, and the hostname disappears from the list the next day.
+
 ## Cleaned, but still red?
 
 A red or orange site raises two questions for the webmaster: *who* says the site is unsafe, and *how* do I get that changed once the site is clean? VT Site Scanner answers both on the same screen, so you don't have to search for each vendor's support page yourself.
@@ -195,7 +205,7 @@ Every API call is a domain report lookup (`GET /domains/{domain}`), a re-analysi
 ## Requirements
 
 - **Plesk Obsidian 18.0 or newer** on Linux, with root SSH access to the server
-- Websites hosted in Plesk. Every active domain and subdomain with web hosting is checked, whatever it runs (WordPress, Joomla, plain HTML, …), plus WordPress sites on a hostname under a hosted domain (only when that hostname exists in DNS, so leftover databases of old copies or test sites are skipped). Forwarding-only domains, domains without hosting and suspended domains are skipped. The list is read from Plesk's own database. To check WordPress sites only, choose **Settings → Sites to scan → WordPress sites only**.
+- Websites hosted in Plesk. Every active domain and subdomain with web hosting is checked, whatever it runs (WordPress, Joomla, plain HTML, …), plus WordPress sites on a hostname under a hosted domain. Hostnames that only appear in a leftover WordPress database and no longer exist in DNS are listed separately under **Related hostnames** (see below). Forwarding-only domains, domains without hosting and suspended domains are skipped. The list is read from Plesk's own database. To check WordPress sites only, choose **Settings → Sites to scan → WordPress sites only**.
 - A **VirusTotal API key**. The free key is enough: create an account at [virustotal.com](https://www.virustotal.com), then open your profile menu → **API key**.
 - Optional: **ClamAV**, **maldet** and/or **ImunifyAV / Imunify360** for the file scans. The extension uses whichever are installed; none of them is required. You can switch each one off in **Settings → File scanners**.
 
@@ -252,7 +262,7 @@ Installing registers the nightly background scan automatically. You don't need t
 ### Step 3: Add your VirusTotal API key
 
 1. In Plesk, open **VT Site Scanner** in the left navigation (under **Links to Additional Services**; in the Power User view and for customers in the main menu), or under **Extensions → My Extensions**. Until you add a key, the sites show **Needs API key** and nothing is looked up.
-2. Go to the **Settings** tab.
+2. Go to the **Settings** tab. The VirusTotal API key is the first card.
 3. Paste your API key and click **Save settings**.
 4. Optional: choose **Sites to scan** (all hosted websites, or WordPress sites only), and adjust the daily limit (500 for the free tier, higher if you have a premium key), the background/manual split, and how long results are cached.
 

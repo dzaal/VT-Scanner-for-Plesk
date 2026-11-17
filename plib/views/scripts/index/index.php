@@ -129,7 +129,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-badge.pending   {background:var(--blue-bg);   color:var(--blue);  border:1px solid var(--blue-border)}
 .vt-badge.nokey{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}
 .vt-badge.scanning,.vt-badge.waiting{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
-.vt-badge.loading,.vt-badge.error,.vt-badge.ratelimit,.vt-badge.quota_exceeded,.vt-badge.budget_exceeded{background:var(--gray-bg);color:var(--gray);border:1px solid var(--border)}
+.vt-badge.loading,.vt-badge.unchecked,.vt-badge.error,.vt-badge.ratelimit,.vt-badge.quota_exceeded,.vt-badge.budget_exceeded{background:var(--gray-bg);color:var(--gray);border:1px solid var(--border)}
 .vt-domain-name{font-weight:600;font-size:13px;color:var(--heading)}
 .vt-domain-ip{font-size:11px;color:var(--muted);margin-top:1px}
 .vt-domain-age{display:inline-block;font-size:10px;padding:1px 5px;border-radius:4px;font-weight:600;margin-left:4px;vertical-align:middle}
@@ -248,6 +248,10 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 .vt-sw input:checked+span:before{transform:translateX(16px)}
 .vt-sw input:disabled+span{opacity:.45;cursor:not-allowed}
 .vt-fs-note{color:var(--muted);font-size:11.5px;margin-top:6px;line-height:1.45}
+.vt-rel{margin-top:22px}
+.vt-rel h3{font-size:15px;margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.vt-rel .vt-rel-cnt{font-size:12px;font-weight:600;background:var(--gray-bg);border:1px solid var(--border);border-radius:10px;padding:1px 8px;color:var(--muted)}
+.vt-rel .hint{font-size:12.5px;line-height:1.5;margin:0 0 10px;max-width:900px}
 .vt-why-btn{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:3px 6px;margin:-3px -6px;border-radius:6px}
 .vt-why-btn:hover,.vt-why-btn.open{background:var(--gray-bg)}
 .vt-why-lbl{font-size:10.5px;color:#2563eb;font-weight:600}
@@ -416,6 +420,28 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
         <tbody id="vt-tbody"><tr class="vt-empty"><td colspan="5">Loading...</td></tr></tbody>
       </table>
     </div>
+
+    <div class="vt-rel" id="vt-rel" style="display:none">
+      <h3>Related hostnames <span class="vt-rel-cnt" id="vt-rel-cnt"></span></h3>
+      <p class="hint">Found in WordPress databases on this server, under one of the domains above, but they don't exist in DNS:
+        usually old copies, test or staging sites. Nobody can visit them, but VirusTotal often still lists them, sometimes as infected,
+        and that can count against the main domain. They are not looked up automatically; click <strong>Rescan</strong> to check one.
+        Delete the old database if the copy is no longer needed.</p>
+      <div class="vt-tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:120px">Status</th>
+            <th>Domain</th>
+            <th style="width:155px">Score</th>
+            <th style="width:135px">Last scan</th>
+            <th style="width:85px;text-align:right">Action</th>
+          </tr>
+        </thead>
+        <tbody id="vt-tbody-rel"></tbody>
+      </table>
+      </div>
+    </div>
   </div>
 
   <!-- Log -->
@@ -434,48 +460,6 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 
   <!-- Settings -->
   <div class="vt-panel" id="vtpanel-settings">
-    <div class="vt-card">
-      <h3>Sites to scan</h3>
-      <label class="vt-radio"><input type="radio" name="vt-s-scope" id="vt-s-scope-all" value="all" checked>
-        <span><strong>All hosted websites</strong><br><span class="hint">Every active domain and subdomain with web hosting, whatever it runs</span></span></label>
-      <label class="vt-radio"><input type="radio" name="vt-s-scope" id="vt-s-scope-wp" value="wp">
-        <span><strong>WordPress sites only</strong><br><span class="hint">Only sites with a WordPress database on this server</span></span></label>
-    </div>
-
-    <div class="vt-card">
-      <h3>Notifications</h3>
-      <label class="vt-radio"><input type="checkbox" id="vt-n-enabled" onchange="vtNotifyUi()">
-        <span><strong>E-mail me when a site's status changes</strong><br><span class="hint">One summary with the changes and all infected sites</span></span></label>
-      <div id="vt-n-opts">
-        <div class="vt-n-group">
-          <div class="vt-n-label">When a site becomes</div>
-          <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="infected"> <span class="vt-dot dot-r"></span> Infected</label>
-          <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="suspicious"> <span class="vt-dot dot-y"></span> Suspicious</label>
-          <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="clean"> <span class="vt-dot dot-g"></span> Clean again <span class="hint">(after being infected or suspicious)</span></label>
-        </div>
-        <div class="vt-n-group">
-          <div class="vt-n-label">Send to</div>
-          <input type="email" id="vt-n-email" class="vt-n-email" placeholder="" autocomplete="email">
-          <div class="hint" style="margin-top:4px">One address. Leave empty to use the address of your Plesk account.</div>
-        </div>
-        <div class="vt-n-group hint" style="font-size:12px;line-height:1.5">
-          You get <strong>one summary e-mail</strong> with the status changes and the full list of your infected sites:
-          after the nightly scan, and during the day 10 minutes after a change (so several changes share one e-mail).
-        </div>
-        <button class="vt-btn ghost" type="button" onclick="vtTestNotify()">Send test e-mail</button>
-        <span class="vt-smsg" id="vt-n-msg"></span>
-      </div>
-    </div>
-
-    <div class="vt-card">
-      <h3 style="display:flex;align-items:center;gap:10px">File scanners
-        <div style="flex:1"></div>
-        <button class="vt-btn ghost" type="button" onclick="vtDetectScanners()" id="vt-sc-detect">Detect again</button></h3>
-      <div class="hint" style="margin-bottom:10px">Malware scanners found on this server. Each one that is switched on gets a button on every site in the dashboard. They only detect and report; nothing on the sites is changed.</div>
-      <div id="vt-sc-list"><span class="hint">Loading…</span></div>
-      <span class="vt-smsg" id="vt-sc-msg"></span>
-    </div>
-
     <div class="vt-card">
       <h3>VirusTotal API Settings</h3>
       <div class="vt-field">
@@ -513,6 +497,52 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
         <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
         <span class="vt-smsg" id="vt-smsg"></span>
       </div>
+    </div>
+
+    <div class="vt-card">
+      <h3>Sites to scan</h3>
+      <label class="vt-radio"><input type="radio" name="vt-s-scope" id="vt-s-scope-all" value="all" checked>
+        <span><strong>All hosted websites</strong><br><span class="hint">Every active domain and subdomain with web hosting, whatever it runs</span></span></label>
+      <label class="vt-radio"><input type="radio" name="vt-s-scope" id="vt-s-scope-wp" value="wp">
+        <span><strong>WordPress sites only</strong><br><span class="hint">Only sites with a WordPress database on this server</span></span></label>
+    </div>
+
+    <div class="vt-card">
+      <h3>Notifications</h3>
+      <label class="vt-radio"><input type="checkbox" id="vt-n-enabled" onchange="vtNotifyUi()">
+        <span><strong>E-mail me when a site's status changes</strong><br><span class="hint">One summary with the changes and all infected sites</span></span></label>
+      <div id="vt-n-opts">
+        <div class="vt-n-group">
+          <div class="vt-n-label">When a site becomes</div>
+          <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="infected"> <span class="vt-dot dot-r"></span> Infected</label>
+          <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="suspicious"> <span class="vt-dot dot-y"></span> Suspicious</label>
+          <label class="vt-check"><input type="checkbox" name="vt-n-ev" value="clean"> <span class="vt-dot dot-g"></span> Clean again <span class="hint">(after being infected or suspicious)</span></label>
+        </div>
+        <div class="vt-n-group">
+          <div class="vt-n-label">Send to</div>
+          <input type="email" id="vt-n-email" class="vt-n-email" placeholder="" autocomplete="email">
+          <div class="hint" style="margin-top:4px">One address. Leave empty to use the address of your Plesk account.</div>
+        </div>
+        <div class="vt-n-group hint" style="font-size:12px;line-height:1.5">
+          You get <strong>one summary e-mail</strong> with the status changes and the full list of your infected sites:
+          after the nightly scan, and during the day 10 minutes after a change (so several changes share one e-mail).
+        </div>
+        <button class="vt-btn ghost" type="button" onclick="vtTestNotify()">Send test e-mail</button>
+        <span class="vt-smsg" id="vt-n-msg"></span>
+      </div>
+      <div class="vt-save-row">
+        <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
+        <span class="vt-smsg" id="vt-smsg2"></span>
+      </div>
+    </div>
+
+    <div class="vt-card">
+      <h3 style="display:flex;align-items:center;gap:10px">File scanners
+        <div style="flex:1"></div>
+        <button class="vt-btn ghost" type="button" onclick="vtDetectScanners()" id="vt-sc-detect">Detect again</button></h3>
+      <div class="hint" style="margin-bottom:10px">Malware scanners found on this server. Each one that is switched on gets a button on every site in the dashboard. They only detect and report; nothing on the sites is changed.</div>
+      <div id="vt-sc-list"><span class="hint">Loading…</span></div>
+      <span class="vt-smsg" id="vt-sc-msg"></span>
     </div>
 
     <div class="vt-card">
@@ -616,8 +646,9 @@ const LABELS={
   infected:'Infected',suspicious:'Suspicious',clean:'Clean',
   loading:'Loading',pending:'Queued',error:'Error',
   ratelimit:'Rate limit',quota_exceeded:'Quota exceeded',budget_exceeded:'Daily limit',
-  scanning:'Scanning...',waiting:'VT processing...',nokey:'Needs API key'
+  scanning:'Scanning...',waiting:'VT processing...',nokey:'Needs API key',unchecked:'Not checked'
 };
+let related=[], relSet=new Set(); // hostnames from WordPress databases that are not in DNS
 let noKey=false; // no (valid) VirusTotal API key: don't look anything up yet
 const DOT_CLS={infected:'dot-r',suspicious:'dot-y',clean:'dot-g',pending:'dot-b'};
 // Dangerous VT tags to highlight
@@ -626,7 +657,8 @@ const DANGER_TAGS=['malware','phishing','spam','ransomware','trojan','malicious'
 // ── Init ──────────────────────────────────────────────────────
 async function init(){
   const data=await vtFetch('?action=all').catch(()=>({}));
-  domains=data.domains||[]; results=data.results||{}; budget=data.budget||{}; scanners=data.scanners||[]; scans=data.scans||{};
+  domains=data.domains||[]; related=data.related||[]; relSet=new Set(related); results=data.results||{};
+  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||{}; scanners=data.scanners||[]; scans=data.scans||{};
   for(const d in scans) for(const id in scans[d]) if(fsBusy(d,id)) vtFsPoll(d,id);
   vtSet('vt-cnt-all', domains.length);
   updateBudget(); renderTable(); updateCounts();
@@ -758,6 +790,10 @@ function renderTable(){
   const tbody=document.getElementById('vt-tbody');
   if(!domains.length){tbody.innerHTML='<tr class="vt-empty"><td colspan="5">No sites found. Click Refresh.</td></tr>';return;}
   tbody.innerHTML=domains.map(d=>rowHTML(d,results[d]||null)).join('');
+  const rel=document.getElementById('vt-rel');
+  rel.style.display=related.length?'':'none';
+  vtSet('vt-rel-cnt',related.length);
+  document.getElementById('vt-tbody-rel').innerHTML=related.map(d=>rowHTML(d,results[d]||null)).join('');
   vtApplyFilter();
 }
 
@@ -833,7 +869,7 @@ function rowHTML(domain,data){
   }else{
     actionBtn='<button class="vt-row-btn" id="vrb-'+rid(domain)+'" onclick="vtReanalyzeSingle(\''+vtEsca(domain)+'\')">Rescan</button>';
   }
-  actionBtn=fsBarHTML(domain)+actionBtn;
+  actionBtn=(relSet.has(domain)?'':fsBarHTML(domain))+actionBtn; // related hostnames have no files to scan
 
   return '<tr id="vtr-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(inQueue(domain)?' data-job="1"':'')+'>'
     +'<td>'+statusCell+'</td>'
@@ -852,6 +888,7 @@ window.vtSetFilter=function(f){
 };
 window.vtApplyFilter=function(){
   const q=document.getElementById('vt-search').value.toLowerCase();
+  document.querySelectorAll('#vt-tbody-rel tr[data-domain]').forEach(row=>{row.style.display=(!q||row.dataset.domain.includes(q))?'':'none';});
   document.querySelectorAll('#vt-tbody tr[data-domain]').forEach(row=>{
     const st=row.dataset.status;
     const match=activeFilter==='all'||st===activeFilter
@@ -1268,7 +1305,10 @@ window.vtSaveSettings=async function(){
   const body=new URLSearchParams(payload);
   const fpToken=document.getElementById('forgery_protection_token')?.content||'';
   const res=await fetch(BASE+'?action=save-settings',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body}).then(r=>r.json()).catch(()=>({error:'Network error'}));
-  const msg=document.getElementById('vt-smsg');
+  // Two save buttons (top and bottom of Settings): show the message next to both
+  const msgs=['vt-smsg','vt-smsg2'].map(id=>document.getElementById(id)).filter(Boolean);
+  const msg={set className(v){msgs.forEach(m=>m.className=v);},set textContent(v){msgs.forEach(m=>m.textContent=v);},
+             style:{set display(v){msgs.forEach(m=>m.style.display=v);}}};
   msg.style.display='inline';
   if(res.ok){
     msg.className='vt-smsg ok'; msg.textContent='Saved!';

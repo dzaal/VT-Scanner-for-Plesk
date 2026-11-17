@@ -190,6 +190,29 @@ class PleskDomains
         return $all;
     }
 
+    /**
+     * Related hostnames for the current user: named in a WordPress database under one of
+     * the user's domains, but not in DNS (old copies, test or staging sites). VirusTotal
+     * often still lists them, so they are shown separately and only checked on request.
+     */
+    public static function relatedForCurrentUser(): array
+    {
+        $set  = array_flip(self::forCurrentUser(false));
+        $skip = self::inactiveDomains();
+        $cand = [];
+        foreach (self::wordPressHosts() as $host) {
+            if (isset($set[$host]) || isset($skip[$host])) continue;
+            $parts = explode('.', $host);
+            for ($i = 1; $i < count($parts) - 1; $i++) {
+                if (isset($set[implode('.', array_slice($parts, $i))])) { $cand[] = $host; break; }
+            }
+        }
+        $ok  = array_flip(self::resolving($cand));
+        $out = array_values(array_filter($cand, fn($h) => !isset($ok[$h])));
+        sort($out);
+        return $out;
+    }
+
     /** The hostnames that have an A, AAAA or CNAME record (results cached for a day) */
     private static function resolving(array $hosts): array
     {

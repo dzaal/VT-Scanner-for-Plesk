@@ -96,7 +96,7 @@ class IndexController extends pm_Controller_Action
     {
         $domain = $this->sanitize($this->_getParam('domain', ''));
         if (!$domain) { $this->respond(['error' => 'invalid']); return; }
-        if (!in_array($domain, PleskDomains::forCurrentUser($this->wpOnly()), true)) {
+        if (!$this->mayCheck($domain)) {
             $this->respond(['error' => 'forbidden']); return;
         }
 
@@ -170,7 +170,7 @@ class IndexController extends pm_Controller_Action
     {
         $domain = $this->sanitize($this->_getParam('domain', ''));
         if (!$domain) { $this->respond(['error' => 'invalid']); return; }
-        if (!in_array($domain, PleskDomains::forCurrentUser($this->wpOnly()), true)) {
+        if (!$this->mayCheck($domain)) {
             $this->respond(['error' => 'forbidden']); return;
         }
 
@@ -210,13 +210,15 @@ class IndexController extends pm_Controller_Action
     public function allAction(): void
     {
         $domains    = PleskDomains::forCurrentUser($this->wpOnly());
+        $related    = PleskDomains::relatedForCurrentUser();
         $allResults = $this->cache->all();
         // Filter cached results to only domains this user has access to
-        $results = array_intersect_key($allResults, array_flip($domains));
+        $results = array_intersect_key($allResults, array_flip(array_merge($domains, $related)));
         $budgetInfo = $this->cache->budgetInfo();
         $budgetInfo['vt_quota_used'] = VtRateLimiter::todayCountForKey($this->effectiveApiKey);
         $this->respond([
             'domains' => $domains,
+            'related' => $related,
             'results' => $results,
             'budget'  => $budgetInfo,
             'scans'    => self::scanResults($domains),
@@ -496,6 +498,13 @@ class IndexController extends pm_Controller_Action
         } catch (\Throwable $e) {
             return 'admin';
         }
+    }
+
+    /** A site of this user, or a related hostname under one of the user's domains */
+    private function mayCheck(string $domain): bool
+    {
+        return in_array($domain, PleskDomains::forCurrentUser($this->wpOnly()), true)
+            || in_array($domain, PleskDomains::relatedForCurrentUser(), true);
     }
 
     /** Scan WordPress sites only, instead of every hosted website */
