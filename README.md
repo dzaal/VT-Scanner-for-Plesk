@@ -251,7 +251,7 @@ Installing registers the nightly background scan automatically. You don't need t
 
 ### Step 3: Add your VirusTotal API key
 
-1. In Plesk, open **VT Site Scanner** in the left navigation (under **Server Management**; in the Power User view and for customers in the main menu), or under **Extensions → My Extensions**. Until you add a key, the sites show **Needs API key** and nothing is looked up.
+1. In Plesk, open **VT Site Scanner** in the left navigation (under **Links to Additional Services**; in the Power User view and for customers in the main menu), or under **Extensions → My Extensions**. Until you add a key, the sites show **Needs API key** and nothing is looked up.
 2. Go to the **Settings** tab.
 3. Paste your API key and click **Save settings**.
 4. Optional: choose **Sites to scan** (all hosted websites, or WordPress sites only), and adjust the daily limit (500 for the free tier, higher if you have a premium key), the background/manual split, and how long results are cached.
