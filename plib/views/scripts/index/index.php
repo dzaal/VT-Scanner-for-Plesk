@@ -127,6 +127,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-badge.suspicious{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border)}
 .vt-badge.clean     {background:var(--green-bg);  color:var(--green); border:1px solid var(--green-border)}
 .vt-badge.pending   {background:var(--blue-bg);   color:var(--blue);  border:1px solid var(--blue-border)}
+.vt-badge.nokey{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}
 .vt-badge.scanning,.vt-badge.waiting{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
 .vt-badge.loading,.vt-badge.error,.vt-badge.ratelimit,.vt-badge.quota_exceeded,.vt-badge.budget_exceeded{background:var(--gray-bg);color:var(--gray);border:1px solid var(--border)}
 .vt-domain-name{font-weight:600;font-size:13px;color:var(--heading)}
@@ -615,8 +616,9 @@ const LABELS={
   infected:'Infected',suspicious:'Suspicious',clean:'Clean',
   loading:'Loading',pending:'Queued',error:'Error',
   ratelimit:'Rate limit',quota_exceeded:'Quota exceeded',budget_exceeded:'Daily limit',
-  scanning:'Scanning...',waiting:'VT processing...'
+  scanning:'Scanning...',waiting:'VT processing...',nokey:'Needs API key'
 };
+let noKey=false; // no (valid) VirusTotal API key: don't look anything up yet
 const DOT_CLS={infected:'dot-r',suspicious:'dot-y',clean:'dot-g',pending:'dot-b'};
 // Dangerous VT tags to highlight
 const DANGER_TAGS=['malware','phishing','spam','ransomware','trojan','malicious','phishing-site','malware-site'];
@@ -632,6 +634,13 @@ async function init(){
   const cfg=await vtFetch('?action=get-settings').catch(()=>({}));
   if(!cfg.has_key||cfg.api_key_invalid) document.getElementById('vt-api-warning').style.display='flex';
   loadSettingsForm(cfg);
+  if(!cfg.has_key||cfg.api_key_invalid){
+    // Without a working key every lookup fails: show the sites as waiting for a key, not as errors
+    noKey=true;
+    for(const d of domains) if(!results[d]||results[d].status==='error') results[d]={status:'nokey',domain:d};
+    scanQueue=[]; renderTable(); updateCounts();
+    return;
+  }
 
   // Auto-pump: only scan truly unseen domains (no cache at all) + errors
   // Cron handles bulk stale refresh; web UI just fills gaps
@@ -974,6 +983,7 @@ function enqueueRescan(domain){
 }
 
 window.vtReanalyzeSingle=function(domain){
+  if(noKey){vtToast('Add your VirusTotal API key in Settings first','warn');vtShowTab('settings');return;}
   if(!enqueueRescan(domain)) vtToast(domain+' is already in the scan queue','info');
 };
 
@@ -1264,6 +1274,7 @@ window.vtSaveSettings=async function(){
     msg.className='vt-smsg ok'; msg.textContent='Saved!';
     document.getElementById('vt-api-warning').style.display='none';
     document.getElementById('vt-s-apikey').value='';
+    if(noKey&&key){setTimeout(()=>location.reload(),800);} // key added: start looking sites up
     const scopeChanged=wpOnly!==savedWpOnly;
     const cfg=await vtFetch('?action=get-settings').catch(()=>({}));
     loadSettingsForm(cfg);
