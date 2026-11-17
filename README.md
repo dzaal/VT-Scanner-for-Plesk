@@ -31,9 +31,9 @@ Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web developm
 
 ## Why this extension exists
 
-Digizaal hosts more than 6,000 WordPress sites on a single Plesk server. A single compromised site can harm its visitors, get the server's IP address blacklisted, and damage the reputation of every other site on it, so we need to know early when a site has been flagged.
+Digizaal hosts about 600 WordPress sites on a single Plesk server. A single compromised site can harm its visitors, get the server's IP address blacklisted, and damage the reputation of every other site on it, so we need to know early when a site has been flagged.
 
-With that many sites, VirusTotal's free API quota (500 requests per day) runs out every single day: checking every site even once takes well over a week. Plesk ships with its own VirusTotal integration (*VirusTotal Website Check*), but it spent the whole quota with no control over which sites were checked or when. That left no room to rescan a site after cleaning it up, which is the moment you need it most.
+With that many sites, VirusTotal's free API quota (500 requests per day) runs out every single day: checking every site even once takes more than a day, and rescans of infected sites come on top of that. Plesk ships with its own VirusTotal integration (*VirusTotal Website Check*), but it spent the whole quota with no control over which sites were checked or when. That left no room to rescan a site after cleaning it up, which is the moment you need it most.
 
 VT Site Scanner was built to fix that:
 
@@ -59,7 +59,7 @@ VirusTotal's free API allows **4 requests per minute** and **500 requests per da
 | Global rate limiter | Counts every request per API key across all users and never sends more than 4/min or 500/day. |
 | Result cache | Clean sites are re-checked after 30 days, infected or suspicious sites after 1 day (both configurable). Opening the dashboard reads from the cache and costs no API calls. |
 | Daily budget split | By default 80% of the daily limit is reserved for the nightly scan and 20% for manual rescans. |
-| Round-robin queue | The nightly scan continues where it stopped the night before, so even with thousands of sites every site is still checked in turn. |
+| Round-robin queue | The nightly scan continues where it stopped the night before, so even with hundreds of sites every site is still checked in turn. |
 | One request at a time | Manual rescans go through a single queue, together with the dashboard's automatic first-time lookups. |
 
 Every API call is a domain report lookup (`GET /domains/{domain}`), a re-analysis request (`POST /domains/{domain}/analyse`) or an analysis status check (`GET /analyses/{id}`). Only domain names are sent to VirusTotal, never site content or customer data.
