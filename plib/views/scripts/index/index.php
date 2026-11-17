@@ -237,7 +237,7 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 .vt-sc-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--border)}
 .vt-sc-row:first-child{border-top:0}
 .vt-sc-row .vt-sc-name{font-weight:700;min-width:80px}
-.vt-sc-row .vt-sc-info{flex:1;font-size:12px;color:var(--muted);word-break:break-all}
+.vt-sc-row .vt-sc-info{flex:1;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
 .vt-sc-row.missing .vt-sc-name{color:var(--muted)}
 .vt-sw{position:relative;width:36px;height:20px;flex:none}
 .vt-sw input{opacity:0;width:0;height:0;position:absolute}
