@@ -13,6 +13,10 @@
   --radius:8px;
 }
 
+/* Our branded header replaces Plesk's page header (breadcrumb + title); only on this page */
+body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
+#vt-wrap{padding-top:8px}
+
 /* Brand header */
 .vt-brand{display:flex;align-items:center;gap:14px;padding:14px 18px;margin-bottom:14px;border-radius:var(--radius);background:linear-gradient(135deg,#eff6ff 0%,#fff 60%);border:1px solid #dbe5f5}
 .vt-brand-logo{width:44px;height:44px;flex-shrink:0;border-radius:10px;background:linear-gradient(180deg,#2563eb,#1e3a8a);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(37,99,235,.3)}

@@ -66,7 +66,7 @@ class IndexController extends pm_Controller_Action
 
     public function indexAction(): void
     {
-        // Page title completes Plesk's breadcrumb: Home > Extensions > VT Site Scanner
+        // Browser tab title; Plesk's own page header is hidden by the view (branded header instead)
         $this->view->pageTitle = 'VT Site Scanner';
         $this->view->baseUrl   = pm_Context::getBaseUrl();
         $version = '';
