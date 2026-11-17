@@ -234,7 +234,60 @@ if ($mode === 'list') {
     }
     out(['scanners' => $list]);
 }
-if ($mode !== 'start' && $mode !== '--run') out(['error' => 'usage: site-scan list | start <scanner> <hostname>']);
+if ($mode === 'wpconfigs') {
+    // Which database and table prefix every WordPress install on the server uses (read-only)
+    $list = [];
+    $paths = explode("\n", trim((string)shell_exec('find ' . VHOSTS . ' -maxdepth 5 -name wp-config.php -type f -not -path "' . VHOSTS . 'system/*" 2>/dev/null')));
+    foreach ($paths as $p) {
+        if ($p === '' || is_link($p)) continue;
+        $c = (string)@file_get_contents($p, false, null, 0, 65536);
+        if (!preg_match("/define\\(\\s*['\"]DB_NAME['\"]\\s*,\\s*['\"]([^'\"]+)['\"]/", $c, $db)) continue;
+        $prefix = preg_match("/\\\$table_prefix\\s*=\\s*['\"]([^'\"]*)['\"]/", $c, $m) ? $m[1] : 'wp_';
+        $list[] = ['path' => substr($p, strlen(VHOSTS)), 'db' => $db[1], 'prefix' => $prefix];
+    }
+    out(['configs' => $list]);
+}
+if ($mode === 'dump') {
+    // Back up a database (or only the tables with one prefix) to the subscription's private folder.
+    // Nothing is deleted: this is the safety copy before the admin deletes it in Plesk.
+    $db     = (string)($argv[2] ?? '');
+    $prefix = (string)($argv[3] ?? '');
+    if (!preg_match('/^[A-Za-z0-9_\-]{1,64}$/', $db) || !preg_match('/^[A-Za-z0-9_]{0,32}$/', $prefix)) out(['error' => 'Invalid database or prefix']);
+    $q   = fn(string $sql) => trim((string)shell_exec('plesk db -Ne ' . escapeshellarg($sql) . ' 2>/dev/null'));
+    $row = $q("SELECT COALESCE(NULLIF(d.webspace_id,0), d.id), s.host FROM data_bases b JOIN domains d ON d.id = b.dom_id "
+            . "JOIN DatabaseServers s ON s.id = b.db_server_id WHERE b.name = '" . $db . "' AND b.type = 'mysql' LIMIT 1");
+    if ($row === '') out(['error' => 'This database is not a MySQL database in Plesk']);
+    [$webspace, $dbhost] = array_pad(preg_split('/\s+/', $row), 2, '');
+    if (!in_array($dbhost, ['localhost', '127.0.0.1', '::1', ''], true)) out(['error' => 'Only databases on the local database server can be backed up from here']);
+    $user = preg_split('/\s+/', $q("SELECT s.login, s.home FROM hosting h JOIN sys_users s ON s.id = h.sys_user_id WHERE h.dom_id = " . (int)$webspace . " LIMIT 1"));
+    [$login, $home] = array_pad($user, 2, '');
+    if (!$login || strpos(rtrim($home, '/') . '/', VHOSTS) !== 0 || !is_dir($home)) out(['error' => 'Could not find the subscription folder']);
+
+    putenv('MYSQL_PWD=' . trim((string)@file_get_contents('/etc/psa/.psa.shadow')));
+    $tables = [];
+    if ($prefix !== '') {
+        foreach (explode("\n", trim((string)shell_exec('mysql -uadmin -N -e ' . escapeshellarg('SHOW TABLES FROM `' . $db . '`') . ' 2>/dev/null'))) as $t) {
+            if ($t !== '' && strpos($t, $prefix) === 0) $tables[] = $t;
+        }
+        if (!$tables) out(['error' => 'No tables with prefix ' . $prefix . ' in ' . $db]);
+    }
+    $private = rtrim($home, '/') . '/private';
+    if (!is_dir($private) || is_link($private)) out(['error' => 'The subscription has no private folder']);
+    $dir = $private . '/vt-db-backups';
+    if (is_link($dir)) out(['error' => 'Unexpected link in the private folder']);
+    if (!is_dir($dir)) mkdir($dir, 0700);
+    chown($dir, $login); chgrp($dir, 'psacln'); chmod($dir, 0700); // never leave anything root-owned in a vhost
+    $file = $dir . '/' . $db . ($prefix !== '' ? '-' . rtrim($prefix, '_') : '') . '-' . date('Ymd-His') . '.sql.gz';
+    $cmd  = 'mysqldump -uadmin --single-transaction --quick --no-tablespaces ' . escapeshellarg($db) . ' '
+          . implode(' ', array_map('escapeshellarg', $tables)) . ' 2>/dev/null | gzip -9 > ' . escapeshellarg($file)
+          . '; echo ${PIPESTATUS[0]}';
+    $code = trim((string)shell_exec('bash -c ' . escapeshellarg($cmd)));
+    putenv('MYSQL_PWD');
+    if (is_file($file)) { chown($file, $login); chgrp($file, 'psacln'); chmod($file, 0600); }
+    if ($code !== '0' || !is_file($file) || filesize($file) < 100) { @unlink($file); out(['error' => 'The backup failed']); }
+    out(['ok' => true, 'file' => substr($file, strlen(VHOSTS)), 'size' => filesize($file), 'tables' => count($tables)]);
+}
+if ($mode !== 'start' && $mode !== '--run') out(['error' => 'usage: site-scan list | wpconfigs | dump <db> [prefix] | start <scanner> <hostname>']);
 
 $id   = (string)($argv[2] ?? '');
 $host = strtolower(trim((string)($argv[3] ?? '')));

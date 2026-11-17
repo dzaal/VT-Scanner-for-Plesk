@@ -219,6 +219,7 @@ class IndexController extends pm_Controller_Action
         $this->respond([
             'domains' => $domains,
             'related' => $related,
+            'orphans' => $this->role() === 'admin' ? self::orphanInfo($related) : [],
             'results' => $results,
             'budget'  => $budgetInfo,
             'scans'    => self::scanResults($domains),
@@ -498,6 +499,85 @@ class IndexController extends pm_Controller_Action
         } catch (\Throwable $e) {
             return 'admin';
         }
+    }
+
+    // ── Orphan databases (related hostnames), administrator only ──
+
+    /** Database and table prefix of every WordPress install on disk (root helper, cached for an hour) */
+    private static function wpConfigs(): ?array
+    {
+        $cache = VtDataDir::path('vt_wpconfigs.json');
+        if (is_file($cache) && time() - filemtime($cache) < 3600) {
+            $d = json_decode((string)file_get_contents($cache), true);
+            if (is_array($d)) return $d;
+        }
+        try {
+            $res  = pm_ApiCli::callSbin('site-scan', ['wpconfigs'], pm_ApiCli::RESULT_FULL);
+            $list = json_decode(trim((string)($res['stdout'] ?? '')), true)['configs'] ?? null;
+        } catch (\Throwable $e) {
+            $list = null;
+        }
+        if (!is_array($list)) return null;
+        @file_put_contents($cache, json_encode($list));
+        return $list;
+    }
+
+    /**
+     * Per related hostname: the database (or tables) it comes from, their size, and whether
+     * a live site still uses them. kind: 'database' = no install uses this database,
+     * 'tables' = old tables inside a database a live site uses, 'inuse' = an install uses exactly these.
+     */
+    private static function orphanInfo(array $related): array
+    {
+        if (!$related) return [];
+        $want    = array_flip($related);
+        $configs = self::wpConfigs();
+        $dbs     = PleskDomains::pleskDatabases();
+        $out     = [];
+        foreach (PleskDomains::wordPressSources() ?? [] as $s) {
+            if (!isset($want[$s['host']])) continue;
+            $usedBy = []; $same = false;
+            foreach ($configs ?? [] as $c) {
+                if ($c['db'] !== $s['db']) continue;
+                $usedBy[] = $c['path'];
+                if ($c['prefix'] === $s['prefix']) $same = true;
+            }
+            $p  = $dbs[$s['db']] ?? null;
+            $ws = $p['webspace'] ?? 0;
+            $out[$s['host']][] = [
+                'db' => $s['db'], 'prefix' => $s['prefix'], 'tables' => $s['tables'], 'size' => $s['size'],
+                'kind'      => $configs === null ? 'unknown' : ($same ? 'inuse' : ($usedBy ? 'tables' : 'database')),
+                'used_by'   => array_values(array_unique($usedBy)),
+                'webspace'  => $p['webspace_name'] ?? '',
+                'plesk_url' => $ws ? '/admin/subscription/login/id/' . $ws . '?pageUrl=/smb/database/list/domainId/' . $ws : '',
+            ];
+        }
+        return $out;
+    }
+
+    /** Back up an orphan database (or its old tables) to the subscription's private folder. Deletes nothing. */
+    public function dumpDbAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        if ($this->role() !== 'admin') { $this->respond(['error' => 'Only the administrator can back up databases']); return; }
+        $host = $this->sanitize($this->_getParam('domain', ''));
+        $db   = (string)$this->_getParam('db', '');
+        $item = null;
+        foreach (self::orphanInfo(PleskDomains::relatedForCurrentUser())[$host] ?? [] as $o) {
+            if ($o['db'] === $db) $item = $o;
+        }
+        if (!$item || !in_array($item['kind'], ['database', 'tables'], true)) { $this->respond(['error' => 'Not an orphan database']); return; }
+        $args = ['dump', $item['db']];
+        if ($item['kind'] === 'tables') $args[] = $item['prefix']; // only the old tables, never the live ones
+        try {
+            $res = pm_ApiCli::callSbin('site-scan', $args, pm_ApiCli::RESULT_FULL);
+            $out = json_decode(trim((string)($res['stdout'] ?? '')), true);
+        } catch (\Throwable $e) {
+            $out = ['error' => 'The backup failed: ' . $e->getMessage()];
+        }
+        if (!is_array($out)) $out = ['error' => 'The backup failed'];
+        if (!empty($out['ok'])) $this->appendLog('[db] Backup of ' . $item['db'] . ($item['kind'] === 'tables' ? ' (tables ' . $item['prefix'] . '*)' : '') . " for $host: " . $out['file']);
+        $this->respond($out);
     }
 
     /** A site of this user, or a related hostname under one of the user's domains */

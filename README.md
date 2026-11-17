@@ -6,7 +6,7 @@ A Plesk extension that checks every website hosted on your Plesk server against 
 
 Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web development and hosting company in Amsterdam.
 
-> **Detection only.** VT Site Scanner never changes anything on your sites. It does not edit, clean, move, quarantine or delete files, and it does not touch databases. It only looks and reports, so you decide what to do.
+> **Detection only.** VT Site Scanner never changes anything on your sites. It does not edit, clean, move, quarantine or delete files, and it does not change or delete databases. It only looks and reports, so you decide what to do. (The one thing it writes, on request, is a backup copy of an orphan database.)
 
 ## Who it's for
 
@@ -132,15 +132,25 @@ The summary goes out at the end of the nightly scan, and during the day 10 minut
 
 Mail is sent with the server's own mail system (PHP `mail()` via sendmail), from the administrator's e-mail address. Keep in mind that a single vendor flagging a site can be a false alarm, so check a site before alarming its owner.
 
-## Related hostnames
+## Orphan databases
 
-At the bottom of the dashboard, **Related hostnames** lists hostnames that are named in a WordPress database on the server, under one of your domains, but that don't exist in DNS: usually old copies, test or staging sites (`staging.`, `test.`, `2025.`, …) whose database was never removed.
+At the bottom of the dashboard, **Orphan databases** lists WordPress databases on the server for a hostname under one of your domains that doesn't exist in DNS: usually old copies, test or staging sites (`staging.`, `test.`, `2025.`, …) whose database was never removed.
 
-Nobody can visit them, but VirusTotal often still has them on file, sometimes as infected, and that can count against the main domain. So they are worth a look:
+Nobody can visit them, but VirusTotal often still has them on file, sometimes as infected, and an old copy that is never updated is an easy target. Per hostname you see:
 
-- They are **not looked up automatically**, to save API calls. Click **Rescan** to check one; the score and **Why?** work as for any other site.
-- There is no file scan button, because there are no files to scan.
-- If the copy is no longer needed, delete its database (or its tables) in Plesk, and the hostname disappears from the list the next day.
+- **The database**, the number of tables and their **size**, and the subscription it belongs to.
+- **Whether a live site still uses it** (the extension reads the `wp-config.php` files on the server):
+  - *No WordPress install on this server uses this database*: the whole database can go.
+  - *Old tables inside a database a live site uses*: the old copy shares a database with a live site, under its own table prefix (for example `WzyRCpCbc_*`). **Delete only those tables, never the database**, or the live site goes down.
+  - *A WordPress install on disk uses these tables*: check before deleting anything.
+- The VirusTotal **score**, **Why?** and **Rescan**, as for any other site. They are not looked up automatically, to save API calls. There is no file scan button, because there are no files.
+
+Buttons (administrator only):
+
+- **Back up** makes a `.sql.gz` copy of the database, or only of the old tables, in the subscription's `private/vt-db-backups/` folder, owned by the subscription's user. Nothing is deleted.
+- **Delete in Plesk ↗** opens the subscription's **Databases** page in Plesk. Delete the database there, or use phpMyAdmin from that page to drop only the old tables.
+
+VT Site Scanner never deletes anything itself. After you delete a database, the hostname disappears from the list within a day, or right away when you click **Refresh** on the dashboard.
 
 ## Cleaned, but still red?
 
@@ -205,7 +215,7 @@ Every API call is a domain report lookup (`GET /domains/{domain}`), a re-analysi
 ## Requirements
 
 - **Plesk Obsidian 18.0 or newer** on Linux, with root SSH access to the server
-- Websites hosted in Plesk. Every active domain and subdomain with web hosting is checked, whatever it runs (WordPress, Joomla, plain HTML, …), plus WordPress sites on a hostname under a hosted domain. Hostnames that only appear in a leftover WordPress database and no longer exist in DNS are listed separately under **Related hostnames** (see below). Forwarding-only domains, domains without hosting and suspended domains are skipped. The list is read from Plesk's own database. To check WordPress sites only, choose **Settings → Sites to scan → WordPress sites only**.
+- Websites hosted in Plesk. Every active domain and subdomain with web hosting is checked, whatever it runs (WordPress, Joomla, plain HTML, …), plus WordPress sites on a hostname under a hosted domain. Hostnames that only appear in a leftover WordPress database and no longer exist in DNS are listed separately under **Orphan databases** (see below). Forwarding-only domains, domains without hosting and suspended domains are skipped. The list is read from Plesk's own database. To check WordPress sites only, choose **Settings → Sites to scan → WordPress sites only**.
 - A **VirusTotal API key**. The free key is enough: create an account at [virustotal.com](https://www.virustotal.com), then open your profile menu → **API key**.
 - Optional: **ClamAV**, **maldet** and/or **ImunifyAV / Imunify360** for the file scans. The extension uses whichever are installed; none of them is required. You can switch each one off in **Settings → File scanners**.
 

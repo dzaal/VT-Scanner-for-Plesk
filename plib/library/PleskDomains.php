@@ -101,6 +101,9 @@ class PleskDomains
         self::$requestCache = null;
         @unlink(self::domainCacheFile());
         @unlink(self::wpCacheFile());
+        @unlink(VtDataDir::path('vt_wp_sources.json'));
+        @unlink(VtDataDir::path('vt_wp_dns.json'));
+        @unlink(VtDataDir::path('vt_wpconfigs.json'));
     }
 
     // ── Private ─────────────────────────────────────────────────
@@ -256,15 +259,33 @@ class PleskDomains
             $d = json_decode((string)file_get_contents($file), true);
             if (is_array($d)) return $d;
         }
-        $pdo = self::pleskPdo();
-        if (!$pdo) return [];
+        $src = self::wordPressSources(true);
+        if ($src === null) return [];
+        $hosts = array_values(array_unique(array_column($src, 'host')));
+        file_put_contents($file, json_encode($hosts));
+        return $hosts;
+    }
 
-        $hosts = [];
+    /**
+     * Every WordPress install found in the databases: [host, db, prefix, tables, size],
+     * cached for a day. size = bytes of the tables with that prefix (data + indexes).
+     */
+    public static function wordPressSources(bool $fresh = false): ?array
+    {
+        $file = VtDataDir::path('vt_wp_sources.json');
+        if (!$fresh && is_file($file) && (time() - filemtime($file)) < self::DOMAIN_CACHE_TTL) {
+            $d = json_decode((string)file_get_contents($file), true);
+            if (is_array($d)) return $d;
+        }
+        $pdo = self::pleskPdo();
+        if (!$pdo) return null;
+
+        $skip = "('information_schema','mysql','performance_schema','sys','psa','apsc','horde','roundcube')";
+        $out  = [];
         try {
             $tables = $pdo->query(
                 "SELECT TABLE_SCHEMA, TABLE_NAME FROM information_schema.TABLES
-                 WHERE TABLE_NAME LIKE '%options'
-                   AND TABLE_SCHEMA NOT IN ('information_schema','mysql','performance_schema','sys','psa','apsc','horde','roundcube')"
+                 WHERE TABLE_NAME LIKE '%options' AND TABLE_SCHEMA NOT IN $skip"
             )->fetchAll(\PDO::FETCH_NUM);
             foreach ($tables as [$db, $tbl]) {
                 try {
@@ -275,14 +296,46 @@ class PleskDomains
                 }
                 $host = strtolower((string)parse_url(trim((string)$url), PHP_URL_HOST));
                 $host = preg_replace('/^www\./', '', $host);
-                if ($host && preg_match('/^[a-z0-9.\-]+\.[a-z0-9\-]{2,}$/', $host)) $hosts[$host] = true;
+                if (!$host || !preg_match('/^[a-z0-9.\-]+\.[a-z0-9\-]{2,}$/', $host)) continue;
+                $out[] = ['host' => $host, 'db' => $db, 'prefix' => substr($tbl, 0, -strlen('options')), 'tables' => 0, 'size' => 0];
             }
+            // Table count and size per install; a table belongs to the longest prefix that matches
+            $dbs = array_values(array_unique(array_column($out, 'db')));
+            if ($dbs) {
+                $in   = implode(',', array_map([$pdo, 'quote'], $dbs));
+                $rows = $pdo->query("SELECT TABLE_SCHEMA, TABLE_NAME, COALESCE(DATA_LENGTH,0)+COALESCE(INDEX_LENGTH,0)
+                                     FROM information_schema.TABLES WHERE TABLE_SCHEMA IN ($in)")->fetchAll(\PDO::FETCH_NUM);
+                foreach ($rows as [$db, $tbl, $size]) {
+                    $best = -1;
+                    foreach ($out as $i => $s) {
+                        if ($s['db'] === $db && strpos($tbl, $s['prefix']) === 0
+                            && ($best < 0 || strlen($s['prefix']) > strlen($out[$best]['prefix']))) $best = $i;
+                    }
+                    if ($best >= 0) { $out[$best]['tables']++; $out[$best]['size'] += (int)$size; }
+                }
+            }
+        } catch (\PDOException $e) {
+            return null;
+        }
+        @file_put_contents($file, json_encode($out));
+        return $out;
+    }
+
+    /** Database id and the subscription (webspace) it belongs to, from Plesk: [db name => [id, webspace]] */
+    public static function pleskDatabases(): array
+    {
+        $pdo = self::pleskPdo();
+        if (!$pdo) return [];
+        try {
+            $rows = $pdo->query("SELECT b.name, b.id, COALESCE(NULLIF(d.webspace_id,0), d.id), LOWER(w.name)
+                                 FROM data_bases b JOIN domains d ON d.id = b.dom_id
+                                 JOIN domains w ON w.id = COALESCE(NULLIF(d.webspace_id,0), d.id)")->fetchAll(\PDO::FETCH_NUM);
         } catch (\PDOException $e) {
             return [];
         }
-        $hosts = array_keys($hosts);
-        file_put_contents($file, json_encode($hosts));
-        return $hosts;
+        $out = [];
+        foreach ($rows as [$name, $id, $ws, $wsName]) $out[$name] = ['id' => (int)$id, 'webspace' => (int)$ws, 'webspace_name' => $wsName];
+        return $out;
     }
 
     /** Hosted domains (plus WordPress subsites) owned by a login; null if unknown */

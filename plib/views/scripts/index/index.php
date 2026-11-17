@@ -249,6 +249,14 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 .vt-sw input:disabled+span{opacity:.45;cursor:not-allowed}
 .vt-fs-note{color:var(--muted);font-size:11.5px;margin-top:6px;line-height:1.45}
 .vt-rel{margin-top:22px}
+.vt-orphan{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+.vt-orphan code{font-size:11px}
+.vt-orphan-kind{font-size:11px;margin-top:1px}
+.vt-orphan-kind.free{color:#15803d}
+.vt-orphan-kind.part{color:#b45309}
+.vt-orphan-kind.live{color:#b91c1c;font-weight:600}
+a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
+#vt-tbody-rel .vt-row-btn{margin-left:4px}
 .vt-rel h3{font-size:15px;margin:0 0 6px;display:flex;align-items:center;gap:8px}
 .vt-rel .vt-rel-cnt{font-size:12px;font-weight:600;background:var(--gray-bg);border:1px solid var(--border);border-radius:10px;padding:1px 8px;color:var(--muted)}
 .vt-rel .hint{font-size:12.5px;line-height:1.5;margin:0 0 10px;max-width:900px}
@@ -422,11 +430,12 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
     </div>
 
     <div class="vt-rel" id="vt-rel" style="display:none">
-      <h3>Related hostnames <span class="vt-rel-cnt" id="vt-rel-cnt"></span></h3>
-      <p class="hint">Found in WordPress databases on this server, under one of the domains above, but they don't exist in DNS:
+      <h3>Orphan databases <span class="vt-rel-cnt" id="vt-rel-cnt"></span></h3>
+      <p class="hint">WordPress databases on this server for a hostname under one of the domains above that doesn't exist in DNS:
         usually old copies, test or staging sites. Nobody can visit them, but VirusTotal often still lists them, sometimes as infected,
-        and that can count against the main domain. They are not looked up automatically; click <strong>Rescan</strong> to check one.
-        Delete the old database if the copy is no longer needed.</p>
+        and an old, never-updated copy is an easy target. They are not looked up automatically; click <strong>Rescan</strong> to check one.
+        If the copy is no longer needed: click <strong>Back up</strong> (a <code>.sql.gz</code> copy in the subscription's <code>private/vt-db-backups</code> folder),
+        then delete it in Plesk. VT Site Scanner never deletes anything itself.</p>
       <div class="vt-tbl-wrap">
       <table>
         <thead>
@@ -648,7 +657,7 @@ const LABELS={
   ratelimit:'Rate limit',quota_exceeded:'Quota exceeded',budget_exceeded:'Daily limit',
   scanning:'Scanning...',waiting:'VT processing...',nokey:'Needs API key',unchecked:'Not checked'
 };
-let related=[], relSet=new Set(); // hostnames from WordPress databases that are not in DNS
+let related=[], relSet=new Set(), orphans={}; // hostnames from WordPress databases that are not in DNS, and their databases
 let noKey=false; // no (valid) VirusTotal API key: don't look anything up yet
 const DOT_CLS={infected:'dot-r',suspicious:'dot-y',clean:'dot-g',pending:'dot-b'};
 // Dangerous VT tags to highlight
@@ -657,7 +666,7 @@ const DANGER_TAGS=['malware','phishing','spam','ransomware','trojan','malicious'
 // ── Init ──────────────────────────────────────────────────────
 async function init(){
   const data=await vtFetch('?action=all').catch(()=>({}));
-  domains=data.domains||[]; related=data.related||[]; relSet=new Set(related); results=data.results||{};
+  domains=data.domains||[]; related=data.related||[]; relSet=new Set(related); orphans=data.orphans||{}; results=data.results||{};
   for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||{}; scanners=data.scanners||[]; scans=data.scans||{};
   for(const d in scans) for(const id in scans[d]) if(fsBusy(d,id)) vtFsPoll(d,id);
   vtSet('vt-cnt-all', domains.length);
@@ -786,6 +795,40 @@ function vtBar(id,pct){
 }
 
 // ── Table ─────────────────────────────────────────────────────
+function vtBytes(n){n=+n||0;const u=['B','KB','MB','GB'];let i=0;while(n>=1024&&i<3){n/=1024;i++;}return (i?n.toFixed(1):n)+' '+u[i];}
+const ORPHAN_KIND={
+  database:['free','No WordPress install on this server uses this database'],
+  tables:['part','Old tables inside a database a live site uses: delete only these tables, not the database'],
+  inuse:['live','A WordPress install on disk uses these tables: check before deleting'],
+  unknown:['live','Could not check whether a site uses it']
+};
+function orphanInfoHTML(domain){
+  return (orphans[domain]||[]).map(o=>{
+    const k=ORPHAN_KIND[o.kind]||ORPHAN_KIND.unknown;
+    return '<div class="vt-orphan"><code>'+vtEsc(o.db)+'</code>'+(o.kind==='tables'?' · tables <code>'+vtEsc(o.prefix)+'*</code>':'')
+      +' · '+o.tables+' table'+(o.tables===1?'':'s')+' · <strong>'+vtBytes(o.size)+'</strong>'
+      +(o.webspace?' · '+vtEsc(o.webspace):'')
+      +'<div class="vt-orphan-kind '+k[0]+'">'+vtEsc(k[1])+(o.used_by&&o.used_by.length&&o.kind!=='database'?' ('+o.used_by.map(vtEsc).join(', ')+')':'')+'</div></div>';
+  }).join('');
+}
+function orphanBtns(domain){
+  const e=vtEsca(domain);
+  return (orphans[domain]||[]).map(o=>{
+    let h='';
+    if(o.kind==='database'||o.kind==='tables') h+='<button class="vt-row-btn" title="Make a .sql.gz copy in the private folder of the subscription" onclick="vtDumpDb(\''+e+'\',\''+vtEsca(o.db)+'\',this)">Back up</button>';
+    if(o.plesk_url) h+='<a class="vt-row-btn" href="'+vtEsc(o.plesk_url)+'" target="_top" title="Open the Databases page of '+vtEsc(o.webspace)+' in Plesk">Delete in Plesk ↗</a>';
+    return h;
+  }).join('');
+}
+window.vtDumpDb=async function(domain,db,btn){
+  btn.disabled=true; btn.innerHTML='<span class="vt-spin"></span> Backing up';
+  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
+  const res=await fetch(BASE+'?action=dump-db',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body:new URLSearchParams({domain,db})})
+    .then(r=>r.json()).catch(()=>({error:'Network error'}));
+  btn.disabled=false; btn.textContent='Back up';
+  if(res.ok) vtToast('Backup saved: '+res.file+' ('+vtBytes(res.size)+')','ok');
+  else vtToast(res.error||'The backup failed','err');
+};
 function renderTable(){
   const tbody=document.getElementById('vt-tbody');
   if(!domains.length){tbody.innerHTML='<tr class="vt-empty"><td colspan="5">No sites found. Click Refresh.</td></tr>';return;}
@@ -839,7 +882,9 @@ function rowHTML(domain,data){
   // IP address
   const ipHtml=data?.ip?'<div class="vt-domain-ip">'+vtEsc(data.ip)+'</div>':'';
   const vtId=btoa('https://'+domain).replace(/=/g,'');
-  const domainCell='<span class="vt-domain-name">'+vtEsc(domain)+'</span>'+ageHtml+'<span class="vt-dlinks"><a href="https://'+vtEsc(domain)+'" target="_blank" rel="noopener">Site</a><a href="https://www.virustotal.com/gui/domain/'+vtEsc(domain)+'/detection" target="_blank" rel="noopener">VT</a></span>'+ipHtml;
+  let domainCell='<span class="vt-domain-name">'+vtEsc(domain)+'</span>'+ageHtml+'<span class="vt-dlinks"><a href="https://'+vtEsc(domain)+'" target="_blank" rel="noopener">Site</a><a href="https://www.virustotal.com/gui/domain/'+vtEsc(domain)+'/detection" target="_blank" rel="noopener">VT</a></span>'+ipHtml;
+
+  if(relSet.has(domain)) domainCell+=orphanInfoHTML(domain);
 
   let score='<span style="color:var(--muted)">—</span>';
   if(data?.malicious!==undefined&&data?.total!==undefined){
@@ -869,7 +914,7 @@ function rowHTML(domain,data){
   }else{
     actionBtn='<button class="vt-row-btn" id="vrb-'+rid(domain)+'" onclick="vtReanalyzeSingle(\''+vtEsca(domain)+'\')">Rescan</button>';
   }
-  actionBtn=(relSet.has(domain)?'':fsBarHTML(domain))+actionBtn; // related hostnames have no files to scan
+  actionBtn=(relSet.has(domain)?orphanBtns(domain):fsBarHTML(domain))+actionBtn; // orphan databases have no files to scan
 
   return '<tr id="vtr-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(inQueue(domain)?' data-job="1"':'')+'>'
     +'<td>'+statusCell+'</td>'
