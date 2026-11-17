@@ -1,0 +1,54 @@
+name: Beta feedback
+description: Tell us how VT Site Scanner works on your server.
+title: "Feedback: "
+labels: ["beta-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! Short answers are fine.
+
+        **This issue is public.** Replace domain names, IP addresses and API keys with placeholders such as `example.com` before posting screenshots or logs.
+  - type: input
+    id: version
+    attributes:
+      label: VT Site Scanner version
+      description: Shown next to the title in the extension, for example v1.15.6.
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did installing go?
+      options:
+        - Smooth, the one-line command worked
+        - Worked, but I had to figure something out
+        - Did not work
+    validations:
+      required: true
+  - type: textarea
+    id: good
+    attributes:
+      label: What works well?
+  - type: textarea
+    id: bad
+    attributes:
+      label: What doesn't work, or is confusing?
+      description: Steps to reproduce help a lot. Mention the tab or button.
+  - type: textarea
+    id: missing
+    attributes:
+      label: What is missing?
+  - type: dropdown
+    id: recommend
+    attributes:
+      label: Would you recommend it to a colleague?
+      options:
+        - "Yes"
+        - "Maybe, after some improvements"
+        - "No"
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots (with placeholders), the Log tab, or ideas.

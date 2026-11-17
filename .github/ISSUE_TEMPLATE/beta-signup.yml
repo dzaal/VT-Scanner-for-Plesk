@@ -1,0 +1,79 @@
+name: Beta tester sign-up
+description: Try VT Site Scanner on your Plesk server and tell us what you think.
+title: "Beta tester: "
+labels: ["beta-tester"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping! Beta testers install VT Site Scanner on a Plesk server, use it for two weeks and share their experience.
+        You get early access to new versions, direct contact with the developer, and (if you like) a mention in the README.
+
+        **This issue is public.** Don't post e-mail addresses, server names, domain names or other private details here. We'll reply on this issue.
+  - type: input
+    id: plesk
+    attributes:
+      label: Plesk version
+      description: "Shown under Tools & Settings, or with: plesk version"
+      placeholder: "Plesk Obsidian 18.0.82"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "AlmaLinux 8, Ubuntu 22.04, Debian 12, …"
+    validations:
+      required: true
+  - type: dropdown
+    id: sites
+    attributes:
+      label: Number of websites on the server
+      options:
+        - "Fewer than 50"
+        - "50 to 200"
+        - "200 to 500"
+        - "More than 500"
+    validations:
+      required: true
+  - type: dropdown
+    id: who
+    attributes:
+      label: What describes you best?
+      options:
+        - Hosting company
+        - Web agency with its own server
+        - Freelance sysadmin
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: scanners
+    attributes:
+      label: Malware scanners already on the server
+      description: The extension uses whatever is installed. None is required.
+      options:
+        - label: ClamAV
+        - label: Linux Malware Detect (maldet)
+        - label: ImunifyAV or Imunify360
+        - label: None of these / not sure
+  - type: dropdown
+    id: view
+    attributes:
+      label: How do you mostly use Plesk?
+      options:
+        - Administrator
+        - Reseller
+        - Power User view
+        - Customer
+  - type: textarea
+    id: why
+    attributes:
+      label: What would you like it to do for you?
+      description: Optional. For example "check all customer sites daily", "find out why a site is blacklisted".
+  - type: checkboxes
+    id: credit
+    attributes:
+      label: Credit
+      options:
+        - label: You may thank me by GitHub username in the README.
