@@ -1330,10 +1330,11 @@ function fsBarHTML(domain){
 // ── Why flagged, and how to get delisted after cleaning ─────────
 // Review / false-positive contacts per vendor, from VirusTotal's list:
 // https://docs.virustotal.com/docs/false-positive-contacts
+// Where a vendor has its own form for websites, that form is used instead (alphaMountain, Gridinsoft).
 const VT_FP_LIST='https://docs.virustotal.com/docs/false-positive-contacts';
 const VT_FP={
   abusix:'https://lookup.abusix.com/', adminus:'samples@adminus.net', rising:'fp@rising.com.cn', acronis:'virustotal-falsepositive@acronis.com', ailabs:'aicc@monitorapp.com',
-  alibaba:'virustotal@list.alibaba-inc.com', alienvault:'otx-support@alienvault.com', alphamountain:'support@alphamountain.ai',
+  alibaba:'virustotal@list.alibaba-inc.com', alienvault:'otx-support@alienvault.com', alphamountain:'https://www.alphamountain.ai/false-positive/',
   alphasoc:'virustotal@alphasoc.com', antiy:'avlsdk_support@antiy.cn', arcsight:'virustotalsupport@opentext.com',
   avira:'https://www.avira.com/en/analysis/submit-url', antivir:'https://www.avira.com/en/analysis/submit-url',
   avast:'DL-Virus@gendigital.com', avg:'http://www.avg.com/us-en/whitelist', bitdefender:'virus_submission@bitdefender.com',
@@ -1346,7 +1347,7 @@ const VT_FP={
   eset:'https://support.eset.com/kb141/?page=content&id=SOLN141', forcepoint:'reviewmysite@forcepoint.com',
   fortinet:'https://www.fortiguard.com/faq/classificationdispute', gdata:'https://www.gdata.de/help/en/general/GeneralInformation/submitFileAppURL/',
   googlesafebrowsing:'https://safebrowsing.google.com/safebrowsing/report_error/?hl=en', greensnow:'https://greensnow.co/contact',
-  gridinsoft:'virus@gridinsoft.com', guardpot:'virustotal@guardpot.com', heimdal:'report-vt@heimdalsecurity.com', ikarus:'fp@ikarus.at',
+  gridinsoft:'https://portal.gridinsoft.com/false-positive', guardpot:'virustotal@guardpot.com', heimdal:'report-vt@heimdalsecurity.com', ikarus:'fp@ikarus.at',
   ipsum:'https://github.com/stamparm/ipsum', k7:'reportfp@labs.k7computing.com', kaspersky:'newvirus@kaspersky.com',
   lionic:'https://www.lionic.com/supports/report-false-positive/', lumu:'vt@lumu.io', malbeacon:'vtreport@malbeacon.com',
   malwarebytes:'https://forums.malwarebytes.com/forum/122-false-positives/', malwarepatrol:'fp@malwarepatrol.net', malwareurl:'team@malwareurl.com',
@@ -1396,10 +1397,11 @@ function vtWhyRowHTML(domain,st){
   }
   h+='<ol class="vt-why-steps">'
     +'<li><strong>Clean the site first.</strong> Use the scanner buttons to find infected files. Update WordPress, plugins and themes, remove plugins you don\'t use, change all passwords (admin, FTP/SFTP, database, hosting) and remove admin users you don\'t know. Otherwise the site is infected again soon and the vendors list it again.</li>'
-    +'<li><strong>Click Rescan.</strong> VirusTotal then asks all vendors to check the site again (this uses one manual call). Vendors that no longer find anything turn clean right away; the score drops.</li>'
+    +'<li><strong>Click Rescan.</strong> VirusTotal then checks the site address again with all vendors (this uses one manual call). The score shown here comes from the VirusTotal report for the whole domain, which follows when the vendors update their own lists, so it does not always drop right away.</li>'
     +'<li><strong>Ask the vendors that still flag it for a review.</strong> Use the links above. Mention the site address, that it has been cleaned and what you did. Most answer within a few days.</li>'
     +'<li><strong>Google:</strong> if Chrome shows a red warning, the site owner can ask Google for a review in <a href="https://search.google.com/search-console/security-issues" target="_blank" rel="noopener">Search Console → Security issues</a>. Google usually handles this within a few days.</li>'
-    +'<li><strong>Click Rescan again after a few days</strong> to see which vendors have removed the site from their list. Results of infected sites are refreshed every day by the background scan anyway.</li>'
+    +'<li><strong>Click Rescan again after a few days</strong> to see which vendors have removed the site from their list. Results of infected sites are refreshed every day by the background scan anyway. '
+    +'When a vendor says it has removed the site but VirusTotal still shows it: VirusTotal keeps separate reports for <code>www.</code> and <code>http://</code> versions of the address; open them on virustotal.com and click <em>Reanalyze</em> on each.</li>'
     +'</ol><div class="vt-fs-note">Contacts from <a href="'+VT_FP_LIST+'" target="_blank" rel="noopener">VirusTotal\'s list of vendor contacts</a>. VT Site Scanner never changes anything on the site; cleaning is up to you.</div>';
   return '<tr class="vt-fs-row" id="vtfs-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(inQueue(domain)?' data-job="1"':'')+'><td colspan="5"><div class="vt-fs">'+h+'</div></td></tr>';
 }
