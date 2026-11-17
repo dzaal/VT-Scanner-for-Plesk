@@ -174,16 +174,41 @@ class PleskDomains
     {
         $set  = array_flip($hosted);
         $skip = self::inactiveDomains();
+        $add  = [];
         foreach (self::wordPressHosts() as $host) {
             if (isset($set[$host]) || isset($skip[$host])) continue; // disabled/suspended/no hosting in Plesk
             $parts = explode('.', $host);
             for ($i = 1; $i < count($parts) - 1; $i++) {
-                if (isset($set[implode('.', array_slice($parts, $i))])) { $set[$host] = true; break; }
+                if (isset($set[implode('.', array_slice($parts, $i))])) { $add[] = $host; break; }
             }
         }
+        // A leftover WordPress database (an old copy or test site) can still name a hostname
+        // that no longer exists. Only keep hostnames that resolve in DNS: nobody can visit the rest.
+        foreach (self::resolving($add) as $host) $set[$host] = true;
         $all = array_keys($set);
         sort($all);
         return $all;
+    }
+
+    /** The hostnames that have an A, AAAA or CNAME record (results cached for a day) */
+    private static function resolving(array $hosts): array
+    {
+        if (!$hosts) return [];
+        $file  = VtDataDir::path('vt_wp_dns.json');
+        $cache = is_file($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
+        $now   = time();
+        $out   = [];
+        $dirty = false;
+        foreach ($hosts as $h) {
+            if (!isset($cache[$h]) || $now - (int)($cache[$h]['t'] ?? 0) > self::DOMAIN_CACHE_TTL) {
+                $r = @dns_get_record($h, DNS_A | DNS_AAAA | DNS_CNAME);
+                $cache[$h] = ['ok' => !empty($r), 't' => $now];
+                $dirty = true;
+            }
+            if ($cache[$h]['ok']) $out[] = $h;
+        }
+        if ($dirty) @file_put_contents($file, json_encode($cache));
+        return $out;
     }
 
     /** Domains Plesk knows but that are disabled, suspended or have no hosting (as a set) */
