@@ -44,7 +44,7 @@ VT Site Scanner makes that quota go a long way:
 
 Digizaal hosts about 600 WordPress sites on a single Plesk server. A single compromised site can harm its visitors, get the server's IP address blacklisted, and damage the reputation of every other site on it, so we need to know early when a site has been flagged.
 
-With that many sites, VirusTotal's free API quota (500 requests per day) runs out every single day: checking every site even once takes more than a day, and rescans of infected sites come on top of that. Plesk ships with its own VirusTotal integration (*VirusTotal Website Check*), but it spent the whole quota with no control over which sites were checked or when. That left no room to rescan a site after cleaning it up, which is the moment you need it most.
+With that many sites, VirusTotal's free API quota (500 requests per day) runs out every single day: checking every site even once takes more than a day, and rescans of infected sites come on top of that. Plesk ships with its own VirusTotal integration (*VirusTotal Website Check*), but every day it reported that the API calls were exhausted and not all sites had been scanned, leaving the rest unscanned, with no control over which sites were checked or when. That left no room to rescan a site after cleaning it up, which is the moment you need it most.
 
 VT Site Scanner was built to fix that:
 
@@ -63,6 +63,19 @@ VT Site Scanner was built to fix that:
 - **Category menus:** the small arrow next to each status button (All, Infected, Suspicious, …) opens a menu with **Rescan**, which rescans every site in that category, worst first and never more than today's manual budget allows. The menu next to **All** also has **Refresh site list**.
 - **Log tab** with a colour-coded scan log.
 - **About tab** about the maker, with a *Buy me a coffee* button.
+
+## ClamAV file scan
+
+VirusTotal judges a site from the outside (its URL and domain). When a site shows up as **infected** or **suspicious**, you can also look inside it: click **Scan files** on that row and ClamAV scans the site's document root.
+
+- On demand only: a scan runs when you click, never by itself. One scan runs at a time on the server; a click while another scan is busy waits its turn and starts by itself.
+- It uses the ClamAV daemon that already runs for mail scanning (`clamd`, via `clamdscan --fdpass`), at low CPU and disk priority, so no extra memory is used.
+- The row then shows the ClamAV result, for example *ClamAV: 3 infected files · show files*. **Show files** lists each infected file (relative to the website folder) with the ClamAV signature.
+- ClamAV only reports. Nothing is deleted, moved or quarantined.
+- A large site takes a few minutes (about 17,000 files took 5–6 minutes in testing).
+- VirusTotal and ClamAV don't always agree: a site can be flagged by VirusTotal for spam or phishing content in its database while its files are clean. Signatures starting with `PUA.` or `Heuristics.` are often false alarms.
+
+Requirements: ClamAV with `clamdscan` and a running clamd (on Plesk, the one from the antivirus/amavis setup at `/etc/clamd.d/amavisd.conf`). Website files belong to the subscription users, so the scan runs through a small root helper (`sbin/clamscan-site`) that Plesk installs with the extension and calls through its own `callSbin` mechanism. The helper only accepts a hostname and looks the folder up in Plesk's database.
 
 ## Users and roles
 

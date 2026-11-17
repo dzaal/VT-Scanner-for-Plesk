@@ -10,9 +10,10 @@ OUT="dist/${EXT_ID}-${VERSION}.zip"
 BUILD=$(mktemp -d)
 trap 'rm -rf "$BUILD"' EXIT
 
-# Package layout: <ext-id>/meta.xml + htdocs/ + plib/ + _meta/ (catalog icons)
+# Package layout: <ext-id>/meta.xml + htdocs/ + plib/ + sbin/ (root helper) + _meta/ (catalog icons)
 mkdir -p "$BUILD/$EXT_ID" dist
-cp -r htdocs plib _meta "$BUILD/$EXT_ID/"
+cp -r htdocs plib sbin _meta "$BUILD/$EXT_ID/"
+chmod 755 "$BUILD/$EXT_ID"/sbin/*
 cp META_INF/meta.xml "$BUILD/$EXT_ID/meta.xml"
 rm -f "$OUT"
 
@@ -29,7 +30,13 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for f in files:
             if f == ".DS_Store": continue
             p = os.path.join(root, f)
-            z.write(p, os.path.relpath(p, base).replace(os.sep, "/"))
+            arc = os.path.relpath(p, base).replace(os.sep, "/")
+            zi = zipfile.ZipInfo.from_file(p, arc)
+            zi.compress_type = zipfile.ZIP_DEFLATED
+            # sbin/ scripts must stay executable (Windows has no exec bit)
+            zi.external_attr = ((0o100755 if "/sbin/" in arc else 0o100644) << 16)
+            with open(p, "rb") as fh:
+                z.writestr(zi, fh.read())
 PYEOF
 fi
 

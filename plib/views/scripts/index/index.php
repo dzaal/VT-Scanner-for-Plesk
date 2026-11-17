@@ -209,6 +209,23 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-n-email{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 11px;font-size:13px;width:100%;max-width:340px;outline:none}
 .vt-n-email:focus{border-color:var(--blue)}
 .vt-n-group.hint{color:var(--muted)}
+/* ClamAV */
+.vt-clam{font-size:11.5px;margin-top:3px;display:flex;align-items:center;gap:5px}
+.vt-clam.ok{color:var(--green,#16a34a)}
+.vt-clam.bad{color:var(--red);font-weight:600}
+.vt-clam.err,.vt-clam.run{color:var(--muted)}
+.vt-clam a{color:inherit;text-decoration:underline;cursor:pointer}
+.vt-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:10000;padding:16px}
+.vt-modal-bg.open{display:flex}
+.vt-modal{background:var(--surface);color:inherit;border-radius:10px;max-width:760px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.vt-modal-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.vt-modal-h strong{font-size:15px;flex:1;word-break:break-all}
+.vt-modal-b{padding:14px 18px;overflow:auto;font-size:13px}
+.vt-modal-f{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.vt-clam-tbl{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
+.vt-clam-tbl th,.vt-clam-tbl td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+.vt-clam-tbl td:first-child{font-family:ui-monospace,Consolas,monospace;word-break:break-all}
+.vt-clam-tbl td:last-child{color:var(--red);white-space:nowrap}
 #vt-n-opts{margin-left:0}
 #vt-n-opts>.vt-btn{margin-left:26px}
 #vt-n-opts.off{opacity:.45;pointer-events:none}
@@ -491,6 +508,9 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
           <p>Digizaal builds and hosts websites for its customers, about 600 of them WordPress sites on one Plesk server.
           I built VT Site Scanner because I needed it myself: one hacked site can hurt its visitors, get the server's
           IP address blacklisted and drag every other site on the server down with it.</p>
+          <p>I used the VirusTotal scanner that comes with Plesk, but every day it told me the API calls were exhausted:
+          not all sites had been scanned, and the rest stayed unscanned. So I wrote a scanner that spends the free
+          daily quota carefully, remembers results, and gets round to every site.</p>
           <a class="vt-btn ghost" href="https://www.digizaal.nl" target="_blank" rel="noopener">Visit digizaal.nl &rarr;</a>
         </div>
       </div>
@@ -527,10 +547,18 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 
 <div class="vt-toasts" id="vt-toasts"></div>
 
+<div class="vt-modal-bg" id="vt-clam-modal" onclick="if(event.target===this)vtClamClose()">
+  <div class="vt-modal" role="dialog" aria-modal="true" aria-labelledby="vt-clam-title">
+    <div class="vt-modal-h"><strong id="vt-clam-title">ClamAV</strong><button class="vt-row-btn" type="button" onclick="vtClamClose()">Close</button></div>
+    <div class="vt-modal-b" id="vt-clam-body"></div>
+    <div class="vt-modal-f"><button class="vt-row-btn" type="button" id="vt-clam-again">Scan files again</button></div>
+  </div>
+</div>
+
 <script>
 (function(){
 const BASE = <?= json_encode($this->baseUrl ?: '') ?> || location.pathname;
-let domains=[], results={}, budget={}, activeFilter='all';
+let domains=[], results={}, budget={}, activeFilter='all', clam={};
 let scanQueue=[], inFlight=0;
 const MAX_C=1;          // one at a time to stay within VT rate limits
 const PUMP_DELAY=15500; // 15.5s between requests = safe for 4 req/min free tier
@@ -548,7 +576,8 @@ const DANGER_TAGS=['malware','phishing','spam','ransomware','trojan','malicious'
 // ── Init ──────────────────────────────────────────────────────
 async function init(){
   const data=await vtFetch('?action=all').catch(()=>({}));
-  domains=data.domains||[]; results=data.results||{}; budget=data.budget||{};
+  domains=data.domains||[]; results=data.results||{}; budget=data.budget||{}; clam=data.clam||{};
+  Object.keys(clam).forEach(d=>{if(clamBusy(d))vtClamPoll(d);});
   vtSet('vt-cnt-all', domains.length);
   updateBudget(); renderTable(); updateCounts();
 
@@ -715,7 +744,7 @@ function rowHTML(domain,data){
   // IP address
   const ipHtml=data?.ip?'<div class="vt-domain-ip">'+vtEsc(data.ip)+'</div>':'';
   const vtId=btoa('https://'+domain).replace(/=/g,'');
-  const domainCell='<span class="vt-domain-name">'+vtEsc(domain)+'</span>'+ageHtml+'<span class="vt-dlinks"><a href="https://'+vtEsc(domain)+'" target="_blank" rel="noopener">Site</a><a href="https://www.virustotal.com/gui/domain/'+vtEsc(domain)+'/detection" target="_blank" rel="noopener">VT</a></span>'+ipHtml;
+  const domainCell='<span class="vt-domain-name">'+vtEsc(domain)+'</span>'+ageHtml+'<span class="vt-dlinks"><a href="https://'+vtEsc(domain)+'" target="_blank" rel="noopener">Site</a><a href="https://www.virustotal.com/gui/domain/'+vtEsc(domain)+'/detection" target="_blank" rel="noopener">VT</a></span>'+ipHtml+clamHTML(domain);
 
   let score='<span style="color:var(--muted)">—</span>';
   if(data?.malicious!==undefined&&data?.total!==undefined){
@@ -741,6 +770,12 @@ function rowHTML(domain,data){
     actionBtn='<button class="vt-row-btn" disabled><span class="vt-spin"></span> '+lbl+'</button>';
   }else{
     actionBtn='<button class="vt-row-btn" id="vrb-'+rid(domain)+'" onclick="vtReanalyzeSingle(\''+vtEsca(domain)+'\')">Rescan</button>';
+  }
+  // ClamAV file scan, on demand, for flagged sites (or sites scanned before)
+  if(st==='infected'||st==='suspicious'||clam[domain]){
+    const running=clamBusy(domain);
+    actionBtn='<button class="vt-row-btn" title="Scan the files of this site with ClamAV" '+(running?'disabled':'onclick="vtClamScan(\''+vtEsca(domain)+'\')"')+'>'
+      +(running?'<span class="vt-spin"></span> ClamAV':'Scan files')+'</button> '+actionBtn;
   }
 
   return '<tr id="vtr-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(job?' data-job="1"':'')+'>'
@@ -1171,6 +1206,95 @@ window.vtClearLog=async function(){
 };
 
 // ── Utils ─────────────────────────────────────────────────────
+// ── ClamAV ────────────────────────────────────────────────────
+function vtAgo(ts){
+  if(!ts) return '';
+  const s=Date.now()/1000-ts;
+  if(s<90) return 'just now';
+  if(s<3600) return Math.round(s/60)+' min ago';
+  if(s<86400) return Math.round(s/3600)+' h ago';
+  return new Date(ts*1000).toLocaleDateString();
+}
+function clamHTML(domain){
+  const c=clam[domain]; if(!c) return '';
+  const e=vtEsca(domain);
+  if(c.status==='running') return '<div class="vt-clam run"><span class="vt-spin"></span> ClamAV is scanning the files…</div>';
+  if(c.status==='queued')  return '<div class="vt-clam run"><span class="vt-spin"></span> ClamAV: waiting until the current scan has finished</div>';
+  if(c.status==='done'){
+    if(c.infected>0) return '<div class="vt-clam bad">ClamAV: '+c.infected+' infected file'+(c.infected===1?'':'s')+' · <a onclick="vtClamShow(\''+e+'\')">show files</a></div>';
+    return '<div class="vt-clam ok">ClamAV: no infected files ('+(c.files||0).toLocaleString()+' files, '+vtAgo(c.finished)+') · <a onclick="vtClamShow(\''+e+'\')">details</a></div>';
+  }
+  return '<div class="vt-clam err">ClamAV: '+vtEsc(c.message||c.status)+'</div>';
+}
+function clamBusy(d){return ['running','queued'].includes(clam[d]?.status);}
+function vtClamRefresh(domain){updateRow(domain,results[domain]||null);}
+window.vtClamScan=async function(domain){
+  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
+  const body=new URLSearchParams({domain});
+  clam[domain]={domain,status:'running',started:Date.now()/1000}; vtClamRefresh(domain);
+  const res=await fetch(BASE+'?action=clam-scan',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body}).then(r=>r.json()).catch(()=>({error:'Network error'}));
+  if(res.error){
+    vtToast(res.error,'error');
+    if(res.clam&&res.clam.status!=='running') clam[domain]=res.clam; else delete clam[domain];
+    vtClamRefresh(domain); return;
+  }
+  if(res.clam) clam[domain]=res.clam; vtClamRefresh(domain);
+  vtToast(res.clam?.status==='queued'
+    ?'ClamAV scan of '+domain+' is queued: it starts as soon as the current scan has finished.'
+    :'ClamAV is scanning the files of '+domain+'. This can take a few minutes.','info');
+  vtClamPoll(domain);
+};
+const clamPolling=new Set();
+async function vtClamPoll(domain){
+  if(clamPolling.has(domain)) return;
+  clamPolling.add(domain);
+  try{
+    for(;;){
+      await delay(5000);
+      const r=await vtFetch('?action=clam-result&domain='+encodeURIComponent(domain)).catch(()=>null);
+      if(!r||!r.clam) continue;
+      if(['running','queued'].includes(r.clam.status)){
+        if(clam[domain]?.status!==r.clam.status){clam[domain]=r.clam;vtClamRefresh(domain);}
+        continue;
+      }
+      clam[domain]=r.clam; vtClamRefresh(domain);
+      if(r.clam.status==='done') vtToast('ClamAV '+domain+': '+(r.clam.infected?r.clam.infected+' infected file(s) found':'no infected files'),r.clam.infected?'error':'success');
+      else vtToast('ClamAV '+domain+': '+(r.clam.message||r.clam.status),'error');
+      break;
+    }
+  }finally{clamPolling.delete(domain);}
+}
+window.vtClamShow=async function(domain){
+  const m=document.getElementById('vt-clam-modal');
+  vtSet('vt-clam-title','ClamAV: '+domain);
+  const b=document.getElementById('vt-clam-body');
+  b.innerHTML='<span class="vt-spin"></span> Loading…';
+  document.getElementById('vt-clam-again').onclick=()=>{vtClamClose();vtClamScan(domain);};
+  m.classList.add('open');
+  const r=await vtFetch('?action=clam-result&domain='+encodeURIComponent(domain)).catch(()=>null);
+  const c=r?.clam;
+  if(!c){b.textContent='No ClamAV result for this site yet.';return;}
+  clam[domain]=c;
+  let h='<div>'+(c.infected
+      ?'<strong style="color:var(--red)">'+c.infected+' infected file'+(c.infected===1?'':'s')+'</strong>'
+      :'<strong style="color:var(--green,#16a34a)">No infected files</strong>')
+    +' in '+(c.files||0).toLocaleString()+' files of <code>'+vtEsc(c.root||'')+'</code>'
+    +(c.finished?' · scanned '+vtEsc(new Date(c.finished*1000).toLocaleString()):'')
+    +(c.errors?' · '+c.errors+' file(s) could not be read':'')+'</div>';
+  if(c.found&&c.found.length){
+    h+='<table class="vt-clam-tbl"><thead><tr><th>File (in the website folder)</th><th>ClamAV signature</th></tr></thead><tbody>'
+      +c.found.map(f=>'<tr><td>'+vtEsc(f.file)+'</td><td>'+vtEsc(f.signature)+'</td></tr>').join('')+'</tbody></table>';
+    if(c.infected>c.found.length) h+='<div class="hint" style="margin-top:6px">Showing the first '+c.found.length+' of '+c.infected+'.</div>';
+  }
+  h+='<p style="margin-top:12px;color:var(--muted);font-size:12px;line-height:1.5">ClamAV only reports: no files were changed or removed. '
+    +'Check each file, clean or delete it (or restore a backup), then scan again. Signatures starting with <code>PUA.</code> or <code>Heuristics.</code> are often false alarms. '
+    +'VirusTotal judges the site from the outside and ClamAV looks at its files, so the two do not always agree.</p>';
+  b.innerHTML=h;
+  vtClamRefresh(domain);
+};
+window.vtClamClose=function(){document.getElementById('vt-clam-modal').classList.remove('open');};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')vtClamClose();});
+
 function vtFetch(url){return fetch(BASE+url).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();});}
 function vtSet(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
 function vtEsc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c));}
