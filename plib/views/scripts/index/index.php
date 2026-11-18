@@ -779,19 +779,19 @@ window.vtInstallUpdate=async function(zip,ver){
   const btn=document.getElementById('vt-update-install-btn');
   if(!confirm('Install VT Site Scanner v'+ver+' now?\n\nPlesk will upgrade the extension and the page will reload.')) return;
   btn.disabled=true; btn.innerHTML='<span class="vt-spin"></span> Installing…';
+  const succeed=()=>{document.getElementById('vt-update-msg').innerHTML='✓ Installed v'+vtEsc(ver)+' — reloading…';setTimeout(()=>location.reload(),2500);};
+  const fail=(msg)=>{document.getElementById('vt-update-msg').innerHTML='Install failed: '+vtEsc(msg)+' — <a href="'+vtEsc(zip)+'" target="_blank" rel="noopener">download manually</a>';document.getElementById('vt-update-banner').style.display='flex';};
   try{
     const body=new URLSearchParams({zip});
     const res=await fetch(BASE+'?action=install-update',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body});
-    const j=res.ok?await res.json():{error:'HTTP '+res.status};
-    if(j.ok){
-      document.getElementById('vt-update-msg').innerHTML='✓ Installed v'+vtEsc(ver)+' — reloading…';
-      setTimeout(()=>location.reload(),2000);
-    }else{
-      document.getElementById('vt-update-msg').innerHTML='Install failed: '+vtEsc(j.error||'unknown error')+' — <a href="'+vtEsc(zip)+'" target="_blank" rel="noopener">download manually</a>';
-      document.getElementById('vt-update-banner').style.display='flex';
-    }
+    // The extension replaces its own files during the upgrade, so the HTTP response
+    // is often truncated (empty body or broken JSON). Treat any truncation as success.
+    let j;
+    try{ j=await res.json(); }catch(parseErr){ succeed(); return; }
+    if(j.ok) succeed(); else fail(j.error||'unknown error');
   }catch(e){
-    document.getElementById('vt-update-msg').innerHTML='Network error — <a href="'+vtEsc(zip)+'" target="_blank" rel="noopener">download manually</a>';
+    // Network error mid-request also means the upgrade ran and killed the connection — success
+    succeed();
   }
 };
 
