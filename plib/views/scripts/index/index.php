@@ -777,7 +777,6 @@ async function vtCheckUpdate(){
 }
 window.vtInstallUpdate=async function(zip,ver){
   const btn=document.getElementById('vt-update-install-btn');
-  if(!confirm('Install VT Site Scanner v'+ver+' now?\n\nPlesk will upgrade the extension and the page will reload.')) return;
   btn.disabled=true; btn.innerHTML='<span class="vt-spin"></span> Installing…';
   const succeed=()=>{document.getElementById('vt-update-msg').innerHTML='✓ Installed v'+vtEsc(ver)+' — reloading…';setTimeout(()=>location.reload(),2500);};
   const fail=(msg)=>{document.getElementById('vt-update-msg').innerHTML='Install failed: '+vtEsc(msg)+' — <a href="'+vtEsc(zip)+'" target="_blank" rel="noopener">download manually</a>';document.getElementById('vt-update-banner').style.display='flex';};
