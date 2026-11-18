@@ -18,6 +18,10 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 #vt-wrap{padding-top:8px}
 
 /* About */
+.vt-update-banner{display:none;align-items:center;gap:10px;padding:9px 16px;margin-bottom:12px;border-radius:var(--radius);background:#fefce8;border:1px solid #fde047;font-size:13px;color:#713f12}
+.vt-update-banner a{color:#92400e;font-weight:700;text-decoration:none;border-bottom:1px solid #d97706}
+.vt-update-banner a:hover{color:#78350f}
+.vt-update-icon{font-size:16px;flex-shrink:0}
 .vt-about{max-width:760px}
 .vt-about .vt-card{max-width:none}
 .vt-about p{font-size:13px;line-height:1.6;color:var(--text);margin:10px 0}
@@ -332,6 +336,11 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
     <a class="vt-brand-by" href="#about" onclick="vtShowTab('about');return false;" title="About the maker">
       <span>by</span> <strong>Digizaal</strong>
     </a>
+  </div>
+
+  <div class="vt-update-banner" id="vt-update-banner">
+    <span class="vt-update-icon">🔔</span>
+    <span id="vt-update-msg"></span>
   </div>
 
   <div class="vt-tabs">
@@ -751,6 +760,15 @@ async function init(){
   renderTable(); updateCounts();
   pump();
 }
+async function vtCheckUpdate(){
+  try{
+    const r=await vtFetch('?action=check-update');
+    if(!r.update_available) return;
+    const dl=r.zip?('<a href="'+vtEsc(r.zip)+'" target="_blank" rel="noopener">Download v'+vtEsc(r.latest)+'</a>'):('<a href="'+vtEsc(r.url)+'" target="_blank" rel="noopener">View release</a>');
+    document.getElementById('vt-update-msg').innerHTML='A new version is available: <strong>v'+vtEsc(r.latest)+'</strong> (you have v'+vtEsc(r.current)+') — '+dl;
+    document.getElementById('vt-update-banner').style.display='flex';
+  }catch(e){}
+}
 
 function isStale(d){
   if(!results[d]||!results[d].cached_at) return true;
@@ -920,8 +938,8 @@ window.vtSortBy=function(col){
   localStorage.setItem('vt_sort_dir',sortDir);
   renderTable();
 };
-function sortedDomains(){
-  return [...domains].sort((a,b)=>{
+function sortedDomains(list){
+  return [...(list||domains)].sort((a,b)=>{
     if(sortCol==='domain') return sortDir==='asc'?a.localeCompare(b,undefined,{sensitivity:'base'}):b.localeCompare(a,undefined,{sensitivity:'base'});
     if(sortCol==='score'){
       const va=results[a]?.malicious??-1, vb=results[b]?.malicious??-1;
@@ -937,13 +955,12 @@ function sortedDomains(){
 function updateSortHeaders(){
   const thead=document.getElementById('vt-thead-main');
   if(!thead) return;
-  const on=viewMode==='sort';
   thead.querySelectorAll('th[data-col]').forEach(th=>{
     const col=th.dataset.col;
-    th.classList.toggle('vt-sortable',on);
-    th.classList.toggle('vt-sort-asc',on&&sortCol===col&&sortDir==='asc');
-    th.classList.toggle('vt-sort-desc',on&&sortCol===col&&sortDir==='desc');
-    th.onclick=on?()=>vtSortBy(col):null;
+    th.classList.add('vt-sortable');
+    th.classList.toggle('vt-sort-asc',sortCol===col&&sortDir==='asc');
+    th.classList.toggle('vt-sort-desc',sortCol===col&&sortDir==='desc');
+    th.onclick=()=>vtSortBy(col);
   });
 }
 function groupedRowsHTML(){
@@ -979,7 +996,7 @@ function groupedRowsHTML(){
       h+='<tr class="vt-grp-c'+(closed?' closed':'')+'" data-res="'+vtEsc(rk)+'" data-gk="'+vtEsc(ck)+'" onclick="vtGrpToggle(this)"><td colspan="5">'
         +'<span class="vt-grp-caret">▾</span> '+label+(C.o.ct==='client'?' <span class="vt-grp-login">'+vtEsc(C.o.cl)+'</span>':'')
         +' <span class="vt-grp-n">'+C.list.length+' site'+(C.list.length===1?'':'s')+(b?' · <span class="bad">'+b+' flagged</span>':'')+'</span></td></tr>';
-      h+=C.list.sort(cmp).map(d=>rowHTML(d,results[d]||null)).join('');
+      h+=sortedDomains(C.list).map(d=>rowHTML(d,results[d]||null)).join('');
     }
   }
   return h;
@@ -1916,6 +1933,6 @@ function vtToast(msg,type){
   setTimeout(()=>t.remove(),5000);
 }
 
-init();
+init().then(()=>vtCheckUpdate());
 })();
 </script>
