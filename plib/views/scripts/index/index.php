@@ -113,6 +113,7 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 .vt-tbl-wrap table{width:100%;border-collapse:collapse}
 .vt-tbl-wrap thead th{padding:9px 13px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:var(--gray-bg);border-bottom:1px solid var(--border);white-space:nowrap}
+th.vt-sortable{cursor:pointer;user-select:none}th.vt-sortable:hover{color:var(--blue)}th.vt-sortable::after{content:"";display:inline-block;width:14px;text-align:left}th.vt-sort-asc::after{content:" ↑"}th.vt-sort-desc::after{content:" ↓"}
 .vt-tbl-wrap tbody tr{border-bottom:1px solid var(--border);transition:background .1s;border-left:3px solid transparent}
 .vt-tbl-wrap tbody tr:last-child{border-bottom:none}
 .vt-tbl-wrap tbody tr:hover{background:#fafbfc}
@@ -453,12 +454,12 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 
     <div class="vt-tbl-wrap">
       <table>
-        <thead>
+        <thead id="vt-thead-main">
           <tr>
             <th style="width:120px">Status</th>
-            <th>Domain</th>
-            <th style="width:155px">Score</th>
-            <th style="width:135px">Last scan</th>
+            <th data-col="domain">Domain</th>
+            <th style="width:155px" data-col="score">Score</th>
+            <th style="width:135px" data-col="lastscan">Last scan</th>
             <th style="width:85px;text-align:right">Action</th>
           </tr>
         </thead>
@@ -727,6 +728,7 @@ async function init(){
   for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||{}; scanners=data.scanners||[]; scans=data.scans||{};
   for(const d in scans) for(const id in scans[d]) if(fsBusy(d,id)) vtFsPoll(d,id);
   vtSet('vt-cnt-all', domains.length);
+  document.querySelectorAll('#vt-view-seg button').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===viewMode));
   updateBudget(); renderTable(); updateCounts();
 
   const cfg=await vtFetch('?action=get-settings').catch(()=>({}));
@@ -891,7 +893,8 @@ window.vtDumpDb=async function(domain,db,btn){
 function renderTable(){
   const tbody=document.getElementById('vt-tbody');
   if(!domains.length){tbody.innerHTML='<tr class="vt-empty"><td colspan="5">No sites found. Click Refresh.</td></tr>';return;}
-  tbody.innerHTML=viewMode==='sort'?[...domains].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})).map(d=>rowHTML(d,results[d]||null)).join(''):groupedRowsHTML();
+  updateSortHeaders();
+  tbody.innerHTML=viewMode==='sort'?sortedDomains().map(d=>rowHTML(d,results[d]||null)).join(''):groupedRowsHTML();
   vtSet('vt-rel-cnt',related.length); vtSet('vt-cnt-orphan',related.length);
   document.getElementById('vt-fgroup-orphan').style.display=related.length?'':'none';
   if(!related.length&&activeFilter==='orphan') activeFilter='all';
@@ -901,12 +904,48 @@ function renderTable(){
 
 // ── Grouping by reseller and customer ─────────────────────────
 function grpKey(o){return (o.rl||'-')+'|'+o.cl;}
-let viewMode='group';
+let viewMode=localStorage.getItem('vt_view_mode')||'group';
+let sortCol=localStorage.getItem('vt_sort_col')||'domain';
+let sortDir=localStorage.getItem('vt_sort_dir')||'asc';
 window.vtSetViewMode=function(m,btn){
   viewMode=m;
+  localStorage.setItem('vt_view_mode',m);
   document.querySelectorAll('#vt-view-seg button').forEach(b=>b.classList.toggle('on',b===btn));
   renderTable();
 };
+window.vtSortBy=function(col){
+  if(sortCol===col) sortDir=sortDir==='asc'?'desc':'asc';
+  else{sortCol=col;sortDir=col==='lastscan'?'desc':'asc';}
+  localStorage.setItem('vt_sort_col',sortCol);
+  localStorage.setItem('vt_sort_dir',sortDir);
+  renderTable();
+};
+function sortedDomains(){
+  return [...domains].sort((a,b)=>{
+    if(sortCol==='domain') return sortDir==='asc'?a.localeCompare(b,undefined,{sensitivity:'base'}):b.localeCompare(a,undefined,{sensitivity:'base'});
+    if(sortCol==='score'){
+      const va=results[a]?.malicious??-1, vb=results[b]?.malicious??-1;
+      return sortDir==='asc'?va-vb:vb-va;
+    }
+    if(sortCol==='lastscan'){
+      const va=results[a]?.cached_at??0, vb=results[b]?.cached_at??0;
+      return sortDir==='asc'?va-vb:vb-va;
+    }
+    return 0;
+  });
+}
+function updateSortHeaders(){
+  const thead=document.getElementById('vt-thead-main');
+  if(!thead) return;
+  const on=viewMode==='sort';
+  thead.querySelectorAll('th[data-col]').forEach(th=>{
+    const col=th.dataset.col;
+    th.classList.toggle('vt-sortable',on);
+    th.classList.toggle('vt-sort-asc',on&&sortCol===col&&sortDir==='asc');
+    th.classList.toggle('vt-sort-desc',on&&sortCol===col&&sortDir==='desc');
+    th.onclick=on?()=>vtSortBy(col):null;
+  });
+}
 function groupedRowsHTML(){
   const withOwner=domains.filter(d=>owners[d]);
   const custs=new Set(withOwner.map(d=>grpKey(owners[d])));
@@ -960,6 +999,16 @@ function updateRow(domain,data){
 }
 
 function rid(d){return d.replace(/[^a-z0-9]/gi,'_');}
+function vtAgo(ts){
+  if(!ts) return null;
+  const s=Math.floor(Date.now()/1000-ts);
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  if(s<86400) return Math.floor(s/3600)+'h ago';
+  if(s<86400*30) return Math.floor(s/86400)+'d ago';
+  if(s<86400*365) return Math.floor(s/86400/30)+'mo ago';
+  return Math.floor(s/86400/365)+'y ago';
+}
 
 function rowHTML(domain,data){
   const st=data?.status??'loading';
@@ -1011,8 +1060,15 @@ function rowHTML(domain,data){
   else if(st==='error'){score='<span style="color:var(--red);font-size:12px">No result</span>';}
 
   let scanDate='—';
-  if(data?.last_scan) scanDate=vtEsc(data.last_scan)+(data?.stale?'<span class="vt-stale">stale</span>':'');
-  else if(st==='loading'||isScanning) scanDate='<span class="vt-spin"></span>';
+  if(data?.cached_at){
+    const _ago=vtAgo(data.cached_at);
+    const _full=new Date(data.cached_at*1000).toLocaleString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    scanDate='<span title="Checked: '+_full+'" style="cursor:default">'+_ago+'</span>';
+    if(data?.stale) scanDate+=' <span class="vt-stale">stale</span>';
+    if(data?.last_scan) scanDate+='<div style="font-size:10px;color:var(--muted);margin-top:2px">VT: '+vtEsc(data.last_scan)+'</div>';
+  }else if(data?.last_scan){
+    scanDate=vtEsc(data.last_scan)+(data?.stale?'<span class="vt-stale">stale</span>':'');
+  }else if(st==='loading'||isScanning) scanDate='<span class="vt-spin"></span>';
   else if(st==='pending') scanDate='Queued...';
 
   // Rescan button: show spinner while scanning/waiting
