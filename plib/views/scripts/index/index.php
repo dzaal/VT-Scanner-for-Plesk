@@ -22,6 +22,9 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 .vt-update-banner a{color:#92400e;font-weight:700;text-decoration:none;border-bottom:1px solid #d97706}
 .vt-update-banner a:hover{color:#78350f}
 .vt-update-icon{font-size:16px;flex-shrink:0}
+.vt-update-btn{margin-left:4px;padding:4px 12px;border-radius:5px;border:none;background:#d97706;color:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.vt-update-btn:hover{background:#b45309}
+.vt-update-btn:disabled{opacity:.6;cursor:not-allowed}
 .vt-about{max-width:760px}
 .vt-about .vt-card{max-width:none}
 .vt-about p{font-size:13px;line-height:1.6;color:var(--text);margin:10px 0}
@@ -764,11 +767,33 @@ async function vtCheckUpdate(){
   try{
     const r=await vtFetch('?action=check-update');
     if(!r.update_available) return;
-    const dl=r.zip?('<a href="'+vtEsc(r.zip)+'" target="_blank" rel="noopener">Download v'+vtEsc(r.latest)+'</a>'):('<a href="'+vtEsc(r.url)+'" target="_blank" rel="noopener">View release</a>');
-    document.getElementById('vt-update-msg').innerHTML='A new version is available: <strong>v'+vtEsc(r.latest)+'</strong> (you have v'+vtEsc(r.current)+') — '+dl;
+    const releaseLink='<a href="'+vtEsc(r.url)+'" target="_blank" rel="noopener">release notes</a>';
+    let installBtn='';
+    if(r.zip) installBtn='<button class="vt-update-btn" id="vt-update-install-btn" onclick="vtInstallUpdate('+JSON.stringify(r.zip)+','+JSON.stringify(r.latest)+')">Install v'+vtEsc(r.latest)+'</button>';
+    document.getElementById('vt-update-msg').innerHTML=
+      'Version <strong>v'+vtEsc(r.latest)+'</strong> is available (you have v'+vtEsc(r.current)+') — '+releaseLink+installBtn;
     document.getElementById('vt-update-banner').style.display='flex';
   }catch(e){}
 }
+window.vtInstallUpdate=async function(zip,ver){
+  const btn=document.getElementById('vt-update-install-btn');
+  if(!confirm('Install VT Site Scanner v'+ver+' now?\n\nPlesk will upgrade the extension and the page will reload.')) return;
+  btn.disabled=true; btn.innerHTML='<span class="vt-spin"></span> Installing…';
+  try{
+    const body=new URLSearchParams({zip});
+    const res=await fetch(BASE+'?action=install-update',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body});
+    const j=res.ok?await res.json():{error:'HTTP '+res.status};
+    if(j.ok){
+      document.getElementById('vt-update-msg').innerHTML='✓ Installed v'+vtEsc(ver)+' — reloading…';
+      setTimeout(()=>location.reload(),2000);
+    }else{
+      document.getElementById('vt-update-msg').innerHTML='Install failed: '+vtEsc(j.error||'unknown error')+' — <a href="'+vtEsc(zip)+'" target="_blank" rel="noopener">download manually</a>';
+      document.getElementById('vt-update-banner').style.display='flex';
+    }
+  }catch(e){
+    document.getElementById('vt-update-msg').innerHTML='Network error — <a href="'+vtEsc(zip)+'" target="_blank" rel="noopener">download manually</a>';
+  }
+};
 
 function isStale(d){
   if(!results[d]||!results[d].cached_at) return true;

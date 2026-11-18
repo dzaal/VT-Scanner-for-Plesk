@@ -389,6 +389,29 @@ class IndexController extends pm_Controller_Action
         $this->respond($info);
     }
 
+    public function installUpdateAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        if ($this->role() !== 'admin') { $this->respond(['error' => 'Administrator only']); return; }
+
+        // Accept zip URL only from GitHub releases for this repo
+        $zip = trim((string)$this->_getParam('zip', ''));
+        if (!$zip || !preg_match('#^https://github\.com/dzaal/VT-Scanner-for-Plesk/releases/download/[^"\s]+\.zip$#', $zip)) {
+            $this->respond(['error' => 'Invalid or untrusted download URL']); return;
+        }
+
+        $output = [];
+        $exitCode = 0;
+        exec('plesk bin extension --upgrade-url ' . escapeshellarg($zip) . ' 2>&1', $output, $exitCode);
+        $out = implode("\n", $output);
+
+        if ($exitCode !== 0) {
+            $this->respond(['error' => 'Install failed: ' . $out]); return;
+        }
+        $this->appendLog('[update] Extension upgraded via ' . $zip . ' — exit ' . $exitCode);
+        $this->respond(['ok' => true, 'output' => $out]);
+    }
+
     public function checkUpdateAction(): void
     {
         $cacheFile = VtDataDir::path('vt_update_check.json');
