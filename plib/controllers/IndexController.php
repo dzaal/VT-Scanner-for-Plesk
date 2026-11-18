@@ -400,68 +400,86 @@ class IndexController extends pm_Controller_Action
             $this->respond(['error' => 'Invalid or untrusted download URL']); return;
         }
 
-        $output = [];
-        $exitCode = 0;
-        exec('plesk bin extension --upgrade-url ' . escapeshellarg($zip) . ' 2>&1', $output, $exitCode);
-        $out = implode("\n", $output);
-
-        if ($exitCode !== 0) {
-            $this->respond(['error' => 'Install failed: ' . $out]); return;
+        // Download the zip first so we have a local copy
+        $tmpZip = sys_get_temp_dir() . '/vt-ext-upgrade-' . time() . '.zip';
+        $ch = curl_init($zip);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT        => 60,
+            CURLOPT_HTTPHEADER     => ['User-Agent: VT-Site-Scanner-Plesk'],
+        ]);
+        $data = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($code !== 200 || !$data) {
+            $this->respond(['error' => "Download failed (HTTP $code)"]); return;
         }
-        $this->appendLog('[update] Extension upgraded via ' . $zip . ' — exit ' . $exitCode);
-        $this->respond(['ok' => true, 'output' => $out]);
+        file_put_contents($tmpZip, $data);
+
+        // Run the upgrade in the background so PHP can send the response before
+        // Plesk replaces the extension files (which would kill this process).
+        $logFile = '/tmp/vt-ext-upgrade.log';
+        exec('nohup plesk bin extension --upgrade ' . escapeshellarg($tmpZip)
+            . ' > ' . escapeshellarg($logFile) . ' 2>&1 &');
+
+        $this->appendLog('[update] Extension upgrade started from ' . $zip);
+        $this->respond(['ok' => true, 'background' => true]);
     }
 
     public function checkUpdateAction(): void
     {
-        $cacheFile = VtDataDir::path('vt_update_check.json');
-        // Return cached result if it is less than 24 hours old
-        if (is_file($cacheFile) && time() - filemtime($cacheFile) < 86400) {
-            $cached = json_decode((string)file_get_contents($cacheFile), true);
-            if (is_array($cached)) { $this->respond($cached); return; }
-        }
-
+        // Current version is always read fresh — never cached — so it updates immediately after an upgrade
         $current = '';
         try {
             $info = pm_Context::getModuleInfo();
             $current = (string)($info->version ?? '');
         } catch (\Throwable $e) {}
 
-        $ch = curl_init('https://api.github.com/repos/dzaal/VT-Scanner-for-Plesk/releases/latest');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_HTTPHEADER     => ['User-Agent: VT-Site-Scanner-Plesk/' . $current],
-            CURLOPT_FOLLOWLOCATION => true,
-        ]);
-        $raw  = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($code !== 200 || !$raw) {
-            $this->respond(['error' => 'Could not reach GitHub', 'current' => $current]); return;
+        // Only the GitHub API response is cached (avoid hitting the API on every page load)
+        $cacheFile = VtDataDir::path('vt_update_check.json');
+        $github    = null;
+        if (is_file($cacheFile) && time() - filemtime($cacheFile) < 86400) {
+            $d = json_decode((string)file_get_contents($cacheFile), true);
+            if (is_array($d) && isset($d['latest'])) $github = $d;
         }
-        $data   = json_decode($raw, true);
-        $latest = ltrim((string)($data['tag_name'] ?? ''), 'v');
-        $url    = (string)($data['html_url'] ?? '');
-        // Find zip asset
-        $zip    = '';
-        foreach ($data['assets'] ?? [] as $a) {
-            if (str_ends_with((string)($a['name'] ?? ''), '.zip')) {
-                $zip = (string)($a['browser_download_url'] ?? '');
-                break;
+
+        if (!$github) {
+            $ch = curl_init('https://api.github.com/repos/dzaal/VT-Scanner-for-Plesk/releases/latest');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_HTTPHEADER     => ['User-Agent: VT-Site-Scanner-Plesk/' . $current],
+                CURLOPT_FOLLOWLOCATION => true,
+            ]);
+            $raw  = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($code !== 200 || !$raw) {
+                $this->respond(['error' => 'Could not reach GitHub', 'current' => $current]); return;
             }
+            $data   = json_decode($raw, true);
+            $latest = ltrim((string)($data['tag_name'] ?? ''), 'v');
+            $url    = (string)($data['html_url'] ?? '');
+            $zip    = '';
+            foreach ($data['assets'] ?? [] as $a) {
+                if (str_ends_with((string)($a['name'] ?? ''), '.zip')) {
+                    $zip = (string)($a['browser_download_url'] ?? ''); break;
+                }
+            }
+            $github = ['latest' => $latest, 'url' => $url, 'zip' => $zip];
+            @file_put_contents($cacheFile, json_encode($github));
         }
 
-        $result = [
+        $this->respond([
             'current'          => $current,
-            'latest'           => $latest,
-            'url'              => $url,
-            'zip'              => $zip,
-            'update_available' => $latest && $current && version_compare($latest, $current, '>'),
-        ];
-        @file_put_contents($cacheFile, json_encode($result));
-        $this->respond($result);
+            'latest'           => $github['latest'],
+            'url'              => $github['url'],
+            'zip'              => $github['zip'],
+            'update_available' => $github['latest'] && $current
+                                  && version_compare($github['latest'], $current, '>'),
+        ]);
     }
 
     public function getLogAction(): void
