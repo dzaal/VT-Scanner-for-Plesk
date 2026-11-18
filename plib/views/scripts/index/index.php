@@ -249,9 +249,10 @@ tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
 .vt-sw input:disabled+span{opacity:.45;cursor:not-allowed}
 .vt-fs-note{color:var(--muted);font-size:11.5px;margin-top:6px;line-height:1.45}
 .vt-rel{margin-top:4px}
-tr.vt-grp-r>td{background:#eef2f7;font-size:13px;padding:9px 12px!important;border-top:2px solid #cbd5e1;color:#1f2937}
-tr.vt-grp-c>td{background:#f8fafc;font-size:12.5px;padding:6px 12px 6px 22px!important;cursor:pointer;color:#374151;font-weight:600}
+tr.vt-grp-r>td{background:#e8edf5;font-size:13px;font-weight:700;padding:8px 12px!important;border-top:2px solid #cbd5e1;color:#1f2937}
+tr.vt-grp-c>td{background:#f8fafc;font-size:12.5px;padding:6px 12px!important;cursor:pointer;color:#374151;font-weight:600}
 tr.vt-grp-c:hover>td{background:#f1f5f9}
+.vt-grp-badge{display:inline-block;font-size:10px;font-weight:600;padding:1px 5px;border-radius:4px;background:#dbeafe;color:#1d4ed8;vertical-align:middle;margin-left:5px}
 .vt-grp-login{font-weight:400;color:var(--muted);font-size:11.5px}
 .vt-grp-n{font-weight:400;color:var(--muted);font-size:11.5px;margin-left:6px}
 .vt-grp-n .bad{color:#b91c1c;font-weight:600}
@@ -430,6 +431,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
         </div>
       </div>
       <div class="vt-spacer"></div>
+      <div class="vt-seg" id="vt-view-seg" style="margin-right:4px"><button class="on" onclick="vtSetViewMode('group',this)">Group</button><button onclick="vtSetViewMode('sort',this)">Sort</button></div>
       <span class="vt-status-txt" id="vt-scan-status"></span>
     </div>
 
@@ -889,7 +891,7 @@ window.vtDumpDb=async function(domain,db,btn){
 function renderTable(){
   const tbody=document.getElementById('vt-tbody');
   if(!domains.length){tbody.innerHTML='<tr class="vt-empty"><td colspan="5">No sites found. Click Refresh.</td></tr>';return;}
-  tbody.innerHTML=groupedRowsHTML();
+  tbody.innerHTML=viewMode==='sort'?[...domains].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})).map(d=>rowHTML(d,results[d]||null)).join(''):groupedRowsHTML();
   vtSet('vt-rel-cnt',related.length); vtSet('vt-cnt-orphan',related.length);
   document.getElementById('vt-fgroup-orphan').style.display=related.length?'':'none';
   if(!related.length&&activeFilter==='orphan') activeFilter='all';
@@ -899,6 +901,12 @@ function renderTable(){
 
 // ── Grouping by reseller and customer ─────────────────────────
 function grpKey(o){return (o.rl||'-')+'|'+o.cl;}
+let viewMode='group';
+window.vtSetViewMode=function(m,btn){
+  viewMode=m;
+  document.querySelectorAll('#vt-view-seg button').forEach(b=>b.classList.toggle('on',b===btn));
+  renderTable();
+};
 function groupedRowsHTML(){
   const withOwner=domains.filter(d=>owners[d]);
   const custs=new Set(withOwner.map(d=>grpKey(owners[d])));
@@ -921,7 +929,7 @@ function groupedRowsHTML(){
     if(resellers.size){
       const b=bad(all);
       h+='<tr class="vt-grp-r" data-res="'+vtEsc(rk)+'"><td colspan="5">'
-        +(rk==='-'?'Customers of the administrator':'Reseller <strong>'+vtEsc(R.name)+'</strong> <span class="vt-grp-login">'+vtEsc(rk)+'</span>')
+        +(rk==='-'?'Customers of the administrator':'<strong>'+vtEsc(R.name||rk)+'</strong><span class="vt-grp-badge">reseller</span> <span class="vt-grp-login">'+vtEsc(rk)+'</span>')
         +' <span class="vt-grp-n">'+all.length+' site'+(all.length===1?'':'s')+(b?' · <span class="bad">'+b+' flagged</span>':'')+'</span></td></tr>';
     }
     const custKeys=Object.keys(R.cust).sort((a,b)=>{const A=R.cust[a].o,B=R.cust[b].o;
