@@ -769,7 +769,7 @@ async function vtCheckUpdate(){
     if(!r.update_available) return;
     const releaseLink='<a href="'+vtEsc(r.url)+'" target="_blank" rel="noopener">release notes</a>';
     let installBtn='';
-    if(r.zip) installBtn='<button class="vt-update-btn" id="vt-update-install-btn" onclick="vtInstallUpdate('+JSON.stringify(r.zip)+','+JSON.stringify(r.latest)+')">Install v'+vtEsc(r.latest)+'</button>';
+    if(r.zip) installBtn='<button class="vt-update-btn" id="vt-update-install-btn" data-zip="'+vtEsc(r.zip)+'" data-ver="'+vtEsc(r.latest)+'" onclick="vtInstallUpdate(this.dataset.zip,this.dataset.ver)">Install v'+vtEsc(r.latest)+'</button>';
     document.getElementById('vt-update-msg').innerHTML=
       'Version <strong>v'+vtEsc(r.latest)+'</strong> is available (you have v'+vtEsc(r.current)+') — '+releaseLink+installBtn;
     document.getElementById('vt-update-banner').style.display='flex';
