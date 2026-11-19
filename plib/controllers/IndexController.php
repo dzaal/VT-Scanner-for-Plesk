@@ -208,6 +208,20 @@ class IndexController extends pm_Controller_Action
         $this->respond($this->api->getAnalysisStatus($id));
     }
 
+    public function domainsQuickAction(): void
+    {
+        // Fast path: just the domain list + budget — no results file, no history write.
+        // Used by the JS init to render the domain table immediately while full data loads.
+        $domains = PleskDomains::forCurrentUser($this->wpOnly());
+        $budgetInfo = $this->cache->budgetInfo();
+        $budgetInfo['vt_quota_used'] = VtRateLimiter::todayCountForKey($this->effectiveApiKey);
+        $this->respond([
+            'domains' => $domains,
+            'count'   => count($domains),
+            'budget'  => $budgetInfo,
+        ]);
+    }
+
     public function allAction(): void
     {
         $domains    = PleskDomains::forCurrentUser($this->wpOnly());

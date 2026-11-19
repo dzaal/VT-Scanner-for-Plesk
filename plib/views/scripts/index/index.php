@@ -115,6 +115,12 @@ body:has(#vt-wrap) .pul-page-header.page-content-header{display:none}
 /* Progress */
 .vt-prog-wrap{height:2px;background:var(--border);margin-bottom:1px}
 .vt-prog-fill{height:100%;background:var(--blue);transition:width .4s;width:0}
+#vt-load-bar{padding:18px 0 12px;text-align:center}
+#vt-load-bar.vt-load-done{display:none}
+#vt-load-msg{font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px}
+.vt-load-track{height:10px;background:var(--border);border-radius:6px;overflow:hidden;margin:0 auto 6px;max-width:480px}
+.vt-load-fill{height:100%;background:var(--blue);border-radius:6px;transition:width .5s ease;width:0}
+#vt-load-pct{font-size:12px;color:var(--muted)}
 
 /* Table */
 .vt-tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
@@ -462,6 +468,11 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       </div>
     </div>
 
+    <div id="vt-load-bar">
+      <div id="vt-load-msg">Loading domain list…</div>
+      <div class="vt-load-track"><div class="vt-load-fill" id="vt-load-fill"></div></div>
+      <div id="vt-load-pct">0%</div>
+    </div>
     <div class="vt-prog-wrap"><div class="vt-prog-fill" id="vt-prog"></div></div>
 
     <div class="vt-tbl-wrap">
@@ -734,14 +745,37 @@ const DOT_CLS={infected:'dot-r',suspicious:'dot-y',clean:'dot-g',pending:'dot-b'
 const DANGER_TAGS=['malware','phishing','spam','ransomware','trojan','malicious','phishing-site','malware-site'];
 
 // ── Init ──────────────────────────────────────────────────────
+function vtLoadProgress(pct,msg){
+  const bar=document.getElementById('vt-load-bar');
+  if(!bar) return;
+  if(msg) document.getElementById('vt-load-msg').textContent=msg;
+  document.getElementById('vt-load-fill').style.width=Math.min(pct,100)+'%';
+  document.getElementById('vt-load-pct').textContent=Math.min(pct,100)+'%';
+  if(pct>=100) setTimeout(()=>bar.classList.add('vt-load-done'),500);
+}
+
 async function init(){
+  // Phase 1 — fast: get domain list only, render table skeleton immediately
+  vtLoadProgress(5,'Loading domain list…');
+  const quick=await vtFetch('?action=domains-quick').catch(()=>({}));
+  domains=quick.domains||[];
+  budget=quick.budget||{};
+  vtSet('vt-cnt-all',domains.length);
+  updateBudget();
+  for(const d of domains) if(!results[d]) results[d]={status:'loading',domain:d};
+  document.querySelectorAll('#vt-view-seg button').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===viewMode));
+  renderTable(); updateCounts();
+  vtLoadProgress(30,`Found ${domains.length} domain${domains.length===1?'':'s'} — loading scan results…`);
+
+  // Phase 2 — full data: results, owners, scanners, history
   const data=await vtFetch('?action=all').catch(()=>({}));
-  domains=data.domains||[]; related=data.related||[]; relSet=new Set(related); orphans=data.orphans||{}; owners=data.owners||{}; results=data.results||{};
-  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||{}; scanners=data.scanners||[]; scans=data.scans||{};
+  domains=data.domains||domains; related=data.related||[]; relSet=new Set(related); orphans=data.orphans||{}; owners=data.owners||{}; results=data.results||{};
+  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||budget; scanners=data.scanners||[]; scans=data.scans||{};
   for(const d in scans) for(const id in scans[d]) if(fsBusy(d,id)) vtFsPoll(d,id);
-  vtSet('vt-cnt-all', domains.length);
+  vtSet('vt-cnt-all',domains.length);
   document.querySelectorAll('#vt-view-seg button').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===viewMode));
   updateBudget(); renderTable(); updateCounts();
+  vtLoadProgress(100,'Ready');
 
   const cfg=await vtFetch('?action=get-settings').catch(()=>({}));
   if(!cfg.has_key||cfg.api_key_invalid) document.getElementById('vt-api-warning').style.display='flex';
