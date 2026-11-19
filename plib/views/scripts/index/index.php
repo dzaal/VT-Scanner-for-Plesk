@@ -167,18 +167,16 @@ th.vt-sortable{cursor:pointer;user-select:none}th.vt-sortable:hover{color:var(--
 .vt-empty td{text-align:center;padding:40px;color:var(--muted)}
 .vt-stale{font-size:10px;color:var(--yellow);font-weight:600;margin-left:4px}
 
-/* Scan queue panel — floating right */
-.vt-queue{position:fixed;right:0;top:50%;transform:translateY(-50%);width:50vw;max-height:75vh;overflow-y:auto;
-  z-index:900;background:var(--surface);border:1px solid var(--blue-border);border-right:none;
-  border-radius:10px 0 0 10px;box-shadow:-4px 0 24px rgba(0,0,0,.13);display:none}
-.vt-queue.vt-q-collapsed{max-height:none;overflow:visible}
+/* Scan Monitor panel — sticky above the domain table */
+.vt-queue{position:sticky;top:0;z-index:100;background:var(--surface);border:1px solid var(--blue-border);
+  border-radius:var(--radius);box-shadow:0 2px 14px rgba(0,0,0,.11);margin-bottom:8px;overflow:hidden;display:none}
 .vt-queue.vt-q-collapsed .vt-q-body{display:none}
-.vt-q-head{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--blue-bg);border-bottom:1px solid var(--blue-border);position:sticky;top:0;z-index:1}
+.vt-q-head{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--blue-bg);border-bottom:1px solid var(--blue-border)}
 .vt-queue.vt-q-collapsed .vt-q-head{border-bottom:none}
 .vt-q-title{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.4px}
 .vt-q-sum{font-size:12px;color:var(--muted)}
-.vt-q-toggle{margin-left:2px;background:none;border:none;cursor:pointer;padding:0 4px;font-size:16px;color:var(--blue);line-height:1;flex-shrink:0}
-.vt-q-toggle:hover{color:var(--heading)}
+.vt-q-toggle{margin-left:2px;background:var(--blue-bg);border:1px solid var(--blue-border);cursor:pointer;padding:3px 10px;font-size:11px;font-weight:600;color:var(--blue);border-radius:4px;line-height:1.5;flex-shrink:0;white-space:nowrap}
+.vt-q-toggle:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
 .vt-q-head .vt-row-btn{margin-left:4px}
 .vt-q-body{}
 .vt-q-list{}
@@ -462,13 +460,21 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <span class="vt-status-txt" id="vt-scan-status"></span>
     </div>
 
+    <div id="vt-load-bar">
+      <div id="vt-load-msg">Loading domain list…</div>
+      <div class="vt-load-track"><div class="vt-load-fill" id="vt-load-fill"></div></div>
+      <div id="vt-load-pct">0%</div>
+    </div>
+    <div class="vt-prog-wrap"><div class="vt-prog-fill" id="vt-prog"></div></div>
+
     <div class="vt-queue" id="vt-queue">
       <div class="vt-q-head">
-        <span class="vt-q-title">Scan queue</span>
+        <span class="vt-q-title">Scan Monitor</span>
         <span class="vt-q-sum" id="vt-q-sum"></span>
         <div class="vt-spacer"></div>
-        <button class="vt-row-btn" id="vt-q-cancel" onclick="vtCancelWaiting()">Cancel waiting</button>
-        <button class="vt-q-toggle" id="vt-q-toggle" onclick="vtQueueToggle()" title="Collapse"></button>
+        <button class="vt-row-btn" id="vt-q-cancel" onclick="vtCancelWaiting()" style="display:none">Cancel waiting</button>
+        <button class="vt-row-btn" onclick="vtClearFinished()" style="margin-left:4px">Clear done</button>
+        <button class="vt-q-toggle" id="vt-q-toggle" onclick="vtQueueToggle()">▲ Collapse</button>
       </div>
       <div class="vt-q-body" id="vt-q-body">
         <div class="vt-q-list" id="vt-q-list"></div>
@@ -478,13 +484,6 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
         </div>
       </div>
     </div>
-
-    <div id="vt-load-bar">
-      <div id="vt-load-msg">Loading domain list…</div>
-      <div class="vt-load-track"><div class="vt-load-fill" id="vt-load-fill"></div></div>
-      <div id="vt-load-pct">0%</div>
-    </div>
-    <div class="vt-prog-wrap"><div class="vt-prog-fill" id="vt-prog"></div></div>
 
     <div class="vt-tbl-wrap">
       <table>
@@ -1490,6 +1489,9 @@ window.vtClearFinished=function(){
 function startQTicker(){
   if(qTicker) return;
   qTicker=setInterval(()=>{
+    // Auto-prune finished/failed jobs older than 30s
+    const cut=Date.now()-30000;
+    jobs=jobs.filter(j=>ACTIVE.has(j.state)||!j.endedAt||(j.endedAt>cut));
     renderQueue();
     if(!jobs.some(j=>ACTIVE.has(j.state))&&!pumpRunning){clearInterval(qTicker);qTicker=null;}
   },1000);
@@ -1498,7 +1500,12 @@ function startQTicker(){
 function fmtSecs(ms){const s=Math.max(0,Math.round(ms/1000));return s<60?s+'s':Math.floor(s/60)+'m '+(s%60)+'s';}
 function scoreTxt(r){return r&&r.malicious!==undefined&&r.total!==undefined?r.malicious+'/'+r.total:'—';}
 function stepIdx(j){
-  if(j.state==='done'||j.state==='failed') return 4;
+  if(j.state==='done') return 4;
+  // For failed: return index of the step that failed so only prior steps show green
+  if(j.state==='failed'){
+    const idx={submit:1,processing:2,fetch:3}[j.step];
+    return idx!==undefined?idx:4; // 4 = only the Done/Failed pill is marked bad
+  }
   const s=j.state==='ratewait'?j.step:j.state;
   return {queued:0,submit:1,processing:2,fetch:3}[s]??0;
 }
@@ -1534,7 +1541,7 @@ function jobHTML(j){
     let c='';
     if(i<si||(i===4&&j.state==='done')) c='done';
     else if(i===si&&!fin) c='on';
-    else if(i===4&&j.state==='failed') c='bad';
+    else if((i===4||(i===si&&si<4))&&j.state==='failed') c='bad';
     return '<span class="'+c+'">'+(i===4&&j.state==='failed'?'Failed':s)+'</span>';
   }).join('')+'</div>';
   const auto=j.kind==='auto';
@@ -1577,7 +1584,7 @@ function applyQueueCollapse(){
   if(!box) return;
   box.classList.toggle('vt-q-collapsed',queueCollapsed);
   const t=document.getElementById('vt-q-toggle');
-  if(t){t.textContent=queueCollapsed?'‹':'›';t.title=queueCollapsed?'Expand':'Collapse';}
+  if(t){t.textContent=queueCollapsed?'▼ Expand':'▲ Collapse';t.title=queueCollapsed?'Show Scan Monitor':'Hide Scan Monitor';}
 }
 function renderQueue(){
   const box=document.getElementById('vt-queue');
@@ -1592,11 +1599,12 @@ function renderQueue(){
   const waiting=jobs.filter(j=>j.state==='queued');
   const finished=jobs.filter(j=>!ACTIVE.has(j.state)).sort((a,b)=>b.endedAt-a.endedAt);
 
+  // Show active jobs, then waiting, then recent finished (all in one list)
   let html='';
-  if(running.length)       html=jobHTML(running[0]);
-  else if(pumpCurrent)     html=liveHTML(pumpCurrent);
-  else if(finished.length) html=jobHTML(finished[0]);
-  else if(waiting.length)  html=jobHTML(waiting[0]);
+  if(pumpCurrent) html+=liveHTML(pumpCurrent);
+  running.forEach(j=>{ html+=jobHTML(j); });
+  waiting.slice(0,5).forEach(j=>{ html+=jobHTML(j); });
+  finished.slice(0,8).forEach(j=>{ html+=jobHTML(j); });
   document.getElementById('vt-q-list').innerHTML=html;
 
   // Pause bar
@@ -2004,7 +2012,18 @@ async function vtFsPoll(domain,id){
   }finally{fsPolling.delete(key);}
 }
 
-function vtFetch(url){return fetch(BASE+url).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();});}
+function vtFetch(url){
+  return fetch(BASE+url).then(r=>{
+    // Plesk redirects to its login page when the session expires
+    if(r.redirected&&!r.url.startsWith(location.origin+BASE)){
+      vtToast('Session expired — reloading...','info');
+      setTimeout(()=>window.location.reload(),1200);
+      throw new Error('session');
+    }
+    if(!r.ok)throw new Error(r.status);
+    return r.json();
+  });
+}
 function vtSet(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
 function vtEsc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c));}
 function vtEsca(s){return s.replace(/'/g,"\\'");}
