@@ -417,6 +417,14 @@ class IndexController extends pm_Controller_Action
         }
         file_put_contents($tmpZip, $data);
 
+        // Remove any stray custom nav buttons created by old deploy scripts
+        // (the extension registers its own nav entry via meta.xml — no custom button needed)
+        $btnIds = [];
+        exec("/usr/local/psa/bin/custombutton --list 2>/dev/null | awk '/VT Site Scanner/{print \$1}'", $btnIds);
+        foreach (array_filter(array_map('trim', $btnIds)) as $btnId) {
+            if (is_numeric($btnId)) exec('/usr/local/psa/bin/custombutton --remove ' . (int)$btnId . ' 2>/dev/null');
+        }
+
         // Run the upgrade in the background so PHP can send the response before
         // Plesk replaces the extension files (which would kill this process).
         $logFile = '/tmp/vt-ext-upgrade.log';
