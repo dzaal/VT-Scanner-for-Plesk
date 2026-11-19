@@ -167,12 +167,20 @@ th.vt-sortable{cursor:pointer;user-select:none}th.vt-sortable:hover{color:var(--
 .vt-empty td{text-align:center;padding:40px;color:var(--muted)}
 .vt-stale{font-size:10px;color:var(--yellow);font-weight:600;margin-left:4px}
 
-/* Scan queue panel */
-.vt-queue{background:var(--surface);border:1px solid var(--blue-border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;display:none}
-.vt-q-head{display:flex;align-items:center;gap:10px;padding:9px 13px;background:var(--blue-bg);border-bottom:1px solid var(--blue-border)}
+/* Scan queue panel — floating right */
+.vt-queue{position:fixed;right:0;top:50%;transform:translateY(-50%);width:50vw;max-height:75vh;overflow-y:auto;
+  z-index:900;background:var(--surface);border:1px solid var(--blue-border);border-right:none;
+  border-radius:10px 0 0 10px;box-shadow:-4px 0 24px rgba(0,0,0,.13);display:none}
+.vt-queue.vt-q-collapsed{max-height:none;overflow:visible}
+.vt-queue.vt-q-collapsed .vt-q-body{display:none}
+.vt-q-head{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--blue-bg);border-bottom:1px solid var(--blue-border);position:sticky;top:0;z-index:1}
+.vt-queue.vt-q-collapsed .vt-q-head{border-bottom:none}
 .vt-q-title{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.4px}
 .vt-q-sum{font-size:12px;color:var(--muted)}
+.vt-q-toggle{margin-left:2px;background:none;border:none;cursor:pointer;padding:0 4px;font-size:16px;color:var(--blue);line-height:1;flex-shrink:0}
+.vt-q-toggle:hover{color:var(--heading)}
 .vt-q-head .vt-row-btn{margin-left:4px}
+.vt-q-body{}
 .vt-q-list{}
 /* Animated pause bar for VirusTotal's 4 requests/minute limit */
 .vt-q-pause{display:none;align-items:center;gap:12px;padding:8px 13px;border-top:1px solid var(--border);background:#fafbff;font-size:12px;color:var(--muted)}
@@ -460,11 +468,14 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
         <span class="vt-q-sum" id="vt-q-sum"></span>
         <div class="vt-spacer"></div>
         <button class="vt-row-btn" id="vt-q-cancel" onclick="vtCancelWaiting()">Cancel waiting</button>
+        <button class="vt-q-toggle" id="vt-q-toggle" onclick="vtQueueToggle()" title="Collapse"></button>
       </div>
-      <div class="vt-q-list" id="vt-q-list"></div>
-      <div class="vt-q-pause" id="vt-q-pause">
-        <div class="vt-q-ptrack"><div class="vt-q-pfill" id="vt-q-pfill"></div></div>
-        <span id="vt-q-ptext"></span>
+      <div class="vt-q-body" id="vt-q-body">
+        <div class="vt-q-list" id="vt-q-list"></div>
+        <div class="vt-q-pause" id="vt-q-pause">
+          <div class="vt-q-ptrack"><div class="vt-q-pfill" id="vt-q-pfill"></div></div>
+          <span id="vt-q-ptext"></span>
+        </div>
       </div>
     </div>
 
@@ -1555,12 +1566,26 @@ function liveHTML(d){
 
 // One line only: what is being checked right now, otherwise the latest result.
 // Below it, an animated bar while waiting for VirusTotal's 4 requests/minute limit.
+let queueCollapsed=localStorage.getItem('vt_q_collapsed')==='1';
+window.vtQueueToggle=function(){
+  queueCollapsed=!queueCollapsed;
+  localStorage.setItem('vt_q_collapsed',queueCollapsed?'1':'0');
+  applyQueueCollapse();
+};
+function applyQueueCollapse(){
+  const box=document.getElementById('vt-queue');
+  if(!box) return;
+  box.classList.toggle('vt-q-collapsed',queueCollapsed);
+  const t=document.getElementById('vt-q-toggle');
+  if(t){t.textContent=queueCollapsed?'‹':'›';t.title=queueCollapsed?'Expand':'Collapse';}
+}
 function renderQueue(){
   const box=document.getElementById('vt-queue');
   if(!box) return;
   const pumpBusy=pumpRunning&&(pumpCurrent||scanQueue.length);
   if(!jobs.length&&!pumpBusy){box.style.display='none';return;}
   box.style.display='block';
+  applyQueueCollapse();
   if(pumpBusy) startQTicker();
 
   const running=jobs.filter(j=>ACTIVE.has(j.state)&&j.state!=='queued');
