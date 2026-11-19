@@ -396,7 +396,7 @@ class IndexController extends pm_Controller_Action
 
         // Accept zip URL only from GitHub releases for this repo
         $zip = trim((string)$this->_getParam('zip', ''));
-        if (!$zip || !preg_match('#^https://github\.com/dzaal/VT-Scanner-for-Plesk/releases/download/[^"\s]+\.zip$#', $zip)) {
+        if (!$zip || !preg_match('#^https://github\.com/dzaal/VT-Scanner-for-Plesk/releases/(download/[^"\s]+|latest/download/virustotal-extension)\.zip$#', $zip)) {
             $this->respond(['error' => 'Invalid or untrusted download URL']); return;
         }
 
@@ -470,12 +470,9 @@ class IndexController extends pm_Controller_Action
             $data   = json_decode($raw, true);
             $latest = ltrim((string)($data['tag_name'] ?? ''), 'v');
             $url    = (string)($data['html_url'] ?? '');
-            $zip    = '';
-            foreach ($data['assets'] ?? [] as $a) {
-                if (str_ends_with((string)($a['name'] ?? ''), '.zip')) {
-                    $zip = (string)($a['browser_download_url'] ?? ''); break;
-                }
-            }
+            // Stable URL — works for every release as long as the asset is named
+            // virustotal-extension.zip (without version number).
+            $zip = 'https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip';
             $github = ['latest' => $latest, 'url' => $url, 'zip' => $zip];
             @file_put_contents($cacheFile, json_encode($github));
         }
