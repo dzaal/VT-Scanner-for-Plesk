@@ -167,11 +167,13 @@ th.vt-sortable{cursor:pointer;user-select:none}th.vt-sortable:hover{color:var(--
 .vt-empty td{text-align:center;padding:40px;color:var(--muted)}
 .vt-stale{font-size:10px;color:var(--yellow);font-weight:600;margin-left:4px}
 
-/* Scan Monitor panel — sticky above the domain table */
-.vt-queue{position:sticky;top:0;z-index:100;background:var(--surface);border:1px solid var(--blue-border);
-  border-radius:var(--radius);box-shadow:0 2px 14px rgba(0,0,0,.11);margin-bottom:8px;overflow:hidden;display:none}
+/* Scan Monitor panel — fixed right, starts at app header height, 50% wide */
+.vt-queue{position:fixed;right:0;top:var(--vt-header-h,56px);width:50vw;max-height:calc(100vh - var(--vt-header-h,56px));
+  overflow-y:auto;z-index:900;background:var(--surface);border:1px solid var(--blue-border);border-right:none;
+  border-radius:10px 0 0 10px;box-shadow:-4px 0 24px rgba(0,0,0,.13);display:none}
+.vt-queue.vt-q-collapsed{max-height:none;overflow:visible}
 .vt-queue.vt-q-collapsed .vt-q-body{display:none}
-.vt-q-head{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--blue-bg);border-bottom:1px solid var(--blue-border)}
+.vt-q-head{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--blue-bg);border-bottom:1px solid var(--blue-border);position:sticky;top:0;z-index:1}
 .vt-queue.vt-q-collapsed .vt-q-head{border-bottom:none}
 .vt-q-title{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.4px}
 .vt-q-sum{font-size:12px;color:var(--muted)}
@@ -187,9 +189,18 @@ th.vt-sortable{cursor:pointer;user-select:none}th.vt-sortable:hover{color:var(--
   background:repeating-linear-gradient(-45deg,#2563eb 0 6px,#60a5fa 6px 12px);background-size:17px 17px;animation:vt-stripes .8s linear infinite}
 .vt-q-pfill.limit{background:repeating-linear-gradient(-45deg,#d97706 0 6px,#fbbf24 6px 12px);background-size:17px 17px}
 @keyframes vt-stripes{to{background-position:17px 0}}
-.vt-q-item{display:flex;align-items:center;gap:12px;padding:8px 13px;border-bottom:1px solid var(--border);font-size:13px}
+.vt-q-item{display:flex;align-items:center;gap:12px;padding:8px 13px 8px 10px;border-bottom:1px solid var(--border);font-size:13px;border-left:3px solid transparent}
 .vt-q-item:last-child{border-bottom:none}
-.vt-q-item.done,.vt-q-item.failed{background:var(--gray-bg)}
+/* Active: blue left bar */
+.vt-q-item.queued,.vt-q-item.submit,.vt-q-item.ratewait,.vt-q-item.processing,.vt-q-item.fetch,.vt-q-item.live{border-left-color:var(--blue);background:var(--surface)}
+/* Completed: green or red tint */
+.vt-q-item.done{background:var(--green-bg);border-left-color:var(--green-border)}
+.vt-q-item.failed{background:var(--red-bg);border-left-color:var(--red-border)}
+/* Section divider between active queue and completed */
+.vt-q-divider{padding:4px 13px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);background:var(--gray-bg);border-bottom:1px solid var(--border);border-top:1px solid var(--border)}
+/* File scanner jobs — amber accent */
+.vt-q-item.vt-q-fs.running,.vt-q-item.vt-q-fs.queued{border-left-color:#f59e0b;background:#fffbeb}
+.vt-q-kind.fs{background:#fef3c7;border-color:#fcd34d;color:#92400e}
 .vt-q-icon{width:26px;text-align:center;flex-shrink:0;font-weight:700;font-size:12px;color:var(--muted)}
 .vt-q-icon.ok{color:var(--green)}.vt-q-icon.bad{color:var(--red)}
 .vt-q-main{flex:1;min-width:0}
@@ -358,6 +369,25 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
     <span id="vt-update-msg"></span>
   </div>
 
+  <!-- Scan Monitor: fixed right panel, starts below the app header -->
+  <div class="vt-queue" id="vt-queue">
+    <div class="vt-q-head">
+      <span class="vt-q-title">Scan Monitor</span>
+      <span class="vt-q-sum" id="vt-q-sum"></span>
+      <div class="vt-spacer"></div>
+      <button class="vt-row-btn" id="vt-q-cancel" onclick="vtCancelWaiting()" style="display:none">Cancel waiting</button>
+      <button class="vt-row-btn" onclick="vtClearFinished()" style="margin-left:4px">Clear done</button>
+      <button class="vt-q-toggle" id="vt-q-toggle" onclick="vtQueueToggle()">▲ Collapse</button>
+    </div>
+    <div class="vt-q-body" id="vt-q-body">
+      <div class="vt-q-list" id="vt-q-list"></div>
+      <div class="vt-q-pause" id="vt-q-pause">
+        <div class="vt-q-ptrack"><div class="vt-q-pfill" id="vt-q-pfill"></div></div>
+        <span id="vt-q-ptext"></span>
+      </div>
+    </div>
+  </div>
+
   <div class="vt-tabs">
     <div class="vt-tab active" id="vtab-dashboard" onclick="vtShowTab('dashboard')">Dashboard</div>
     <div class="vt-tab" id="vtab-trend" onclick="vtShowTab('trend');vtLoadTrend()" style="display:none">Trend</div>
@@ -466,24 +496,6 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <div id="vt-load-pct">0%</div>
     </div>
     <div class="vt-prog-wrap"><div class="vt-prog-fill" id="vt-prog"></div></div>
-
-    <div class="vt-queue" id="vt-queue">
-      <div class="vt-q-head">
-        <span class="vt-q-title">Scan Monitor</span>
-        <span class="vt-q-sum" id="vt-q-sum"></span>
-        <div class="vt-spacer"></div>
-        <button class="vt-row-btn" id="vt-q-cancel" onclick="vtCancelWaiting()" style="display:none">Cancel waiting</button>
-        <button class="vt-row-btn" onclick="vtClearFinished()" style="margin-left:4px">Clear done</button>
-        <button class="vt-q-toggle" id="vt-q-toggle" onclick="vtQueueToggle()">▲ Collapse</button>
-      </div>
-      <div class="vt-q-body" id="vt-q-body">
-        <div class="vt-q-list" id="vt-q-list"></div>
-        <div class="vt-q-pause" id="vt-q-pause">
-          <div class="vt-q-ptrack"><div class="vt-q-pfill" id="vt-q-pfill"></div></div>
-          <span id="vt-q-ptext"></span>
-        </div>
-      </div>
-    </div>
 
     <div class="vt-tbl-wrap">
       <table>
@@ -736,6 +748,17 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 try{ if(window.top!==window && top.location.origin===location.origin) top.location.replace(location.href); }catch(e){}
 (function(){
 const BASE = <?= json_encode($this->baseUrl ?: '') ?> || location.pathname;
+
+// Keep --vt-header-h in sync so the fixed Scan Monitor panel starts right below the app header
+function vtSyncHeaderH(){
+  const brand=document.querySelector('.vt-brand');
+  const banner=document.getElementById('vt-update-banner');
+  const h=(brand?brand.offsetHeight:56)+((banner&&banner.offsetHeight>0)?banner.offsetHeight:0);
+  document.documentElement.style.setProperty('--vt-header-h',h+'px');
+}
+window.addEventListener('resize',vtSyncHeaderH);
+document.addEventListener('DOMContentLoaded',vtSyncHeaderH);
+
 let domains=[], results={}, budget={}, activeFilter='all';
 let scanners=[], scans={}, fsOpen={}, fsFull={}; // file scanners: installed list, results per site, open panel per site
 let scanQueue=[], inFlight=0;
@@ -816,7 +839,7 @@ async function vtCheckUpdate(){
     if(r.zip) installBtn='<button class="vt-update-btn" id="vt-update-install-btn" data-zip="'+vtEsc(r.zip)+'" data-ver="'+vtEsc(r.latest)+'" onclick="vtInstallUpdate(this.dataset.zip,this.dataset.ver)">Install v'+vtEsc(r.latest)+'</button>';
     document.getElementById('vt-update-msg').innerHTML=
       'Version <strong>v'+vtEsc(r.latest)+'</strong> is available (you have v'+vtEsc(r.current)+') — '+releaseLink+installBtn;
-    document.getElementById('vt-update-banner').style.display='flex';
+    document.getElementById('vt-update-banner').style.display='flex'; vtSyncHeaderH();
   }catch(e){}
 }
 window.vtInstallUpdate=async function(zip,ver){
@@ -1483,6 +1506,7 @@ window.vtCancelWaiting=function(){
 
 window.vtClearFinished=function(){
   jobs=jobs.filter(j=>ACTIVE.has(j.state));
+  fsJobs=fsJobs.filter(j=>j.state==='running'||j.state==='queued');
   renderQueue();
 };
 
@@ -1492,8 +1516,10 @@ function startQTicker(){
     // Auto-prune finished/failed jobs older than 30s
     const cut=Date.now()-30000;
     jobs=jobs.filter(j=>ACTIVE.has(j.state)||!j.endedAt||(j.endedAt>cut));
+    fsJobs=fsJobs.filter(j=>!j.endedAt||(j.endedAt>cut));
     renderQueue();
-    if(!jobs.some(j=>ACTIVE.has(j.state))&&!pumpRunning){clearInterval(qTicker);qTicker=null;}
+    const fsIdle=!fsJobs.some(j=>!j.endedAt);
+    if(!jobs.some(j=>ACTIVE.has(j.state))&&!pumpRunning&&fsIdle){clearInterval(qTicker);qTicker=null;}
   },1000);
 }
 
@@ -1565,7 +1591,7 @@ function jobHTML(j){
 }
 
 function liveHTML(d){
-  return '<div class="vt-q-item"><div class="vt-q-icon"><span class="vt-spin"></span></div>'
+  return '<div class="vt-q-item live"><div class="vt-q-icon"><span class="vt-spin"></span></div>'
     +'<div class="vt-q-main"><div class="vt-q-dom">'+vtEsc(d)+'<span class="vt-q-kind">Auto</span></div>'
     +'<div class="vt-q-msg">Fetching the report from VirusTotal...</div></div>'
     +'<div class="vt-q-right"></div></div>';
@@ -1586,11 +1612,53 @@ function applyQueueCollapse(){
   const t=document.getElementById('vt-q-toggle');
   if(t){t.textContent=queueCollapsed?'▼ Expand':'▲ Collapse';t.title=queueCollapsed?'Show Scan Monitor':'Hide Scan Monitor';}
 }
+// ── File-scanner jobs in the Scan Monitor ──────────────────────
+let fsJobs=[];
+function getFsJob(domain,id){return fsJobs.find(j=>j.domain===domain&&j.scanner===id&&!j.endedAt);}
+function addFsJob(domain,id){
+  fsJobs=fsJobs.filter(j=>!(j.domain===domain&&j.scanner===id)); // drop any old entry
+  const j={id:'fs-'+(++jobSeq),domain,scanner:id,state:'running',startedAt:Date.now(),endedAt:null,result:null,msg:''};
+  fsJobs.push(j); startQTicker(); return j;
+}
+function updateFsJob(domain,id,state,result,msg){
+  const j=getFsJob(domain,id); if(!j) return;
+  j.state=state; if(result) j.result=result; if(msg) j.msg=msg;
+  if(state==='done'||state==='failed') j.endedAt=Date.now();
+  renderQueue();
+}
+function fsJobHTML(j){
+  let icon;
+  if(j.state==='done')   icon='<div class="vt-q-icon ok">✓</div>';
+  else if(j.state==='failed') icon='<div class="vt-q-icon bad">✕</div>';
+  else if(j.state==='queued') icon='<div class="vt-q-icon">…</div>';
+  else icon='<div class="vt-q-icon"><span class="vt-spin"></span></div>';
+  let msg=j.msg;
+  if(!msg){
+    if(j.state==='running')      msg='Scanning files…';
+    else if(j.state==='queued')  msg='Waiting — another scan is running on the server';
+    else if(j.state==='done')    msg=j.result?(j.result.infected?j.result.infected+' infected file(s) found in '+(j.result.files||0).toLocaleString()+' files':'No infected files in '+(j.result.files||0).toLocaleString()+' files'):'Scan complete';
+    else                         msg='Scan failed';
+  }
+  let right='';
+  if(j.state==='done'&&j.result){
+    right=j.result.infected
+      ?'<span class="vt-badge infected"><span class="vt-dot dot-r"></span>'+j.result.infected+' infected</span>'
+      :'<span class="vt-badge clean"><span class="vt-dot dot-g"></span>Clean</span>';
+  }else if(j.state==='running'){
+    right='<div>'+fmtSecs(Date.now()-j.startedAt)+'</div>';
+  }
+  return '<div class="vt-q-item vt-q-fs '+j.state+'">'+icon
+    +'<div class="vt-q-main"><div class="vt-q-dom">'+vtEsc(j.domain)
+    +'<span class="vt-q-kind fs">'+vtEsc(fsName(j.scanner))+'</span></div>'
+    +'<div class="vt-q-msg">'+vtEsc(msg)+'</div></div>'
+    +'<div class="vt-q-right">'+right+'</div></div>';
+}
+
 function renderQueue(){
   const box=document.getElementById('vt-queue');
   if(!box) return;
   const pumpBusy=pumpRunning&&(pumpCurrent||scanQueue.length);
-  if(!jobs.length&&!pumpBusy){box.style.display='none';return;}
+  if(!jobs.length&&!fsJobs.length&&!pumpBusy){box.style.display='none';return;}
   box.style.display='block';
   applyQueueCollapse();
   if(pumpBusy) startQTicker();
@@ -1598,13 +1666,19 @@ function renderQueue(){
   const running=jobs.filter(j=>ACTIVE.has(j.state)&&j.state!=='queued');
   const waiting=jobs.filter(j=>j.state==='queued');
   const finished=jobs.filter(j=>!ACTIVE.has(j.state)).sort((a,b)=>b.endedAt-a.endedAt);
+  const fsActive=fsJobs.filter(j=>j.state==='running'||j.state==='queued');
+  const fsDone=fsJobs.filter(j=>j.state==='done'||j.state==='failed').sort((a,b)=>b.endedAt-a.endedAt);
+  const allFinished=[...finished,...fsDone].sort((a,b)=>b.endedAt-a.endedAt).slice(0,8);
+  const hasActive=pumpCurrent||running.length||waiting.length||fsActive.length;
 
-  // Show active jobs, then waiting, then recent finished (all in one list)
+  // Active queue first, then a divider, then recently completed
   let html='';
   if(pumpCurrent) html+=liveHTML(pumpCurrent);
   running.forEach(j=>{ html+=jobHTML(j); });
+  fsActive.forEach(j=>{ html+=fsJobHTML(j); });
   waiting.slice(0,5).forEach(j=>{ html+=jobHTML(j); });
-  finished.slice(0,8).forEach(j=>{ html+=jobHTML(j); });
+  if(allFinished.length&&hasActive) html+='<div class="vt-q-divider">Completed</div>';
+  allFinished.forEach(j=>{ html+=(j.scanner?fsJobHTML(j):jobHTML(j)); });
   document.getElementById('vt-q-list').innerHTML=html;
 
   // Pause bar
@@ -1626,9 +1700,9 @@ function renderQueue(){
 
   const left=waiting.length+scanQueue.length;
   const parts=[];
-  if(running.length||pumpCurrent) parts.push('checking 1');
+  if(running.length||pumpCurrent||fsActive.length) parts.push('checking '+(running.length+fsActive.length+(pumpCurrent?1:0)));
   if(left) parts.push(left+' waiting');
-  if(finished.length) parts.push(finished.length+' done');
+  if(allFinished.length) parts.push(allFinished.length+' done');
   vtSet('vt-q-sum',parts.join(' · '));
   document.getElementById('vt-q-cancel').style.display=waiting.length?'':'none';
 }
@@ -1977,16 +2051,21 @@ async function vtFsLoad(domain,id){
 window.vtFsScan=async function(domain,id){
   fsOpen[domain]=id; delete fsFull[domain+'|'+id];
   (scans[domain]=scans[domain]||{})[id]={status:'running',started:Date.now()/1000};
+  addFsJob(domain,id);
   vtFsRefresh(domain);
   const fpToken=document.getElementById('forgery_protection_token')?.content||'';
   const res=await fetch(BASE+'?action=file-scan',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body:new URLSearchParams({domain,scanner:id})})
     .then(r=>r.json()).catch(()=>({error:'Network error'}));
   if(res.error){
     vtToast(res.error,'error');
+    updateFsJob(domain,id,'failed',null,res.error);
     if(res.result&&!['running','queued'].includes(res.result.status)) scans[domain][id]=res.result; else delete scans[domain][id];
     vtFsRefresh(domain); return;
   }
-  if(res.result) scans[domain][id]=res.result;
+  if(res.result){
+    scans[domain][id]=res.result;
+    if(res.result.status==='queued') updateFsJob(domain,id,'queued',null,'');
+  }
   vtFsRefresh(domain); vtFsPoll(domain,id);
 };
 const fsPolling=new Set();
@@ -2001,6 +2080,10 @@ async function vtFsPoll(domain,id){
       if(!r?.result) continue;
       const prev=scans[domain]?.[id]?.status;
       (scans[domain]=scans[domain]||{})[id]=r.result;
+      if(r.result.status==='running') updateFsJob(domain,id,'running',null,'');
+      else if(r.result.status==='queued') updateFsJob(domain,id,'queued',null,'');
+      else if(r.result.status==='done') updateFsJob(domain,id,'done',r.result,'');
+      else updateFsJob(domain,id,'failed',null,r.result.message||r.result.status||'Error');
       if(['running','queued'].includes(r.result.status)){ if(prev!==r.result.status) vtFsRefresh(domain); continue; }
       fsFull[key]=r.result; vtFsRefresh(domain);
       if(fsOpen[domain]!==id){ // panel closed meanwhile: tell the user
