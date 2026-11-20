@@ -144,6 +144,8 @@ th.vt-sortable{cursor:pointer;user-select:none}th.vt-sortable:hover{color:var(--
 .vt-badge.nokey{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}
 .vt-badge.scanning,.vt-badge.waiting{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
 .vt-badge.loading,.vt-badge.unchecked,.vt-badge.error,.vt-badge.ratelimit,.vt-badge.quota_exceeded,.vt-badge.budget_exceeded{background:var(--gray-bg);color:var(--gray);border:1px solid var(--border)}
+.vt-fs-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);cursor:pointer;margin-top:3px}
+.vt-fs-badge:hover{background:var(--red);color:#fff}
 .vt-domain-name{font-weight:600;font-size:13px;color:var(--heading)}
 .vt-domain-ip{font-size:11px;color:var(--muted);margin-top:1px}
 .vt-domain-age{display:inline-block;font-size:10px;padding:1px 5px;border-radius:4px;font-weight:600;margin-left:4px;vertical-align:middle}
@@ -173,7 +175,8 @@ th.vt-sortable{cursor:pointer;user-select:none}th.vt-sortable:hover{color:var(--
   border-radius:10px 0 0 10px;box-shadow:-4px 0 24px rgba(0,0,0,.13);display:none}
 .vt-queue.vt-q-collapsed{max-height:none;overflow:visible}
 .vt-queue.vt-q-collapsed .vt-q-body{display:none}
-.vt-q-head{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--blue-bg);border-bottom:1px solid var(--blue-border);position:sticky;top:0;z-index:1}
+.vt-q-head{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--blue-bg);border-bottom:1px solid var(--blue-border);position:sticky;top:0;z-index:1;cursor:pointer;user-select:none}
+.vt-q-head button,.vt-q-head a{cursor:pointer}
 .vt-queue.vt-q-collapsed .vt-q-head{border-bottom:none}
 .vt-q-title{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.4px}
 .vt-q-sum{font-size:12px;color:var(--muted)}
@@ -371,13 +374,13 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 
   <!-- Scan Monitor: fixed right panel, starts below the app header -->
   <div class="vt-queue" id="vt-queue">
-    <div class="vt-q-head">
+    <div class="vt-q-head" onclick="vtQueueToggle(event)">
       <span class="vt-q-title">Scan Monitor</span>
       <span class="vt-q-sum" id="vt-q-sum"></span>
       <div class="vt-spacer"></div>
-      <button class="vt-row-btn" id="vt-q-cancel" onclick="vtCancelWaiting()" style="display:none">Cancel waiting</button>
-      <button class="vt-row-btn" onclick="vtClearFinished()" style="margin-left:4px">Clear done</button>
-      <button class="vt-q-toggle" id="vt-q-toggle" onclick="vtQueueToggle()">▲ Collapse</button>
+      <button class="vt-row-btn" id="vt-q-cancel" onclick="vtCancelWaiting();event.stopPropagation()" style="display:none">Cancel waiting</button>
+      <button class="vt-row-btn" onclick="vtClearFinished();event.stopPropagation()" style="margin-left:4px">Clear done</button>
+      <button class="vt-q-toggle" id="vt-q-toggle" onclick="event.stopPropagation();vtQueueToggle()">▲ Collapse</button>
     </div>
     <div class="vt-q-body" id="vt-q-body">
       <div class="vt-q-list" id="vt-q-list"></div>
@@ -1138,7 +1141,19 @@ function rowHTML(domain,data){
   // Dangerous tags
   const dangerTags=(data?.tags??[]).filter(t=>DANGER_TAGS.some(k=>t.toLowerCase().includes(k)));
   const tagHtml=dangerTags.length?'<div style="margin-top:3px">'+dangerTags.slice(0,3).map(t=>'<span class="vt-tag">'+vtEsc(t)+'</span>').join('')+'</div>':'';
-  const statusCell=badge+tagHtml;
+  // File scanner infected-files badge: show when any scanner has found infections
+  let fsBadgeHtml='';
+  if(!relSet.has(domain)&&scans[domain]){
+    for(const id in scans[domain]){
+      const r=scans[domain][id];
+      if(r?.status==='done'&&r.infected>0){
+        const e=vtEsca(domain);
+        fsBadgeHtml+='<div><button type="button" class="vt-fs-badge" onclick="vtFsClick(\''+e+'\',\''+vtEsc(id)+'\')" title="Click to see the infected files found by '+vtEsc(fsName(id))+'">'
+          +'<span class="vt-dot dot-r"></span>'+r.infected+' file'+(r.infected===1?'':'s')+' infected — '+vtEsc(fsName(id))+'</button></div>';
+      }
+    }
+  }
+  const statusCell=badge+tagHtml+fsBadgeHtml;
 
   // Domain age badge
   let ageHtml='';
@@ -1375,6 +1390,17 @@ function setJob(j,patch){
 
 function finishJob(j,state,msg){
   if(!ACTIVE.has(j.state)) return; // already finished (e.g. cancelled)
+  // For failed jobs that never reached the fetch step, results[domain] may still be
+  // the initial {status:'loading'} placeholder — that keeps spinners in the row forever.
+  // Restore the previous result (or fall back to 'error') so the row clears correctly.
+  if(state==='failed'){
+    const cur=results[j.domain];
+    if(!cur||['loading','scanning','waiting'].includes(cur.status)){
+      const prev=j.prev&&!['loading','scanning','waiting'].includes(j.prev?.status)
+        ?j.prev:{status:'error',domain:j.domain,message:msg||'Failed'};
+      results[j.domain]=prev;
+    }
+  }
   setJob(j,{state,msg:msg||'',endedAt:Date.now()});
 }
 
@@ -1600,7 +1626,8 @@ function liveHTML(d){
 // One line only: what is being checked right now, otherwise the latest result.
 // Below it, an animated bar while waiting for VirusTotal's 4 requests/minute limit.
 let queueCollapsed=localStorage.getItem('vt_q_collapsed')==='1';
-window.vtQueueToggle=function(){
+window.vtQueueToggle=function(e){
+  if(e&&e.target&&e.target.tagName==='BUTTON') return; // let button handle its own click
   queueCollapsed=!queueCollapsed;
   localStorage.setItem('vt_q_collapsed',queueCollapsed?'1':'0');
   applyQueueCollapse();
