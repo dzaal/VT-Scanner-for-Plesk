@@ -12,6 +12,7 @@ require_once __DIR__ . '/VtEvents.php';
  *   unflag    {ts, vendor}                      a vendor no longer flags it
  *   review    {ts, vendor, via: form|email, to, by}
  *   unreview  {ts, vendor, by}                  a review mark was undone
+ *   denied    {ts, vendor, reason, by}          the vendor turned the review request down
  */
 class VtSiteLog
 {
@@ -37,10 +38,11 @@ class VtSiteLog
     }
 
     /** A review was requested from a vendor (or the mark was undone) */
-    public static function review(string $domain, string $vendor, string $via, string $to, string $by, bool $undo = false): void
+    public static function review(string $domain, string $vendor, string $via, string $to, string $by, bool $undo = false, ?string $deniedReason = null): void
     {
-        $e = $undo ? ['ts' => time(), 'type' => 'unreview', 'vendor' => $vendor, 'by' => $by]
-                   : ['ts' => time(), 'type' => 'review', 'vendor' => $vendor, 'via' => $via === 'email' ? 'email' : 'form', 'to' => $to, 'by' => $by];
+        if ($deniedReason !== null) $e = ['ts' => time(), 'type' => 'denied', 'vendor' => $vendor, 'reason' => $deniedReason, 'by' => $by];
+        elseif ($undo) $e = ['ts' => time(), 'type' => 'unreview', 'vendor' => $vendor, 'by' => $by];
+        else $e = ['ts' => time(), 'type' => 'review', 'vendor' => $vendor, 'via' => $via === 'email' ? 'email' : 'form', 'to' => $to, 'by' => $by];
         self::add($domain, [$e]);
     }
 

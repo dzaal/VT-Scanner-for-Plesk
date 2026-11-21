@@ -347,6 +347,10 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-sh-pill{display:inline-flex;justify-content:center;min-width:92px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--gray-bg);color:var(--gray);border:1px solid var(--border)}
 .vt-sh-pill.bad{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
 .vt-sh-pill.good{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.vt-sh-pill.warn{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-border)}
+.vt-rev-deny{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px}
+.vt-rev-deny input{flex:1;min-width:180px;padding:3px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px}
+.vt-rev-deny a{color:var(--muted);cursor:pointer}
 .vt-sh-pill.info{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)}
 .vt-rev-done{display:inline-flex;align-items:center;gap:6px;margin-top:3px;font-size:11px;font-weight:600;color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);border-radius:20px;padding:1px 8px}
 .vt-rev-done a{color:var(--muted);font-weight:400;cursor:pointer}
@@ -2145,9 +2149,18 @@ function vtRevDone(domain,vendor){
   const d=new Date(r.ts*1000), p=n=>String(n).padStart(2,'0');
   return '<div class="vt-rev-done" title="Saved for this site, for everyone who manages it">&#10003; Requested '+p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()
     +' ('+p(d.getHours())+':'+p(d.getMinutes())+')'+(r.by?' by '+vtEsc(r.by):'')
-    +' <a onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(vendor)+'\',1)" title="Forget this request">undo</a></div>';
+    +' · <a onclick="vtReviewDeny(this,\''+vtEsca(domain)+'\',\''+vtEsca(vendor)+'\')" title="The vendor turned the request down: remove this note and log it in the history">denied</a>'
+    +' · <a onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(vendor)+'\',1)" title="Clicked by mistake: forget this request">undo</a></div>';
 }
-window.vtReviewMark=async function(domain,vendor,remove,via,to){
+window.vtReviewDeny=function(a,domain,vendor){
+  const box=a.closest('.vt-rev-done');
+  box.outerHTML='<div class="vt-rev-deny"><input type="text" maxlength="300" placeholder="Reason (optional), e.g. added less than a day ago">'
+    +'<button class="vt-btn sm" onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(vendor)+'\',1,\'\',\'\',this.previousElementSibling.value)">Save</button>'
+    +'<a onclick="vtFsRefresh(\''+vtEsca(domain)+'\')">cancel</a></div>';
+  const inp=document.querySelector('.vt-rev-deny input'); if(inp){inp.focus(); inp.onkeydown=ev=>{if(ev.key==='Enter')inp.nextElementSibling.click(); if(ev.key==='Escape')vtFsRefresh(domain);};}
+};
+window.vtReviewMark=async function(domain,vendor,remove,via,to,deniedReason){
+  const denied=typeof deniedReason==='string';
   const fpToken=document.getElementById('forgery_protection_token')?.content||'';
   if(!remove){ // show it at once; the server copy follows
     (reviews[domain]=reviews[domain]||{})[vendor]={ts:Math.floor(Date.now()/1000),by:''};
@@ -2155,7 +2168,7 @@ window.vtReviewMark=async function(domain,vendor,remove,via,to){
   }
   try{
     const r=await fetch(BASE+'?action=review-mark',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},
-      body:new URLSearchParams({domain,vendor,remove:remove?'1':'',via:via||'',to:to||''})}).then(x=>x.json());
+      body:new URLSearchParams({domain,vendor,remove:remove?'1':'',via:via||'',to:to||'',denied:denied?'1':'',reason:denied?deniedReason:''})}).then(x=>x.json());
     if(r&&r.ok){reviews[domain]=r.reviews; if(Array.isArray(r.reviews)) reviews[domain]={};}
     else vtToast('Could not save the review request','error');
   }catch(e){vtToast('Could not save the review request','error');}
@@ -2225,6 +2238,7 @@ function vtSiteHistHTML(domain){
     else if(e.type==='flag'){what=pill('bad','Flagged');text='<strong>'+vtEsc(e.vendor)+'</strong>'+(e.verdict?': '+vtEsc(e.verdict):'');}
     else if(e.type==='unflag'){what=pill('good','Delisted');text='<strong>'+vtEsc(e.vendor)+'</strong> no longer flags the site';}
     else if(e.type==='review'){what=pill('info','Review asked');text='<strong>'+vtEsc(e.vendor)+'</strong> '+(e.via==='email'?'by e-mail'+(e.to?' to '+vtEsc(e.to):''):'via website form'+(e.to?' (<a href="'+vtEsc(e.to)+'" target="_blank" rel="noopener">'+vtEsc(e.to.replace(/^https?:\/\//,'').slice(0,50))+'</a>)':''))+(e.by?' · by '+vtEsc(e.by):'');}
+    else if(e.type==='denied'){what=pill('warn','Review denied');text='<strong>'+vtEsc(e.vendor)+'</strong>'+(e.reason?': '+vtEsc(e.reason):'')+(e.by?' · by '+vtEsc(e.by):'');}
     else if(e.type==='unreview'){what=pill('','Undone');text='review request for <strong>'+vtEsc(e.vendor)+'</strong> undone'+(e.by?' · by '+vtEsc(e.by):'');}
     return '<div class="vt-sh-row"><div class="vt-sh-time">'+when+'</div><div class="vt-sh-what">'+what+'</div><div class="vt-sh-text">'+text+'</div></div>';
   }).join('');

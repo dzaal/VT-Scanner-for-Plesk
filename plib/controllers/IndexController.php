@@ -261,8 +261,10 @@ class IndexController extends pm_Controller_Action
         if (!$domain || $vendor === '') { $this->respond(['error' => 'invalid']); return; }
         if (!$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
         $by     = $this->resolveUserId();
-        $remove = (bool)$this->_getParam('remove', false);
-        VtSiteLog::review($domain, $vendor, (string)$this->_getParam('via', 'form'), substr((string)$this->_getParam('to', ''), 0, 300), $by, $remove);
+        $denied = (bool)$this->_getParam('denied', false); // the vendor turned it down: forget the request, log why
+        $remove = $denied || (bool)$this->_getParam('remove', false);
+        $reason = $denied ? trim(mb_substr((string)$this->_getParam('reason', ''), 0, 300)) : null;
+        VtSiteLog::review($domain, $vendor, (string)$this->_getParam('via', 'form'), substr((string)$this->_getParam('to', ''), 0, 300), $by, $remove, $reason);
         $this->respond(['ok' => true, 'reviews' => VtReviews::mark($domain, $vendor, $by, $remove)]);
     }
 

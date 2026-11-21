@@ -3,6 +3,10 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.26.0 — 2026-11-22
+- Review requests: mark one as **denied** (for example "added less than a day ago"), with an optional reason. The Requested note is removed from the overview, so you can ask again later, and the site's history shows "Review denied" with the reason.
+- The undo link is now only for a click made by mistake.
+
 ## 1.25.0 — 2026-11-21
 - History per site, at the bottom of the Why? panel, newest first, with date (time):
   - Detected: the first time the site was flagged, with the score and the vendors.
