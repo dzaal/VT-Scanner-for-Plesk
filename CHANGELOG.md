@@ -1,0 +1,182 @@
+# Changes
+
+Every version of VT Site Scanner for Plesk, newest first.
+Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
+
+## 1.19.0 — 2026-11-20
+- Infected files badge: when ClamAV, maldet or Imunify finds infected files, a red badge appears in the site's status column; a click opens the file scanner details.
+- Click the Scan Monitor header to open or close it.
+- Fix: after a failed rescan the Score and Last scan columns kept spinning.
+
+## 1.18.0 — 2026-11-20
+- File scans (ClamAV, maldet, Imunify) show in the Scan Monitor next to the VirusTotal lookups, with the infected count.
+- Colour bars per job: blue = VirusTotal running, amber = file scan running, green = done and clean, red = failed or infected.
+- A Completed divider separates running from finished jobs; Clear finished also clears file scans.
+- Scan Monitor is a panel on the right, just below the header.
+
+## 1.17.0 — 2026-11-19
+- Scan Queue renamed to Scan Monitor, with Collapse and Expand.
+- Shows several jobs at once (running, up to 5 waiting, up to 8 finished), so failures stay visible; finished jobs disappear after 30 seconds.
+- A failed job marks only the step that failed in red.
+- When the Plesk session has expired, the page reloads to the login.
+
+## 1.16.0 — 2026-11-19
+- Update check: a yellow banner shows when a newer version is available, with the release notes and an Install button (admin only) that upgrades the extension in one click.
+- Sort by Domain, Score or Last scan by clicking the column header, in both Group and Sort mode (within each group).
+- Group or Sort mode: grouped by reseller and customer, or one flat list. Mode, sort column and direction are remembered.
+- Last scan shows how long ago the site was checked; the exact time on hover, VirusTotal's own analysis date below it.
+- Faster first load: the site list appears right away while results load, with a progress bar.
+- Fix: Rescan failed with Submit failed.
+- Fix: two VT Site Scanner items in the Plesk menu; stray menu buttons are cleaned up on update.
+
+## 1.15.6 — 2026-11-18
+- Demo data for resellers and customers: `seed_demo_history.php --resellers`, `--customers` and `--remove`.
+- Demo data is scaled to the number of sites on the server.
+
+## 1.15.4 — 2026-11-18
+- Trend tab for customers: their own sites, recorded daily per customer.
+
+## 1.15.3 — 2026-11-18
+- Menu item in the customer panel too (hosting panel tabs).
+
+## 1.15.2 — 2026-11-18
+- Trend tab for resellers: their own customers and sites, recorded daily per reseller.
+
+## 1.15.1 — 2026-11-18
+- A ready-made, installable zip is published as a GitHub Release for every version.
+- One-command install and update:
+  `plesk bin extension --upgrade-url https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip`
+
+## 1.15.0 — 2026-11-18
+- Dashboard groups sites by reseller and customer; groups can be folded.
+- Search also finds customers.
+
+## 1.14.1 — 2026-11-18
+- Orphan databases outside Plesk can be backed up too.
+- Demo trend data in proportion to the number of sites.
+- README: trend screenshot.
+
+## 1.14.0 — 2026-11-17
+- New Trend tab: infected, suspicious and cleaned sites per day over 1, 2 or 3 months; daily totals are saved.
+- Orphan DBs has its own filter button.
+- Refresh also reloads the orphan databases.
+
+## 1.13.0 — 2026-11-17
+- Orphan databases: per leftover hostname the database, its size and whether a live site still uses it.
+- Back up an orphan database to a private folder, with a Delete-in-Plesk link.
+
+## 1.12.0 — 2026-11-17
+- Related hostnames: leftover WordPress hostnames without DNS are listed separately and checked only on request.
+- API key comes first in Settings.
+
+## 1.11.1 — 2026-11-17
+- WordPress hostnames from leftover databases that no longer exist in DNS are skipped.
+
+## 1.11.0 — 2026-11-17
+- Left menu item for the admin, resellers, customers and the Power User view.
+- Sites wait for an API key instead of showing Error.
+
+## 1.10.3 — 2026-11-17
+- Fortinet: links the Malicious URL Appeal form instead of the software dispute form.
+
+## 1.10.2 — 2026-11-17
+- Review links to the website forms of Sophos, BitDefender, Chong Lua Dao, Trustwave and Bfore.Ai.
+- Tips per vendor and a pre-filled e-mail for vendors without a form.
+
+## 1.10.1 — 2026-11-17
+- Review links to the vendor forms of alphaMountain and Gridinsoft.
+- Clearer rescan steps.
+
+## 1.10.0 — 2026-11-17
+- Why flagged: per site, the vendors that flag it, with review links and delisting steps.
+
+## 1.9.1 — 2026-11-17
+- Settings: scanner details wrap at words.
+
+## 1.9.0 — 2026-11-17
+- File scanners can be switched on and off in Settings, with their detection status.
+
+## 1.8.3 — 2026-11-17
+- The page breaks out of the Plesk frame, so notifications are no longer shown twice.
+
+## 1.8.2 — 2026-11-17
+- Fix: scanner bar was squashed by the score-bar style.
+
+## 1.8.1 — 2026-11-17
+- Scanner buttons are easier to see.
+
+## 1.8.0 — 2026-11-17
+- Scanner bar per site for ClamAV, maldet and Imunify, through one root helper (`sbin/site-scan`) with an adapter per scanner.
+- Detects which scanners are installed; runs ClamAV or maldet on demand on the document root.
+- Reads Imunify's latest result without starting a scan (Imunify may be set to clean up on detect).
+- A click opens a second line under the site with progress, then the infected files.
+- The extension only detects; it never changes sites.
+
+## 1.7.4 — 2026-11-17
+- Queued count includes automatic lookups.
+- File-list dialog shows above the Plesk UI.
+
+## 1.7.2 — 2026-11-17
+- Scan files: on infected or suspicious rows, scans the site's document root with the running clamd (read-only, one scan at a time, later clicks queue).
+- Results show on the row, with a file-list dialog.
+- About tab and README explain why the tool exists: Plesk's own VirusTotal check ran out of API calls daily and left sites unscanned.
+
+## 1.6.4 — 2026-11-17
+- Disabled and suspended sites drop out of the list, also when they are WordPress subsites of a hosted domain.
+- The hosted-domain list is cached 10 minutes instead of a day.
+
+## 1.6.3 — 2026-11-17
+- Coffee button: PayPal.Me link updated.
+
+## 1.6.2 — 2026-11-17
+- Buy-me-a-coffee button goes to PayPal, $3.
+
+## 1.6.1 — 2026-11-17
+- Notifications go to one e-mail address (empty = your Plesk address).
+- One summary e-mail with the status changes and the full list of infected and suspicious sites: after the nightly scan, and during the day 10 minutes after a change.
+- A site that flips back before the summary is sent is left out.
+
+## 1.6.0 — 2026-11-17
+- E-mail notifications when a site becomes infected, suspicious or clean again; from the nightly scan and from dashboard lookups and rescans.
+- Refresh and Rescan infected buttons replaced by a menu on each status button: Rescan (capped at the manual budget) and, on All, Refresh site list.
+- README: users and roles, notifications.
+
+## 1.5.0 — 2026-11-17
+- New official VT shield logo with a transparent background, in the Extensions list, left menu, tools entry, page header and README.
+
+## 1.4.0 — 2026-11-17
+- Scan queue on one line: the site being checked, or the latest result.
+- Animated bar counts down the pause for VirusTotal's 4-per-minute limit.
+- New About tab: the maker, who the tool is for, and a Buy-me-a-coffee button.
+- README: who it's for.
+
+## 1.3.2 — 2026-11-17
+- Scan queue keeps every finished site with its result: status, score and time, or why the lookup failed.
+
+## 1.3.1 — 2026-11-17
+- Plesk's page header is hidden on the scanner page; only the branded header shows.
+
+## 1.3.0 — 2026-11-17
+- Scans every hosted website: active domains and subdomains with hosting, plus WordPress sites on hostnames under them.
+- New setting Sites to scan: all hosted websites or WordPress only.
+- The Scanner enabled switch is gone.
+- Home card and nightly scan follow the chosen scope.
+
+## 1.2.1 — 2026-11-17
+- Page title completes Plesk's breadcrumb (Home > Extensions > VT Site Scanner).
+- Branded header with logo, version and Digizaal link.
+- Catalog icons; deep links work.
+
+## 1.2.0 — 2026-11-17
+- Plesk Home page card: infected, suspicious and clean counts and the worst-scoring sites; reads cached results only.
+- Fix: removed a broken permissions hook that logged an error on every request.
+- README: screenshots.
+
+## 1.1.0 — 2026-11-17
+- Installable by others: the nightly scan is registered in Plesk's scheduler on install and removed on uninstall.
+- `build.sh` builds the zip; settings file with the API key is written with mode 0600.
+- README: requirements, installation, updating, uninstalling, troubleshooting, data and privacy.
+
+## 1.0.0 — 2026-11-17
+- First version: scans the WordPress sites on a Plesk server against the VirusTotal API v3.
+- Per-key rate limiter (4 per minute, 500 per day), result caching, nightly background scan and a live queue for manual rescans.

@@ -325,7 +325,7 @@ Run the same command as for installing:
 plesk bin extension --upgrade-url https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip
 ```
 
-Plesk keeps your settings, API key, scan results and history, and the nightly task is re-registered automatically. Each release on the [Releases page](https://github.com/dzaal/VT-Scanner-for-Plesk/releases) lists what changed.
+Plesk keeps your settings, API key, scan results and history, and the nightly task is re-registered automatically. Each release on the [Releases page](https://github.com/dzaal/VT-Scanner-for-Plesk/releases) lists what changed in it and in all earlier versions; the full history is in [CHANGELOG.md](CHANGELOG.md).
 
 **Upgrading from 1.0.x?** Earlier versions asked you to add a line to root's crontab by hand. Remove that line (`crontab -e` as root, delete the line with `background_scan.php`); the extension now schedules itself.
 
@@ -364,6 +364,8 @@ All data stays on your server in `/usr/local/psa/var/modules/virustotal-extensio
 ### Releases
 
 Every new version gets a ready-made zip on the [Releases page](https://github.com/dzaal/VT-Scanner-for-Plesk/releases). This happens automatically: when the `<version>` in `META_INF/meta.xml` changes on `main`, the GitHub Action in `.github/workflows/release.yml` builds the package with `build.sh` and publishes release `v<version>` with two copies of it: `virustotal-extension-<version>.zip` and `virustotal-extension.zip` (a fixed name, so the `releases/latest/download/...` link always gives the newest version).
+
+The release notes come from `CHANGELOG.md` (`.github/release-notes.sh`): add a `## <version> — <date>` section there with each version bump. Changing `CHANGELOG.md` also refreshes the notes of all existing releases.
 
 ### Building it yourself
 

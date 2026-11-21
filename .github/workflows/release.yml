@@ -1,5 +1,6 @@
 # Publish a ready-made, installable zip as a GitHub Release for every new version.
-# Runs when META_INF/meta.xml changes on main; skips versions that already have a release.
+# Runs when META_INF/meta.xml or CHANGELOG.md changes on main; skips versions that already have a release.
+# Release notes come from CHANGELOG.md (see .github/release-notes.sh).
 # Each release has two copies of the same package:
 #   virustotal-extension-<version>.zip  (that version)
 #   virustotal-extension.zip            (fixed name, so .../releases/latest/download/virustotal-extension.zip
@@ -9,7 +10,7 @@ name: Release
 on:
   push:
     branches: [main]
-    paths: [META_INF/meta.xml]
+    paths: [META_INF/meta.xml, CHANGELOG.md]
   workflow_dispatch:
 
 permissions:
@@ -45,17 +46,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          bash .github/release-notes.sh "${{ steps.v.outputs.version }}" > notes.md
           gh release create "v${{ steps.v.outputs.version }}" \
             "dist/virustotal-extension-${{ steps.v.outputs.version }}.zip" \
             dist/virustotal-extension.zip \
             --title "VT Site Scanner ${{ steps.v.outputs.version }}" \
-            --notes "Install or update on your Plesk server (as root):
-
-          \`\`\`
-          plesk bin extension --upgrade-url https://github.com/${{ github.repository }}/releases/latest/download/virustotal-extension.zip
-          \`\`\`
-
-          Or download \`virustotal-extension-${{ steps.v.outputs.version }}.zip\` below and upload it in Plesk (Extensions → My Extensions → Upload Extension).
-
-          Changes: see the commits since the previous release." \
+            --notes-file notes.md \
             --latest
+
+      # Keep the notes of every release in step with CHANGELOG.md
+      # (its own changes plus the history before it).
+      - name: Refresh notes of all releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for tag in $(gh release list --limit 200 --json tagName --jq '.[].tagName'); do
+            bash .github/release-notes.sh "${tag#v}" > notes.md
+            gh release edit "$tag" --notes-file notes.md
+          done
