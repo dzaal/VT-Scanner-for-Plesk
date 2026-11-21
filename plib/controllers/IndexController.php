@@ -709,8 +709,12 @@ class IndexController extends pm_Controller_Action
     /** Daily totals for the trend graph: the whole server (administrator) or the user's own sites */
     public function historyAction(): void
     {
+        // Once: add the status changes from before they were recorded, found in the scan logs
+        $marker = VtDataDir::path('vt_changes_backfilled');
+        if (!file_exists($marker) && @touch($marker)) VtHistory::backfillFromLogs();
         VtHistory::scope($this->historyScope());
-        $this->respond(['days' => VtHistory::days(92), 'scope' => $this->role() === 'admin' ? 'server' : 'own']);
+        $this->respond(['days' => VtHistory::days(92), 'changes' => VtHistory::changes(92),
+                        'scope' => $this->role() === 'admin' ? 'server' : 'own']);
     }
 
     /** A site of this user, or a related hostname under one of the user's domains */

@@ -3,6 +3,12 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.20.0 — 2026-11-21
+- Trend tab: Recent status changes at the bottom, per site with date and time, coloured from → to status (infected, suspicious, clean, or left the list).
+- Older status changes are filled in once from the scan logs.
+- A site that was infected or suspicious and leaves the site list (deleted, disabled or suspended) is recorded as Left the list.
+- About tab: What's new, with links to the latest changes and all versions.
+
 ## 1.19.0 — 2026-11-20
 - Infected files badge: when ClamAV, maldet or Imunify finds infected files, a red badge appears in the site's status column; a click opens the file scanner details.
 - Click the Scan Monitor header to open or close it.

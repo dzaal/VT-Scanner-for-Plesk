@@ -148,6 +148,7 @@ The **Trend** tab shows how infections develop, per day, over the last **1, 2 or
 - **Sites cleaned per day**: sites that were infected or suspicious and are clean again, as bars.
 - At the top: infected and suspicious now, with the change since the start of the period; how many sites were cleaned in the period; and the number of clean sites.
 - Hover over a day for its figures, or open **Show as table**.
+- **Recent status changes**: per site, the date and time it changed and its status before and after, in colour (for example *Infected → Suspicious*). A site that was infected or suspicious and leaves the site list (deleted, disabled or suspended in Plesk) shows as *Left the list*. Changes from before this list existed are filled in once from the scan logs.
 
 ![Trend graph with demo data: many infections, a big clean-up, then a slow rise again](docs/screenshots/trend.png)
 

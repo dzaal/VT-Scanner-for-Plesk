@@ -312,6 +312,15 @@ tr.vt-grp-c.closed .vt-grp-caret{transform:rotate(-90deg)}
 .vt-tr-tip .row{display:flex;justify-content:space-between;gap:14px}
 .vt-tr-tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .vt-tr-table{margin-top:10px;font-size:12px}
+.vt-tr-chg{margin-top:18px}
+.vt-tr-chg ul{list-style:none;margin:6px 0 0;padding:0;max-height:420px;overflow:auto}
+.vt-tr-chg li{display:flex;align-items:center;gap:10px;padding:6px 2px;border-bottom:1px solid var(--border);font-size:12.5px;flex-wrap:wrap}
+.vt-tr-chg .t{color:var(--gray);font-variant-numeric:tabular-nums;min-width:132px}
+.vt-tr-chg .t small{opacity:.75}
+.vt-tr-chg .s{font-weight:600;min-width:220px;word-break:break-all}
+.vt-tr-chg .arr{color:var(--gray)}
+.vt-tr-chg .vt-badge.gone{background:var(--gray-bg);color:var(--gray);border:1px dashed var(--border)}
+.vt-tr-chg .more{margin-top:6px}
 .vt-tr-table table{border-collapse:collapse;margin-top:6px}
 .vt-tr-table td,.vt-tr-table th{padding:3px 10px;border-bottom:1px solid var(--border);text-align:right}
 .vt-tr-table td:first-child,.vt-tr-table th:first-child{text-align:left}
@@ -557,6 +566,10 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <div class="vt-tr-tip" id="vt-tr-tip"></div>
       <div class="vt-fs-note" id="vt-tr-note"></div>
       <details class="vt-tr-table"><summary>Show as table</summary><div id="vt-tr-table"></div></details>
+      <div class="vt-tr-chg">
+        <div class="vt-tr-title">Recent status changes <span class="hint">(per site, newest first)</span></div>
+        <div id="vt-tr-chg"></div>
+      </div>
     </div>
   </div>
 
@@ -723,6 +736,13 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
           <li><strong>Ask the rest for a review</strong>, and for Chrome warnings use Google Search Console. Then rescan again after a few days.</li>
         </ul>
         <p class="hint">Before asking for a review, make sure the site is really clean and safe: updates installed, unused plugins removed and all passwords changed. Otherwise it is soon hacked again and listed again.</p>
+      </div>
+
+      <div class="vt-card">
+        <h3>What's new</h3>
+        <p>You are using version <strong><?= htmlspecialchars($this->version ?: '?') ?></strong>. See what changed in this version and in every version before it.</p>
+        <a class="vt-btn ghost" href="https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest" target="_blank" rel="noopener">Latest changes &rarr;</a>
+        <a class="vt-btn ghost" href="https://github.com/dzaal/VT-Scanner-for-Plesk/blob/main/CHANGELOG.md" target="_blank" rel="noopener">All versions &rarr;</a>
       </div>
 
       <div class="vt-card vt-coffee">
@@ -1219,10 +1239,11 @@ function rowHTML(domain,data){
 
 // ── Trend (server totals per day, administrator) ──────────────
 const TR_COL={infected:'#d03b3b',suspicious:'#fab219',cleaned:'#0ca30c',grid:'#e1e0d9',axis:'#c3c2b7',muted:'#898781',surface:'#fcfcfb'};
-let trDays=[], trRange=92;
+let trDays=[], trChanges=[], trRange=92, trChgAll=false;
 window.vtLoadTrend=async function(){
   const r=await vtFetch('?action=history').catch(()=>null);
   trDays=r?.days||[];
+  trChanges=r?.changes||[];
   document.getElementById('vt-tr-h').textContent=r?.scope==='own'?'Infections on your sites':'Infections on this server';
   vtTrendRange(trRange);
 };
@@ -1239,6 +1260,7 @@ function vtTrendDraw(){
   if(!days.length){
     tiles.innerHTML='<span class="hint">No history yet. Totals are saved once a day from now on.</span>';
     ['vt-tr-lines','vt-tr-bars','vt-tr-table'].forEach(id=>document.getElementById(id).innerHTML='');
+    vtTrendChanges();
     return;
   }
   const first=days[0], last=days[days.length-1];
@@ -1315,6 +1337,22 @@ function vtTrendDraw(){
 
   document.getElementById('vt-tr-table').innerHTML='<table><thead><tr><th>Date</th><th>Infected</th><th>Suspicious</th><th>Clean</th><th>Cleaned</th></tr></thead><tbody>'
     +days.slice().reverse().map(d=>'<tr><td>'+trDate(d.date,1)+(d.demo?' (demo)':'')+'</td><td>'+d.infected+'</td><td>'+d.suspicious+'</td><td>'+d.clean+'</td><td>'+(d.cleaned||0)+'</td></tr>').join('')+'</tbody></table>';
+  vtTrendChanges();
+}
+const TR_ST={infected:'Infected',suspicious:'Suspicious',clean:'Clean',gone:'Left the list'};
+function trBadge(st){return '<span class="vt-badge '+(TR_ST[st]?st:'unchecked')+'">'+(st==='gone'?'':'<span class="vt-dot" style="background:currentColor"></span>')+vtEsc(TR_ST[st]||st)+'</span>';}
+function vtTrendChanges(){
+  const el=document.getElementById('vt-tr-chg');
+  const since=trDays.slice(-trRange)[0]?.date||'';
+  const list=trChanges.filter(c=>c.t>=since);
+  if(!list.length){el.innerHTML='<span class="hint">No status changes in this period.</span>';return;}
+  const shown=trChgAll?list:list.slice(0,50);
+  el.innerHTML='<ul>'+shown.map(c=>{
+    const [dt,tm]=c.t.split(' ');
+    return '<li><span class="t">'+trDate(dt,1)+' <small>('+(c.approx?'last seen ':'')+(tm||'').slice(0,5)+')</small></span>'
+      +'<span class="s">'+vtEsc(c.d)+'</span>'+trBadge(c.from)+'<span class="arr">&rarr;</span>'+trBadge(c.to)+'</li>';
+  }).join('')+'</ul>'
+  +(list.length>shown.length?'<button class="vt-btn ghost more" onclick="trChgAll=true;vtTrendChanges()">Show all '+list.length+'</button>':'');
 }
 window.addEventListener('resize',()=>{if(document.getElementById('vtpanel-trend').classList.contains('active'))vtTrendDraw();});
 
