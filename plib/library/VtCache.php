@@ -2,6 +2,7 @@
 require_once __DIR__ . '/VtDataDir.php';
 require_once __DIR__ . '/VtSettings.php';
 require_once __DIR__ . '/VtNotifier.php';
+require_once __DIR__ . '/VtEvents.php';
 
 /**
  * VtCache — persistent cache for VirusTotal scan results.
@@ -63,6 +64,10 @@ class VtCache
             $this->lastNotified = VtNotifier::statusChanged($domain, $old, $result);
         } catch (\Throwable $e) {
             // A mail problem must never break scanning
+        }
+        try {
+            VtEvents::record($domain, $old, $result);
+        } catch (\Throwable $e) {
         }
     }
 

@@ -26,5 +26,17 @@ $task->setSchedule([
 $task->setCmd('background_scan.php');
 $scheduler->putTask($task);
 
-echo "VT Site Scanner: nightly background scan scheduled (03:00).\n";
+// Every 5 minutes: process the manual rescan queue (domains queued by clicking Rescan)
+$task2 = new pm_Scheduler_Task();
+$task2->setSchedule([
+    'minute' => '*/5',
+    'hour'   => '*',
+    'dom'    => '*',
+    'month'  => '*',
+    'dow'    => '*',
+]);
+$task2->setCmd('manual_scan.php');
+$scheduler->putTask($task2);
+
+echo "VT Site Scanner: nightly background scan scheduled (03:00), manual queue processor scheduled (every 5 min).\n";
 exit(0);

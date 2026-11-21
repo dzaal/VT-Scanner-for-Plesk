@@ -12,6 +12,8 @@ require_once $_vtLib . '/VtApi.php';
 require_once $_vtLib . '/PleskDomains.php';
 require_once $_vtLib . '/VtNotifier.php';
 require_once $_vtLib . '/VtHistory.php';
+require_once $_vtLib . '/VtManualQueue.php';
+require_once $_vtLib . '/VtEvents.php';
 
 /**
  * IndexController — Plesk extension controller (extends pm_Controller_Action for layout).
@@ -390,6 +392,44 @@ class IndexController extends pm_Controller_Action
         return $out;
     }
 
+    // ── Manual rescan server queue ───────────────────────────────
+
+    /** Push a domain into the persistent manual rescan queue (called on Rescan click). */
+    public function enqueueRescanAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        $domain = $this->sanitize($this->_getParam('domain', ''));
+        if (!$domain) { $this->respond(['error' => 'invalid']); return; }
+        if (!$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
+        VtManualQueue::enqueue([$domain]);
+        $this->respond(['ok' => true]);
+    }
+
+    /** Remove a domain from the queue (browser completed it before cron could). */
+    public function dequeueRescanAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        $domain = $this->sanitize($this->_getParam('domain', ''));
+        if (!$domain) { $this->respond(['error' => 'invalid']); return; }
+        VtManualQueue::dequeue([$domain]);
+        $this->respond(['ok' => true]);
+    }
+
+    /** Current state of the server-side manual queue (filtered to this user's domains). */
+    public function queueStatusAction(): void
+    {
+        $q    = VtManualQueue::all();
+        $mine = array_flip(PleskDomains::forCurrentUser($this->wpOnly()));
+        $pend = array_values(array_filter($q['pending']   ?? [], fn($d) => isset($mine[$d])));
+        $done = array_values(array_filter($q['completed'] ?? [], fn($d) => isset($mine[$d])));
+        $this->respond([
+            'pending'      => $pend,
+            'queued_at'    => array_intersect_key($q['queued_at']    ?? [], array_flip($pend)),
+            'completed'    => $done,
+            'completed_at' => array_intersect_key($q['completed_at'] ?? [], array_flip($done)),
+        ]);
+    }
+
     public function refreshDomainsAction(): void
     {
         PleskDomains::invalidateCache();
@@ -709,12 +749,29 @@ class IndexController extends pm_Controller_Action
     /** Daily totals for the trend graph: the whole server (administrator) or the user's own sites */
     public function historyAction(): void
     {
-        // Once: add the status changes from before they were recorded, found in the scan logs
-        $marker = VtDataDir::path('vt_changes_backfilled');
-        if (!file_exists($marker) && @touch($marker)) VtHistory::backfillFromLogs();
         VtHistory::scope($this->historyScope());
-        $this->respond(['days' => VtHistory::days(92), 'changes' => VtHistory::changes(92),
-                        'scope' => $this->role() === 'admin' ? 'server' : 'own']);
+        $this->respond(['days' => VtHistory::days(92), 'scope' => $this->role() === 'admin' ? 'server' : 'own']);
+    }
+
+    /** Recent per-domain status changes for the events feed in the Trend tab */
+    public function eventsAction(): void
+    {
+        // Once: add the status changes from before the feed existed, found in the scan logs
+        $marker = VtDataDir::path('vt_events_backfilled');
+        if (!file_exists($marker) && @touch($marker)) VtEvents::backfillFromLogs();
+        if ($this->role() === 'admin') { // the whole server, including sites that have left the list
+            $this->respond(['events' => VtEvents::recent(200)]);
+            return;
+        }
+        $allowed = array_flip(array_merge(
+            PleskDomains::forCurrentUser($this->wpOnly()),
+            PleskDomains::relatedForCurrentUser()
+        ));
+        $events = array_values(array_filter(
+            VtEvents::recent(300),
+            fn($e) => isset($allowed[$e['domain'] ?? ''])
+        ));
+        $this->respond(['events' => array_slice($events, 0, 200)]);
     }
 
     /** A site of this user, or a related hostname under one of the user's domains */

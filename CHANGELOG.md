@@ -3,6 +3,16 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.23.0 — 2026-11-21
+- Includes the work of 1.21 to 1.22.1, which ran on the server but was never released:
+  - Rescans keep going on the server when you leave the page: a queue that is processed every 5 minutes.
+  - Recent status changes are recorded at the moment a site is scanned.
+- Recent status changes (bottom of the Trend tab): one line per change with date (time), site, and coloured [status] → [status]; the arrow is green when it got better, red when it got worse.
+- Older status changes are filled in once from the scan logs.
+- An infected or suspicious site that leaves the site list (deleted, disabled or suspended) shows as Left the list.
+- A site's first result (pending → infected) no longer counts as a change.
+- The administrator sees all changes on the server, including sites that have left the list.
+
 ## 1.20.0 — 2026-11-21
 - Trend tab: Recent status changes at the bottom, per site with date and time, coloured from → to status (infected, suspicious, clean, or left the list).
 - Older status changes are filled in once from the scan logs.

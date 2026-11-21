@@ -203,6 +203,9 @@ th.vt-sortable{cursor:pointer;user-select:none}th.vt-sortable:hover{color:var(--
 .vt-q-divider{padding:4px 13px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);background:var(--gray-bg);border-bottom:1px solid var(--border);border-top:1px solid var(--border)}
 /* File scanner jobs — amber accent */
 .vt-q-item.vt-q-fs.running,.vt-q-item.vt-q-fs.queued{border-left-color:#f59e0b;background:#fffbeb}
+/* Server-queue items — purple accent */
+.vt-q-item.vt-q-srv{border-left-color:#7c3aed;background:#faf5ff}
+.vt-q-kind.srv{background:#ede9fe;border-color:#c4b5fd;color:#5b21b6}
 .vt-q-kind.fs{background:#fef3c7;border-color:#fcd34d;color:#92400e}
 .vt-q-icon{width:26px;text-align:center;flex-shrink:0;font-weight:700;font-size:12px;color:var(--muted)}
 .vt-q-icon.ok{color:var(--green)}.vt-q-icon.bad{color:var(--red)}
@@ -312,15 +315,6 @@ tr.vt-grp-c.closed .vt-grp-caret{transform:rotate(-90deg)}
 .vt-tr-tip .row{display:flex;justify-content:space-between;gap:14px}
 .vt-tr-tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .vt-tr-table{margin-top:10px;font-size:12px}
-.vt-tr-chg{margin-top:18px}
-.vt-tr-chg ul{list-style:none;margin:6px 0 0;padding:0;max-height:420px;overflow:auto}
-.vt-tr-chg li{display:flex;align-items:center;gap:10px;padding:6px 2px;border-bottom:1px solid var(--border);font-size:12.5px;flex-wrap:wrap}
-.vt-tr-chg .t{color:var(--gray);font-variant-numeric:tabular-nums;min-width:132px}
-.vt-tr-chg .t small{opacity:.75}
-.vt-tr-chg .s{font-weight:600;min-width:220px;word-break:break-all}
-.vt-tr-chg .arr{color:var(--gray)}
-.vt-tr-chg .vt-badge.gone{background:var(--gray-bg);color:var(--gray);border:1px dashed var(--border)}
-.vt-tr-chg .more{margin-top:6px}
 .vt-tr-table table{border-collapse:collapse;margin-top:6px}
 .vt-tr-table td,.vt-tr-table th{padding:3px 10px;border-bottom:1px solid var(--border);text-align:right}
 .vt-tr-table td:first-child,.vt-tr-table th:first-child{text-align:left}
@@ -346,6 +340,19 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 #vt-n-opts{margin-left:0}
 #vt-n-opts>.vt-btn{margin-left:26px}
 #vt-n-opts.off{opacity:.45;pointer-events:none}
+
+/* Status-change events feed */
+.vt-ev-wrap{margin-top:14px}
+.vt-ev-row{display:flex;align-items:center;gap:12px;padding:7px 2px;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap}
+.vt-ev-row:last-of-type{border-bottom:none}
+.vt-ev-time{color:var(--muted);white-space:nowrap;flex-shrink:0;min-width:150px;font-variant-numeric:tabular-nums}
+.vt-ev-time small{font-size:11px}
+.vt-ev-domain{font-weight:600;flex:1;min-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--heading)}
+.vt-ev-domain a{color:inherit;text-decoration:none}
+.vt-ev-domain a:hover{text-decoration:underline}
+.vt-ev-change{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.vt-ev-arrow{font-size:14px;font-weight:700}
+.vt-ev-change .vt-badge.gone{background:var(--gray-bg);color:var(--gray);border:1px dashed var(--gray)}
 
 /* Radio options */
 .vt-radio{display:flex;align-items:flex-start;gap:10px;padding:8px 0;cursor:pointer;font-size:13px}
@@ -566,9 +573,9 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <div class="vt-tr-tip" id="vt-tr-tip"></div>
       <div class="vt-fs-note" id="vt-tr-note"></div>
       <details class="vt-tr-table"><summary>Show as table</summary><div id="vt-tr-table"></div></details>
-      <div class="vt-tr-chg">
+      <div class="vt-ev-wrap">
         <div class="vt-tr-title">Recent status changes <span class="hint">(per site, newest first)</span></div>
-        <div id="vt-tr-chg"></div>
+        <div id="vt-ev-list"><span class="hint">Loading…</span></div>
       </div>
     </div>
   </div>
@@ -852,6 +859,9 @@ async function init(){
     .slice(0, MAX_PUMP);
   renderTable(); updateCounts();
   pump();
+
+  // Check server queue — show any domains queued from a previous browser session
+  vtPollServerQueue().then(()=>{ if(serverQueue.length) startServerQueuePoll(); });
 }
 async function vtCheckUpdate(){
   try{
@@ -1239,14 +1249,47 @@ function rowHTML(domain,data){
 
 // ── Trend (server totals per day, administrator) ──────────────
 const TR_COL={infected:'#d03b3b',suspicious:'#fab219',cleaned:'#0ca30c',grid:'#e1e0d9',axis:'#c3c2b7',muted:'#898781',surface:'#fcfcfb'};
-let trDays=[], trChanges=[], trRange=92, trChgAll=false;
+let trDays=[], trRange=92;
 window.vtLoadTrend=async function(){
-  const r=await vtFetch('?action=history').catch(()=>null);
+  const [r,ev]=await Promise.all([
+    vtFetch('?action=history').catch(()=>null),
+    vtFetch('?action=events').catch(()=>null),
+  ]);
   trDays=r?.days||[];
-  trChanges=r?.changes||[];
   document.getElementById('vt-tr-h').textContent=r?.scope==='own'?'Infections on your sites':'Infections on this server';
   vtTrendRange(trRange);
+  vtRenderEvents(ev?.events||[]);
 };
+let evAll=[], evShowAll=false;
+function vtRenderEvents(events){
+  if(events) evAll=events;
+  const el=document.getElementById('vt-ev-list');
+  if(!el) return;
+  if(!evAll.length){
+    el.innerHTML='<span class="hint">No status changes recorded yet. The list fills as sites are scanned.</span>';
+    return;
+  }
+  const LBL={infected:'Infected',suspicious:'Suspicious',clean:'Clean',gone:'Left the list'};
+  const RANK={clean:0,suspicious:1,infected:2};
+  const badge=st=>'<span class="vt-badge '+(LBL[st]?st:'unchecked')+'">'
+    +(st==='gone'?'':'<span class="vt-dot" style="background:currentColor"></span>')+vtEsc(LBL[st]||st||'unknown')+'</span>';
+  const pad=n=>String(n).padStart(2,'0');
+  const shown=evShowAll?evAll:evAll.slice(0,50);
+  el.innerHTML=shown.map(e=>{
+    const d=new Date(e.ts*1000);
+    const when=pad(d.getDate())+'-'+pad(d.getMonth()+1)+'-'+d.getFullYear()
+      +' <small>('+(e.approx?'last seen ':'')+pad(d.getHours())+':'+pad(d.getMinutes())+')</small>';
+    const better=e.to==='gone'?null:(RANK[e.to]??0)<(RANK[e.from]??0);
+    const arrow='<span class="vt-ev-arrow" style="color:'+(better===null?'var(--muted)':better?'var(--green)':'var(--red)')+'">&rarr;</span>';
+    return '<div class="vt-ev-row">'
+      +'<div class="vt-ev-time">'+when+'</div>'
+      +'<div class="vt-ev-domain"><a href="https://www.virustotal.com/gui/domain/'+vtEsc(e.domain)+'/detection" target="_blank" rel="noopener" title="Open on VirusTotal">'+vtEsc(e.domain)+'</a></div>'
+      +'<div class="vt-ev-change">'+badge(e.from)+arrow+badge(e.to)+'</div>'
+      +'</div>';
+  }).join('')
+  +(evAll.length>shown.length?'<button class="vt-btn ghost" style="margin-top:8px" onclick="evShowAll=true;vtRenderEvents()">Show all '+evAll.length+'</button>':'');
+}
+
 window.vtTrendRange=function(n){
   trRange=n;
   document.querySelectorAll('#vt-tr-range button').forEach(b=>b.classList.toggle('on',+b.dataset.d===n));
@@ -1260,7 +1303,6 @@ function vtTrendDraw(){
   if(!days.length){
     tiles.innerHTML='<span class="hint">No history yet. Totals are saved once a day from now on.</span>';
     ['vt-tr-lines','vt-tr-bars','vt-tr-table'].forEach(id=>document.getElementById(id).innerHTML='');
-    vtTrendChanges();
     return;
   }
   const first=days[0], last=days[days.length-1];
@@ -1337,22 +1379,6 @@ function vtTrendDraw(){
 
   document.getElementById('vt-tr-table').innerHTML='<table><thead><tr><th>Date</th><th>Infected</th><th>Suspicious</th><th>Clean</th><th>Cleaned</th></tr></thead><tbody>'
     +days.slice().reverse().map(d=>'<tr><td>'+trDate(d.date,1)+(d.demo?' (demo)':'')+'</td><td>'+d.infected+'</td><td>'+d.suspicious+'</td><td>'+d.clean+'</td><td>'+(d.cleaned||0)+'</td></tr>').join('')+'</tbody></table>';
-  vtTrendChanges();
-}
-const TR_ST={infected:'Infected',suspicious:'Suspicious',clean:'Clean',gone:'Left the list'};
-function trBadge(st){return '<span class="vt-badge '+(TR_ST[st]?st:'unchecked')+'">'+(st==='gone'?'':'<span class="vt-dot" style="background:currentColor"></span>')+vtEsc(TR_ST[st]||st)+'</span>';}
-function vtTrendChanges(){
-  const el=document.getElementById('vt-tr-chg');
-  const since=trDays.slice(-trRange)[0]?.date||'';
-  const list=trChanges.filter(c=>c.t>=since);
-  if(!list.length){el.innerHTML='<span class="hint">No status changes in this period.</span>';return;}
-  const shown=trChgAll?list:list.slice(0,50);
-  el.innerHTML='<ul>'+shown.map(c=>{
-    const [dt,tm]=c.t.split(' ');
-    return '<li><span class="t">'+trDate(dt,1)+' <small>('+(c.approx?'last seen ':'')+(tm||'').slice(0,5)+')</small></span>'
-      +'<span class="s">'+vtEsc(c.d)+'</span>'+trBadge(c.from)+'<span class="arr">&rarr;</span>'+trBadge(c.to)+'</li>';
-  }).join('')+'</ul>'
-  +(list.length>shown.length?'<button class="vt-btn ghost more" onclick="trChgAll=true;vtTrendChanges()">Show all '+list.length+'</button>':'');
 }
 window.addEventListener('resize',()=>{if(document.getElementById('vtpanel-trend').classList.contains('active'))vtTrendDraw();});
 
@@ -1515,7 +1541,9 @@ function enqueueRescan(domain){
   jobs.push(j);
   setJob(j,{});
   startQTicker();
-  runJob(j);
+  vtServerPost('enqueue-rescan',domain); // persist on server so cron can finish it if browser leaves
+  startServerQueuePoll();
+  runJob(j).finally(()=>vtServerPost('dequeue-rescan',domain)); // browser finished it: remove from server queue
   return true;
 }
 
@@ -1583,7 +1611,7 @@ function startQTicker(){
     fsJobs=fsJobs.filter(j=>!j.endedAt||(j.endedAt>cut));
     renderQueue();
     const fsIdle=!fsJobs.some(j=>!j.endedAt);
-    if(!jobs.some(j=>ACTIVE.has(j.state))&&!pumpRunning&&fsIdle){clearInterval(qTicker);qTicker=null;}
+    if(!jobs.some(j=>ACTIVE.has(j.state))&&!pumpRunning&&fsIdle&&!serverQueue.length){clearInterval(qTicker);qTicker=null;}
   },1000);
 }
 
@@ -1609,6 +1637,7 @@ function jobMsg(j){
     case 'processing': return 'VT is analysing ('+(j.vtState||'queued')+') — check '+(j.polls||0)+'/'+POLL_MAX;
     case 'fetch':      return 'Fetching the new report...';
     case 'done':
+      if(j.kind==='cron') return 'Processed by cron at '+new Date(j.endedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
       if(j.kind==='auto') return j.result&&j.result.status==='pending'
         ?'New to VirusTotal — submitted for a first scan, result follows later'
         :'Report fetched at '+new Date(j.endedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
@@ -1634,7 +1663,8 @@ function jobHTML(j){
     else if((i===4||(i===si&&si<4))&&j.state==='failed') c='bad';
     return '<span class="'+c+'">'+(i===4&&j.state==='failed'?'Failed':s)+'</span>';
   }).join('')+'</div>';
-  const auto=j.kind==='auto';
+  const auto=j.kind==='auto', cron=j.kind==='cron';
+  const kindLabel=cron?'Cron':auto?'Auto':'Rescan';
   const pbar=j.state==='processing'?'<div class="vt-q-pbar"><div style="width:'+Math.round((j.polls||0)/POLL_MAX*100)+'%"></div></div>':'';
 
   let right;
@@ -1649,8 +1679,8 @@ function jobHTML(j){
   }
 
   return '<div class="vt-q-item '+j.state+'">'+icon
-    +'<div class="vt-q-main"><div class="vt-q-dom">'+vtEsc(j.domain)+'<span class="vt-q-kind">'+(auto?'Auto':'Rescan')+'</span></div>'
-    +'<div class="vt-q-msg">'+vtEsc(jobMsg(j))+'</div>'+(auto?'':steps)+pbar+'</div>'
+    +'<div class="vt-q-main"><div class="vt-q-dom">'+vtEsc(j.domain)+'<span class="vt-q-kind">'+kindLabel+'</span></div>'
+    +'<div class="vt-q-msg">'+vtEsc(jobMsg(j))+'</div>'+(auto||cron?'':steps)+pbar+'</div>'
     +'<div class="vt-q-right">'+right+'</div></div>';
 }
 
@@ -1677,6 +1707,69 @@ function applyQueueCollapse(){
   const t=document.getElementById('vt-q-toggle');
   if(t){t.textContent=queueCollapsed?'▼ Expand':'▲ Collapse';t.title=queueCollapsed?'Show Scan Monitor':'Hide Scan Monitor';}
 }
+// ── Server-side manual queue ───────────────────────────────────
+// Domains pushed to the server on Rescan, so the cron can finish them if the
+// browser navigates away before the in-browser job completes.
+let serverQueue=[], serverQueueAt={}, serverQueuePoll=null;
+
+function vtServerPost(action,domain){
+  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
+  fetch(BASE+'?action='+action,{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},
+    body:new URLSearchParams({domain})}).catch(()=>{});
+}
+
+async function vtPollServerQueue(){
+  try{
+    const data=await vtFetch('?action=queue-status');
+    const inBrowser=new Set(jobs.filter(j=>ACTIVE.has(j.state)).map(j=>j.domain));
+    const prev=serverQueue.slice();
+    serverQueue=(data.pending||[]).filter(d=>!inBrowser.has(d));
+    serverQueueAt=data.queued_at||{};
+
+    // Domains that cron processed: show them in the monitor as done jobs
+    const cronDone=new Set(jobs.filter(j=>j.kind==='cron').map(j=>j.domain));
+    for(const d of (data.completed||[])){
+      if(!cronDone.has(d)&&!inBrowser.has(d)){
+        const doneAt=(data.completed_at?.[d]||0)*1000||Date.now();
+        jobs.push({id:++jobSeq,domain:d,kind:'cron',state:'done',
+          msg:'',result:null,prev:null,createdAt:doneAt,startedAt:doneAt,endedAt:doneAt});
+        startQTicker();
+        // Fetch fresh result to update the table row
+        vtFetch('?action=scan&force=1&domain='+encodeURIComponent(d))
+          .then(r=>{results[d]=r;updateRow(d,r);updateCounts();})
+          .catch(()=>{});
+      }
+    }
+    // Also handle domains that left the pending list without appearing in completed
+    // (e.g. dequeued by browser from another tab)
+    for(const d of prev){
+      if(!data.pending?.includes(d)&&!inBrowser.has(d)&&!cronDone.has(d)){
+        vtFetch('?action=scan&force=1&domain='+encodeURIComponent(d))
+          .then(r=>{results[d]=r;updateRow(d,r);updateCounts();})
+          .catch(()=>{});
+      }
+    }
+    renderQueue();
+  }catch(e){}
+}
+
+function startServerQueuePoll(){
+  if(serverQueuePoll) return;
+  serverQueuePoll=setInterval(vtPollServerQueue,30000);
+}
+
+function serverJobHTML(domain){
+  const qAt=serverQueueAt[domain]||0;
+  const ago=qAt?fmtSecs(Date.now()-qAt*1000)+' ago':'';
+  return '<div class="vt-q-item vt-q-srv queued">'
+    +'<div class="vt-q-icon">⏳</div>'
+    +'<div class="vt-q-main"><div class="vt-q-dom">'+vtEsc(domain)
+    +'<span class="vt-q-kind srv">Server</span></div>'
+    +'<div class="vt-q-msg">Queued on server'+(ago?' — '+ago:'')
+    +' — cron will process this within 5 minutes</div></div>'
+    +'<div class="vt-q-right"></div></div>';
+}
+
 // ── File-scanner jobs in the Scan Monitor ──────────────────────
 let fsJobs=[];
 function getFsJob(domain,id){return fsJobs.find(j=>j.domain===domain&&j.scanner===id&&!j.endedAt);}
@@ -1723,7 +1816,7 @@ function renderQueue(){
   const box=document.getElementById('vt-queue');
   if(!box) return;
   const pumpBusy=pumpRunning&&(pumpCurrent||scanQueue.length);
-  if(!jobs.length&&!fsJobs.length&&!pumpBusy){box.style.display='none';return;}
+  if(!jobs.length&&!fsJobs.length&&!pumpBusy&&!serverQueue.length){box.style.display='none';return;}
   box.style.display='block';
   applyQueueCollapse();
   if(pumpBusy) startQTicker();
@@ -1734,7 +1827,10 @@ function renderQueue(){
   const fsActive=fsJobs.filter(j=>j.state==='running'||j.state==='queued');
   const fsDone=fsJobs.filter(j=>j.state==='done'||j.state==='failed').sort((a,b)=>b.endedAt-a.endedAt);
   const allFinished=[...finished,...fsDone].sort((a,b)=>b.endedAt-a.endedAt).slice(0,8);
-  const hasActive=pumpCurrent||running.length||waiting.length||fsActive.length;
+  // Server-queue: domains pushed to server but not in any active in-browser job
+  const inBrowserDomains=new Set([...jobs.filter(j=>ACTIVE.has(j.state)).map(j=>j.domain),...(pumpCurrent?[pumpCurrent]:[])]);
+  const srvItems=serverQueue.filter(d=>!inBrowserDomains.has(d));
+  const hasActive=pumpCurrent||running.length||waiting.length||fsActive.length||srvItems.length;
 
   // Active queue first, then a divider, then recently completed
   let html='';
@@ -1742,6 +1838,7 @@ function renderQueue(){
   running.forEach(j=>{ html+=jobHTML(j); });
   fsActive.forEach(j=>{ html+=fsJobHTML(j); });
   waiting.slice(0,5).forEach(j=>{ html+=jobHTML(j); });
+  srvItems.forEach(d=>{ html+=serverJobHTML(d); });
   if(allFinished.length&&hasActive) html+='<div class="vt-q-divider">Completed</div>';
   allFinished.forEach(j=>{ html+=(j.scanner?fsJobHTML(j):jobHTML(j)); });
   document.getElementById('vt-q-list').innerHTML=html;
@@ -1767,6 +1864,7 @@ function renderQueue(){
   const parts=[];
   if(running.length||pumpCurrent||fsActive.length) parts.push('checking '+(running.length+fsActive.length+(pumpCurrent?1:0)));
   if(left) parts.push(left+' waiting');
+  if(srvItems.length) parts.push(srvItems.length+' on server');
   if(allFinished.length) parts.push(allFinished.length+' done');
   vtSet('vt-q-sum',parts.join(' · '));
   document.getElementById('vt-q-cancel').style.display=waiting.length?'':'none';
@@ -1975,7 +2073,7 @@ const VT_FP={
   bfore:'https://portal.bfore.ai/knowledge-base/kb-tickets/new', blueliv:'klabs_services@outpost24.com', certego:'fp@certego.net', chainpatrol:'dispute@chainpatrol.io',
   chongluadao:'https://chongluadao.vn/en/report/reportmistake', cins:'http://cinsscore.com/#contact', cleanmx:'abuse@clean-mx.de', cluster25:'threatintel@cluster25.io',
   crdf:'https://threatcenter.crdf.fr/false_positive.html', criminalip:'support@aispera.com', crowdstrike:'VTscanner@crowdstrike.com',
-  csis:'abuse-reporting@csis.com', cyble:'cyblevt_patnership@cyble.com', cyradar:'virustotal@cyradar.com',
+  csis:'abuse-reporting@csis.com', cyble:'cyblevt_patnership@cyble.com', cyradar:'https://cyradar.com/reportfp/',
   desenmascara:'vt-falsepositives@desenmascara.me', dns8:'dns8@layer8.pt', drweb:'vms@drweb.com', elastic:'https://discuss.elastic.co/t/submitting-false-positives/232322',
   emsisoft:'fp@emsisoft.com', estsecurity:'esrc@estsecurity.com', alyac:'esrc@estsecurity.com', emergingthreats:'support@emergingthreats.net', ermes:'support-vt@ermes.company',
   eset:'https://support.eset.com/kb141/?page=content&id=SOLN141', forcepoint:'reviewmysite@forcepoint.com',
@@ -2014,7 +2112,7 @@ const VT_FP_TIP={
   bfore:'Ticket form.',
   googlesafebrowsing:'Site owners can also ask for a review in Google Search Console.',
   socradar:'No form; e-mail with the VirusTotal link. Site owners report this works.',
-  cyradar:'No form; e-mail with the VirusTotal link.',
+  cyradar:'Form at cyradar.com/reportfp — no separate domain field, put the domain in the Message box.',
   malwareurl:'No form; e-mail with the VirusTotal link.',
   spamhaus:'Check the domain first; removal needs the cause fixed.'
 };

@@ -7,15 +7,13 @@
  * or vt_history_c_<login>.json (customer):
  *   days: { "2026-11-17": {infected, suspicious, clean, total, cleaned, new_infected, demo?} }
  *   last: { domain: status }  (statuses at the previous snapshot, to count changes)
- *   changes: [ {t: "2026-11-20 11:10:22", d: domain, from, to} ]  (per-site status changes, oldest first;
- *            to = 'gone' when a site that was infected or suspicious left the site list)
  */
 require_once __DIR__ . '/VtDataDir.php';
+require_once __DIR__ . '/VtEvents.php';
 
 class VtHistory
 {
     const KEEP_DAYS = 400;
-    const KEEP_CHANGES = 5000;
 
     private static string $scope = 'admin';
 
@@ -53,15 +51,13 @@ class VtHistory
     public static function load(): array
     {
         $d = json_decode((string)@file_get_contents(self::file()), true);
-        return is_array($d) ? $d + ['days' => [], 'last' => [], 'changes' => []] : ['days' => [], 'last' => [], 'changes' => []];
+        return is_array($d) ? $d + ['days' => [], 'last' => []] : ['days' => [], 'last' => []];
     }
 
     private static function save(array $h): void
     {
         ksort($h['days']);
         $h['days'] = array_slice($h['days'], -self::KEEP_DAYS, null, true);
-        usort($h['changes'], fn($a, $b) => strcmp($a['t'], $b['t']));
-        $h['changes'] = array_slice($h['changes'], -self::KEEP_CHANGES);
         $tmp = self::file() . '.tmp';
         if (@file_put_contents($tmp, json_encode($h)) !== false) @rename($tmp, self::file());
     }
@@ -83,14 +79,7 @@ class VtHistory
             $prev = $h['last'][$d] ?? null;
             if ($st === 'clean' && in_array($prev, ['infected', 'suspicious'], true)) $cleaned++;
             if ($st === 'infected' && $prev !== null && $prev !== 'infected') $newInf++;
-            if (in_array($st, ['infected', 'suspicious', 'clean'], true)) {
-                if ($prev !== null && $prev !== $st) $h['changes'][] = ['t' => date('Y-m-d H:i:s'), 'd' => $d, 'from' => $prev, 'to' => $st];
-                $h['last'][$d] = $st;
-            }
-        }
-        // Infected or suspicious sites that left the list (deleted, disabled or suspended in Plesk)
-        foreach (array_diff_key($h['last'], $statusByDomain) as $d => $prev) {
-            if (in_array($prev, ['infected', 'suspicious'], true)) $h['changes'][] = ['t' => date('Y-m-d H:i:s'), 'd' => $d, 'from' => $prev, 'to' => 'gone'];
+            if (in_array($st, ['infected', 'suspicious', 'clean'], true)) $h['last'][$d] = $st;
         }
         $day = $h['days'][$today] ?? [];
         if (!empty($day['demo'])) $day = []; // real data replaces demo data
@@ -99,69 +88,15 @@ class VtHistory
             'cleaned'      => (int)($day['cleaned'] ?? 0) + $cleaned,
             'new_infected' => (int)($day['new_infected'] ?? 0) + $newInf,
         ];
-        // Forget sites that are gone
+        // Forget sites that are gone; on the server history, note infected or suspicious ones in the feed
+        if (self::$scope === 'admin') {
+            foreach (array_diff_key($h['last'], $statusByDomain) as $d => $prev) {
+                if (in_array($prev, ['infected', 'suspicious'], true)) VtEvents::gone((string)$d, $prev);
+            }
+        }
         $h['last'] = array_intersect_key($h['last'], $statusByDomain);
         self::save($h);
         if ($fp) { flock($fp, LOCK_UN); fclose($fp); }
-    }
-
-    /** Per-site status changes of the last $days days, newest first: [{t, d, from, to}] */
-    public static function changes(int $days = 92): array
-    {
-        $since = date('Y-m-d', strtotime("-$days days"));
-        return array_values(array_reverse(array_filter(self::load()['changes'], fn($c) => $c['t'] >= $since)));
-    }
-
-    /**
-     * Add older status changes, found in the scan logs, to every history (server, resellers, customers)
-     * whose site list has that site. Already known changes are skipped, so it is safe to run again.
-     * Returns the number of changes added to the server history.
-     */
-    public static function backfillFromLogs(): int
-    {
-        $map = ['clean' => 'clean', 'schoon' => 'clean', 'suspicious' => 'suspicious', 'verdacht' => 'suspicious', 'infected' => 'infected', 'besmet' => 'infected'];
-        $ev  = [];
-        foreach (glob(VtDataDir::path('cron_*.log')) ?: [] as $f) {
-            foreach (@file($f) ?: [] as $l) {
-                if (preg_match('/^\[([\d\- :]{19})\] (?:\[(?:manual|scan)\] )?(?:\[(?:ok|\?|!)\] )?(clean|schoon|suspicious|verdacht|infected|besmet)\s+([a-z0-9.\-]+\.[a-z]{2,})/i', $l, $m)) {
-                    $ev[] = [$m[1], strtolower($m[3]), $map[strtolower($m[2])]];
-                }
-            }
-        }
-        usort($ev, fn($a, $b) => strcmp($a[0], $b[0]));
-        $found = []; $state = []; $seen = [];
-        foreach ($ev as [$t, $d, $st]) {
-            if (isset($state[$d]) && $state[$d] !== $st) $found[] = ['t' => $t, 'd' => $d, 'from' => $state[$d], 'to' => $st];
-            $state[$d] = $st; $seen[$d] = $t;
-        }
-        $keep  = self::$scope;
-        $added = 0;
-        foreach (array_merge(['admin'], self::scopes()) as $scope) {
-            self::scope($scope);
-            $h = self::load();
-            if (!$h['last']) continue;
-            $known = [];
-            foreach ($h['changes'] as $c) $known[$c['d'] . '|' . $c['to'] . '|' . substr($c['t'], 0, 10)] = 1;
-            $n = 0;
-            foreach ($found as $c) {
-                if (!isset($h['last'][$c['d']]) || isset($known[$c['d'] . '|' . $c['to'] . '|' . substr($c['t'], 0, 10)])) continue;
-                $h['changes'][] = $c; $n++;
-            }
-            // Server only: infected or suspicious sites that left the list after the history started
-            if ($scope === 'admin' && $h['days']) {
-                $real  = array_keys(array_filter($h['days'], fn($v) => empty($v['demo'])));
-                $start = $real ? min($real) : '9999';
-                foreach ($state as $d => $st) {
-                    if (isset($h['last'][$d]) || !in_array($st, ['infected', 'suspicious'], true) || $seen[$d] < $start) continue;
-                    if (isset($known[$d . '|gone|' . substr($seen[$d], 0, 10)])) continue;
-                    $h['changes'][] = ['t' => $seen[$d], 'd' => $d, 'from' => $st, 'to' => 'gone', 'approx' => true]; $n++;
-                }
-            }
-            if ($n) self::save($h);
-            if ($scope === 'admin') $added = $n;
-        }
-        self::scope($keep);
-        return $added;
     }
 
     /** The last $days days, oldest first: [{date, infected, suspicious, clean, total, cleaned, new_infected, demo}] */
