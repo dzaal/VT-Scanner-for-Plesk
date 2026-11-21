@@ -15,6 +15,7 @@ require_once $_vtLib . '/VtHistory.php';
 require_once $_vtLib . '/VtManualQueue.php';
 require_once $_vtLib . '/VtEvents.php';
 require_once $_vtLib . '/VtReviews.php';
+require_once $_vtLib . '/VtSiteLog.php';
 
 /**
  * IndexController — Plesk extension controller (extends pm_Controller_Action for layout).
@@ -247,6 +248,7 @@ class IndexController extends pm_Controller_Action
             'scans'    => self::scanResults($domains),
             'scanners' => self::enabledScanners(),
             'reviews'  => VtReviews::forDomains(array_merge($domains, $related)),
+            'history'  => array_values(array_intersect(VtSiteLog::domains(), array_merge($domains, $related))),
         ]);
     }
 
@@ -258,8 +260,21 @@ class IndexController extends pm_Controller_Action
         $vendor = trim(substr((string)$this->_getParam('vendor', ''), 0, 80));
         if (!$domain || $vendor === '') { $this->respond(['error' => 'invalid']); return; }
         if (!$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
-        $by = $this->resolveUserId();
-        $this->respond(['ok' => true, 'reviews' => VtReviews::mark($domain, $vendor, $by, (bool)$this->_getParam('remove', false))]);
+        $by     = $this->resolveUserId();
+        $remove = (bool)$this->_getParam('remove', false);
+        VtSiteLog::review($domain, $vendor, (string)$this->_getParam('via', 'form'), substr((string)$this->_getParam('to', ''), 0, 300), $by, $remove);
+        $this->respond(['ok' => true, 'reviews' => VtReviews::mark($domain, $vendor, $by, $remove)]);
+    }
+
+    /** History of one site: detections, vendors that started or stopped flagging it, status changes, review requests */
+    public function siteHistoryAction(): void
+    {
+        $domain = $this->sanitize($this->_getParam('domain', ''));
+        if (!$domain || !$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
+        // Once: the first detections from before the history existed, found in the scan logs
+        $marker = VtDataDir::path('vt_sitelog_backfilled');
+        if (!file_exists($marker) && @touch($marker)) VtSiteLog::backfillFromLogs();
+        $this->respond(['domain' => $domain, 'history' => VtSiteLog::history($domain)]);
     }
 
     // ── File scanners (ClamAV, maldet, …), on demand ───────────

@@ -3,6 +3,15 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.25.0 — 2026-11-21
+- History per site, at the bottom of the Why? panel, newest first, with date (time):
+  - Detected: the first time the site was flagged, with the score and the vendors.
+  - Flagged / Delisted: a vendor started flagging the site, or no longer flags it.
+  - Status changes: coloured [status] → [status].
+  - Review asked: which vendor, via website form or by e-mail (and to which address), and by whom; undone requests too.
+- Clean sites that have a history get a History button on their score.
+- The first detection of every site is filled in once from the scan logs.
+
 ## 1.24.0 — 2026-11-21
 - Why? panel: a click on a vendor's review link (website form or e-mail) is remembered per site and per vendor: "✓ Requested 21-11-2026 (22:58) by admin", with undo.
 - Saved on the server, so every admin, reseller or customer who manages the site sees it, in any browser.
