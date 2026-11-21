@@ -14,6 +14,7 @@ require_once $_vtLib . '/VtNotifier.php';
 require_once $_vtLib . '/VtHistory.php';
 require_once $_vtLib . '/VtManualQueue.php';
 require_once $_vtLib . '/VtEvents.php';
+require_once $_vtLib . '/VtReviews.php';
 
 /**
  * IndexController — Plesk extension controller (extends pm_Controller_Action for layout).
@@ -245,7 +246,20 @@ class IndexController extends pm_Controller_Action
             'budget'  => $budgetInfo,
             'scans'    => self::scanResults($domains),
             'scanners' => self::enabledScanners(),
+            'reviews'  => VtReviews::forDomains(array_merge($domains, $related)),
         ]);
+    }
+
+    /** Remember (or forget, with remove=1) that a review was requested from a vendor for a site */
+    public function reviewMarkAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        $domain = $this->sanitize($this->_getParam('domain', ''));
+        $vendor = trim(substr((string)$this->_getParam('vendor', ''), 0, 80));
+        if (!$domain || $vendor === '') { $this->respond(['error' => 'invalid']); return; }
+        if (!$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
+        $by = $this->resolveUserId();
+        $this->respond(['ok' => true, 'reviews' => VtReviews::mark($domain, $vendor, $by, (bool)$this->_getParam('remove', false))]);
     }
 
     // ── File scanners (ClamAV, maldet, …), on demand ───────────

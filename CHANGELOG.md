@@ -3,6 +3,11 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.24.0 — 2026-11-21
+- Why? panel: a click on a vendor's review link (website form or e-mail) is remembered per site and per vendor: "✓ Requested 21-11-2026 (22:58) by admin", with undo.
+- Saved on the server, so every admin, reseller or customer who manages the site sees it, in any browser.
+- The panel header shows at how many of the flagging vendors a review was requested, and those vendors get a check mark.
+
 ## 1.23.1 — 2026-11-21
 - Recent status changes: the coloured status change is now the second column, before the site name; badges have the same width so the columns line up.
 

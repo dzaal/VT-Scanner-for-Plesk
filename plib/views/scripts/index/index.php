@@ -336,6 +336,9 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-why-steps{margin:10px 0 4px 18px;padding:0;font-size:12.5px;line-height:1.55}
 .vt-why-steps li{margin-bottom:5px}
 .vt-why-tbl td:first-child{font-family:inherit;font-weight:600}
+.vt-rev-done{display:inline-flex;align-items:center;gap:6px;margin-top:3px;font-size:11px;font-weight:600;color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);border-radius:20px;padding:1px 8px}
+.vt-rev-done a{color:var(--muted);font-weight:400;cursor:pointer}
+.vt-why-tbl tr.asked td:first-child::after{content:' \2713';color:var(--green)}
 .vt-why-tip{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35}
 #vt-n-opts{margin-left:0}
 #vt-n-opts>.vt-btn{margin-left:26px}
@@ -791,7 +794,7 @@ window.addEventListener('resize',vtSyncHeaderH);
 document.addEventListener('DOMContentLoaded',vtSyncHeaderH);
 
 let domains=[], results={}, budget={}, activeFilter='all';
-let scanners=[], scans={}, fsOpen={}, fsFull={}; // file scanners: installed list, results per site, open panel per site
+let scanners=[], scans={}, fsOpen={}, fsFull={}, reviews={}; // file scanners: installed list, results per site, open panel per site
 let scanQueue=[], inFlight=0;
 const MAX_C=1;          // one at a time to stay within VT rate limits
 const PUMP_DELAY=15500; // 15.5s between requests = safe for 4 req/min free tier
@@ -834,7 +837,7 @@ async function init(){
   // Phase 2 — full data: results, owners, scanners, history
   const data=await vtFetch('?action=all').catch(()=>({}));
   domains=data.domains||domains; related=data.related||[]; relSet=new Set(related); orphans=data.orphans||{}; owners=data.owners||{}; results=data.results||{};
-  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||budget; scanners=data.scanners||[]; scans=data.scans||{};
+  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||budget; scanners=data.scanners||[]; scans=data.scans||{}; reviews=data.reviews||{};
   for(const d in scans) for(const id in scans[d]) if(fsBusy(d,id)) vtFsPoll(d,id);
   vtSet('vt-cnt-all',domains.length);
   document.querySelectorAll('#vt-view-seg button').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===viewMode));
@@ -2124,12 +2127,34 @@ function vtFpKey(vendor){
   return best;
 }
 function vtFpContact(vendor){const k=vtFpKey(vendor);return k?VT_FP[k]:'';}
+function vtRevDone(domain,vendor){
+  const r=reviews[domain]?.[vendor]; if(!r) return '';
+  const d=new Date(r.ts*1000), p=n=>String(n).padStart(2,'0');
+  return '<div class="vt-rev-done" title="Saved for this site, for everyone who manages it">&#10003; Requested '+p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()
+    +' ('+p(d.getHours())+':'+p(d.getMinutes())+')'+(r.by?' by '+vtEsc(r.by):'')
+    +' <a onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(vendor)+'\',1)" title="Forget this request">undo</a></div>';
+}
+window.vtReviewMark=async function(domain,vendor,remove){
+  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
+  if(!remove){ // show it at once; the server copy follows
+    (reviews[domain]=reviews[domain]||{})[vendor]={ts:Math.floor(Date.now()/1000),by:''};
+    setTimeout(()=>vtFsRefresh(domain),60); // after the browser has followed the link
+  }
+  try{
+    const r=await fetch(BASE+'?action=review-mark',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},
+      body:new URLSearchParams({domain,vendor,remove:remove?'1':''})}).then(x=>x.json());
+    if(r&&r.ok){reviews[domain]=r.reviews; if(Array.isArray(r.reviews)) reviews[domain]={};}
+    else vtToast('Could not save the review request','error');
+  }catch(e){vtToast('Could not save the review request','error');}
+  vtFsRefresh(domain);
+};
 function vtFpLink(vendor,domain){
   const k=vtFpKey(vendor), c=k?VT_FP[k]:'', tip=k&&VT_FP_TIP[k]?'<div class="vt-why-tip">'+vtEsc(VT_FP_TIP[k])+'</div>':'';
+  const mark=' onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(vendor)+'\')"', done=vtRevDone(domain,vendor);
   if(!c) return '<a href="'+VT_FP_LIST+'" target="_blank" rel="noopener">find the contact</a>';
-  if(c.includes('@')) return '<a href="mailto:'+vtEsc(c)+'?subject='+encodeURIComponent('Review request: '+domain+' has been cleaned')
-    +'&body='+encodeURIComponent('Hello,\n\nThe website '+domain+' is flagged by your service on VirusTotal:\nhttps://www.virustotal.com/gui/domain/'+domain+'/detection\n\nThe site has been cleaned and secured. Could you review it and remove it from your list?\n\nThank you.')+'">'+vtEsc(c)+'</a>'+tip;
-  return '<a href="'+vtEsc(c)+'" target="_blank" rel="noopener">request a review ↗</a>'+tip;
+  if(c.includes('@')) return '<a'+mark+' href="mailto:'+vtEsc(c)+'?subject='+encodeURIComponent('Review request: '+domain+' has been cleaned')
+    +'&body='+encodeURIComponent('Hello,\n\nThe website '+domain+' is flagged by your service on VirusTotal:\nhttps://www.virustotal.com/gui/domain/'+domain+'/detection\n\nThe site has been cleaned and secured. Could you review it and remove it from your list?\n\nThank you.')+'">'+vtEsc(c)+'</a>'+done+tip;
+  return '<a'+mark+' href="'+vtEsc(c)+'" target="_blank" rel="noopener">request a review ↗</a>'+done+tip;
 }
 function vtWhyRowHTML(domain,st){
   const d=results[domain]||{}, e=vtEsca(domain);
@@ -2138,13 +2163,14 @@ function vtWhyRowHTML(domain,st){
   let h='<div class="vt-fs-head"><strong>VirusTotal</strong>'
     +(list.length?'<span class="bad">flagged by '+list.length+' vendor'+(list.length===1?'':'s')+'</span>':'<span>'+vtEsc(LABELS[st]||st)+'</span>')
     +(d.last_scan?'<span>last checked '+vtEsc(d.last_scan)+'</span>':'')
+    +(list.length?'<span>review requested at '+list.filter(([v])=>reviews[domain]?.[v]).length+' of '+list.length+'</span>':'')
     +'<span class="sp"></span><a href="https://www.virustotal.com/gui/domain/'+vtEsc(domain)+'/detection" target="_blank" rel="noopener">Full report ↗</a> · '+close+'</div>';
   h+='<div class="vt-why-note"><strong>Already cleaned the site, and it is still red or orange?</strong> That is normal for a while. '
     +'This status comes from VirusTotal, not from the files on the server. Each vendor below keeps its own blocklist and updates it on its own schedule: '
     +'some within hours, others only after days or weeks, and some only when you ask.</div>';
   if(list.length){
     h+='<table class="vt-fs-tbl vt-why-tbl"><thead><tr><th>Vendor</th><th>Verdict</th><th>Ask for a review</th></tr></thead><tbody>'
-      +list.map(([v,r])=>'<tr><td>'+vtEsc(v)+'</td><td>'+vtEsc(r)+'</td><td>'+vtFpLink(v,domain)+'</td></tr>').join('')+'</tbody></table>';
+      +list.map(([v,r])=>'<tr'+(reviews[domain]?.[v]?' class="asked"':'')+'><td>'+vtEsc(v)+'</td><td>'+vtEsc(r)+'</td><td>'+vtFpLink(v,domain)+'</td></tr>').join('')+'</tbody></table>';
   }
   h+='<ol class="vt-why-steps">'
     +'<li><strong>Clean the site first.</strong> Use the scanner buttons to find infected files. Update WordPress, plugins and themes, remove plugins you don\'t use, change all passwords (admin, FTP/SFTP, database, hosting) and remove admin users you don\'t know. Otherwise the site is infected again soon and the vendors list it again.</li>'
