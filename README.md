@@ -230,6 +230,18 @@ For vendors with only an e-mail address, the link in the extension opens an e-ma
 
 The extension does not send review requests itself: each vendor has its own form or address, and a request should come from someone who can vouch that the site is clean.
 
+## Avast / AVG classification (optional)
+
+VirusTotal's list does not always show what Avast and AVG think of a site, while many visitors use those products. In **Settings → Avast / AVG classification** the administrator can switch on a second check, with **Avast** (product 146) or **AVG** (product 147). It asks the URL reputation service those products use themselves how they classify each site, for example `URL:Botnet`. Only that service is asked; the sites themselves are not visited.
+
+> **Unofficial.** There is no public API for this; the format was worked out by hand and may change or stop working at any time. When it does, the result shows *Check failed* and nothing else is affected.
+
+- **Background only.** The check is its own task (`scripts/avast_scan.php`, every 5 minutes) and never runs in a page request. At most **one request per second** for the whole server, never two at once (one shared lock, also across processes), and on HTTP 429 all checks pause for the *Retry-After* time (at least 60 seconds).
+- **How often.** Every site about once a week, classified sites every day (to see a classification go away after a review), failed checks again after an hour. **Check now** in the *Why?* panel puts a site at the front of the queue.
+- **What you see.** A red badge such as *AVG: Botnet* under the status of a classified site. In the *Why?* panel: the checked URL, the time, the HTTP status, and the classification with its detection name, or *No classification received*, or *Check failed* with the reason (time-out, HTTP error, invalid response, no answer for the URL). For a false positive there is a link to the official form ([Avast](https://www.avast.com/report-false-positive), [AVG](https://www.avg.com/en-us/report-false-positive)); you submit it yourself and choose **URL** in the form.
+- **History.** The site history notes when the classification appears, changes or goes away.
+- Results are kept in `vt_avast.json`, the queue in `vt_avast_queue.json`.
+
 ## How it saves API calls
 
 VirusTotal's free API allows **4 requests per minute** and **500 requests per day**.

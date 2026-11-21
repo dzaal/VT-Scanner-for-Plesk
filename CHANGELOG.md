@@ -3,6 +3,13 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.27.0 — 2026-11-22
+- Optional Avast / AVG classification (Settings, administrator; off by default). Asks the URL reputation service of Avast (product 146) or AVG (147) how it classifies each site, for example *URL:Botnet*. Unofficial: worked out by hand, so it may stop working; failures show as *Check failed*.
+- Runs as its own background task every 5 minutes, never in a page request: at most one request per second server-wide, never two at once (shared lock, also across processes), and a pause on HTTP 429 (Retry-After, at least 60 seconds).
+- Every site about once a week, classified sites every day, failed checks after an hour; *Check now* in the Why? panel puts a site first in the queue.
+- Dashboard: a red *AVG: Botnet* badge under the status of a classified site. Why? panel: the checked URL, time, HTTP status, classification and detection name, or *No classification received*, with a link to the official false-positive form (choose URL in the form).
+- Site history: when the classification appears, changes or goes away.
+
 ## 1.26.0 — 2026-11-22
 - Review requests: mark one as **denied** (for example "added less than a day ago"), with an optional reason. The Requested note is removed from the overview, so you can ask again later, and the site's history shows "Review denied" with the reason.
 - The undo link is now only for a click made by mistake.

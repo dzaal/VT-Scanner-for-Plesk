@@ -13,6 +13,7 @@ require_once __DIR__ . '/VtEvents.php';
  *   review    {ts, vendor, via: form|email, to, by}
  *   unreview  {ts, vendor, by}                  a review mark was undone
  *   denied    {ts, vendor, reason, by}          the vendor turned the review request down
+ *   av        {ts, product, from, to, detection} Avast / AVG classification appeared, changed or went away
  */
 class VtSiteLog
 {
@@ -44,6 +45,12 @@ class VtSiteLog
         elseif ($undo) $e = ['ts' => time(), 'type' => 'unreview', 'vendor' => $vendor, 'by' => $by];
         else $e = ['ts' => time(), 'type' => 'review', 'vendor' => $vendor, 'via' => $via === 'email' ? 'email' : 'form', 'to' => $to, 'by' => $by];
         self::add($domain, [$e]);
+    }
+
+    /** The Avast / AVG classification of a site changed ('' = no classification) */
+    public static function avast(string $domain, string $product, string $from, string $to, string $detection): void
+    {
+        self::add($domain, [['ts' => time(), 'type' => 'av', 'product' => $product, 'from' => $from, 'to' => $to, 'detection' => $detection]]);
     }
 
     /** The whole history of a site, newest first, with the status changes merged in */

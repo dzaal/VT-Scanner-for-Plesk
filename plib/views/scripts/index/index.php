@@ -348,6 +348,9 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-sh-pill.bad{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
 .vt-sh-pill.good{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
 .vt-sh-pill.warn{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-border)}
+.vt-av-badge{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-top:3px;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--red-bg);color:var(--red);border:1px dashed var(--red-border)}
+.vt-av a{cursor:pointer}
+.vt-av{font-size:12.5px;line-height:1.7}
 .vt-rev-deny{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px}
 .vt-rev-deny input{flex:1;min-width:180px;padding:3px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px}
 .vt-rev-deny a{color:var(--muted);cursor:pointer}
@@ -700,6 +703,20 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <span class="vt-smsg" id="vt-sc-msg"></span>
     </div>
 
+    <div class="vt-card" id="vt-av-card" style="display:none">
+      <h3>Avast / AVG classification <span class="hint" style="font-weight:400">(optional, unofficial)</span></h3>
+      <div class="hint" style="margin-bottom:8px">Also asks the URL reputation service of Avast or AVG how it classifies every site (for example <em>URL:Botnet</em>).
+        Only that service is asked; the sites themselves are not visited. This is not an official API: it was worked out by hand and may stop working at any time,
+        in which case the result shows <em>Check failed</em>. Checks run in the background, one request per second at most, every site about once a week
+        (classified sites every day).</div>
+      <label class="vt-radio"><input type="radio" name="vt-av" value="0" checked><span><strong>Off</strong></span></label>
+      <label class="vt-radio"><input type="radio" name="vt-av" value="146"><span><strong>Avast</strong> <span class="hint">(product 146)</span></span></label>
+      <label class="vt-radio"><input type="radio" name="vt-av" value="147"><span><strong>AVG</strong> <span class="hint">(product 147)</span></span></label>
+      <div class="vt-save-row">
+        <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
+      </div>
+    </div>
+
     <div class="vt-card">
       <h3>API usage today</h3>
       <div style="display:flex;gap:24px;flex-wrap:wrap">
@@ -810,7 +827,7 @@ window.addEventListener('resize',vtSyncHeaderH);
 document.addEventListener('DOMContentLoaded',vtSyncHeaderH);
 
 let domains=[], results={}, budget={}, activeFilter='all';
-let scanners=[], scans={}, fsOpen={}, fsFull={}, reviews={}, histSites=new Set(), siteHist={}; // file scanners: installed list, results per site, open panel per site
+let scanners=[], scans={}, fsOpen={}, fsFull={}, reviews={}, histSites=new Set(), siteHist={}, avast={product:0}; // file scanners: installed list, results per site, open panel per site
 let scanQueue=[], inFlight=0;
 const MAX_C=1;          // one at a time to stay within VT rate limits
 const PUMP_DELAY=15500; // 15.5s between requests = safe for 4 req/min free tier
@@ -853,7 +870,7 @@ async function init(){
   // Phase 2 — full data: results, owners, scanners, history
   const data=await vtFetch('?action=all').catch(()=>({}));
   domains=data.domains||domains; related=data.related||[]; relSet=new Set(related); orphans=data.orphans||{}; owners=data.owners||{}; results=data.results||{};
-  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||budget; scanners=data.scanners||[]; scans=data.scans||{}; reviews=data.reviews||{}; histSites=new Set(data.history||[]);
+  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||budget; scanners=data.scanners||[]; scans=data.scans||{}; reviews=data.reviews||{}; histSites=new Set(data.history||[]); avast=data.avast||{product:0};
   for(const d in scans) for(const id in scans[d]) if(fsBusy(d,id)) vtFsPoll(d,id);
   vtSet('vt-cnt-all',domains.length);
   document.querySelectorAll('#vt-view-seg button').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===viewMode));
@@ -1203,7 +1220,11 @@ function rowHTML(domain,data){
       }
     }
   }
-  const statusCell=badge+tagHtml+fsBadgeHtml;
+  const avr=avast.product?avast.results?.[domain]:null;
+  const avHtml=avr&&avr.state==='ok'&&avr.findings?.length
+    ?'<div><button type="button" class="vt-av-badge" onclick="vtWhyClick(\''+vtEsca(domain)+'\')" title="'+vtEsc(avast.name)+' classification: '+vtEsc(avr.findings.map(f=>f.raw).join(', '))+'"><span class="vt-dot dot-r"></span>'
+      +vtEsc(avast.name)+': '+vtEsc(avr.findings.map(f=>f.classification.replace(/^URL:/,'')).join(', '))+'</button></div>':'';
+  const statusCell=badge+tagHtml+fsBadgeHtml+avHtml;
 
   // Domain age badge
   let ageHtml='';
@@ -1225,7 +1246,8 @@ function rowHTML(domain,data){
     const c=data.malicious>0?'infected':'clean';
     const scoreNum=data.malicious>0?'<strong>'+data.malicious+'</strong>/'+data.total:data.malicious+'/'+data.total;
     score='<div class="vt-score"><div class="vt-sbar"><div class="vt-sbar-fill '+c+'" style="width:'+pct+'%"></div></div><span class="vt-snum '+c+'">'+scoreNum+'</span></div>';
-    const flagged=data.malicious>0||st==='suspicious'||(data.flagged_by||[]).length;
+    const avFlag=!!(avast.product&&avast.results?.[domain]?.findings?.length);
+    const flagged=data.malicious>0||st==='suspicious'||(data.flagged_by||[]).length||avFlag;
     if(flagged||histSites.has(domain)){
       score='<button type="button" class="vt-why-btn'+(fsOpen[domain]==='vt'?' open':'')+'" title="'+(flagged?'Which vendors flag this site, how to get it reviewed after cleaning, and its history':'History of this site')+'" onclick="vtWhyClick(\''+vtEsca(domain)+'\')">'+score+'<span class="vt-why-lbl">'+(flagged?'Why?':'History')+' ▾</span></button>';
     }
@@ -1944,6 +1966,8 @@ function loadSettingsForm(cfg){
   if(cfg.clean_ttl_days)    document.getElementById('vt-s-clean-ttl').value=cfg.clean_ttl_days;
   if(cfg.infected_ttl_days) document.getElementById('vt-s-inf-ttl').value  =cfg.infected_ttl_days;
   vtRenderScanners(cfg.scanners||[],cfg.role==='admin');
+  document.getElementById('vt-av-card').style.display=cfg.role==='admin'?'':'none';
+  document.querySelectorAll('input[name=vt-av]').forEach(r=>r.checked=+r.value===(+cfg.avast_product||0));
 }
 
 // ── File scanners on/off (server-wide, administrator) ─────────
@@ -2002,6 +2026,7 @@ window.vtSaveSettings=async function(){
     notify_enabled:document.getElementById('vt-n-enabled').checked?'true':'false',
     notify_events:checked('vt-n-ev'),notify_email:document.getElementById('vt-n-email').value.trim(),daily_limit:daily,auto_scan_share:share,clean_ttl_days:cttl,infected_ttl_days:ittl};
   if(key) payload.api_key=key;
+  if(document.getElementById('vt-av-card').style.display!=='none') payload.avast_product=document.querySelector('input[name=vt-av]:checked')?.value||'0';
 
   const body=new URLSearchParams(payload);
   const fpToken=document.getElementById('forgery_protection_token')?.content||'';
@@ -2199,6 +2224,7 @@ function vtWhyRowHTML(domain,st){
     h+='<table class="vt-fs-tbl vt-why-tbl"><thead><tr><th>Vendor</th><th>Verdict</th><th>Ask for a review</th></tr></thead><tbody>'
       +list.map(([v,r])=>'<tr'+(reviews[domain]?.[v]?' class="asked"':'')+'><td>'+vtEsc(v)+'</td><td>'+vtEsc(r)+'</td><td>'+vtFpLink(v,domain)+'</td></tr>').join('')+'</tbody></table>';
   }
+  h+=vtAvastHTML(domain);
   h+='<div class="vt-sh"><div class="vt-tr-title" style="margin-top:12px">History of this site <span class="hint">(newest first)</span></div><div id="vtsh-'+rid(domain)+'">'+vtSiteHistHTML(domain)+'</div></div>';
   if(!list.length) return '<tr class="vt-fs-row" id="vtfs-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"><td colspan="5"><div class="vt-fs">'+h+'</div></td></tr>';
   h+='<ol class="vt-why-steps">'
@@ -2221,6 +2247,33 @@ window.vtLoadSiteHist=async function(domain){
   const el=document.getElementById('vtsh-'+rid(domain));
   if(el) el.innerHTML=vtSiteHistHTML(domain);
 };
+function vtAvastHTML(domain){
+  if(!avast.product) return '';
+  const r=avast.results?.[domain], n=vtEsc(avast.name), e=vtEsca(domain), p=x=>String(x).padStart(2,'0');
+  const queued=(avast.queued||[]).includes(domain);
+  const btn=queued?'<span class="hint">queued, checked within 5 minutes</span>'
+    :'<a onclick="vtAvastCheck(\''+e+'\')">Check now</a>';
+  let body;
+  if(!r) body='<span class="hint">Not checked yet.</span>';
+  else{
+    const d=new Date(r.checked_at*1000);
+    const meta='<span class="hint">'+vtEsc(r.url)+' · '+p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()+' ('+p(d.getHours())+':'+p(d.getMinutes())+') · HTTP '+(r.http||'–')+'</span>';
+    if(r.state!=='ok') body='<span class="vt-sh-pill warn">Check failed</span> '+vtEsc(r.error||'')+'<br>'+meta;
+    else if(!r.findings?.length) body='<span class="vt-sh-pill good">No classification received</span><br>'+meta;
+    else body=r.findings.map(f=>'<span class="vt-sh-pill bad">'+vtEsc(f.classification)+'</span> detection <code>'+vtEsc(f.detection||f.raw)+'</code>').join('<br>')
+      +'<br>'+meta+'<div class="vt-why-tip" style="margin-top:4px">Cleaned, and you think this is a false positive? Report it yourself with '
+      +'<a href="'+vtEsc(avast.form)+'" target="_blank" rel="noopener">'+n+'\'s official false-positive form ↗</a>; choose <strong>URL</strong> in the form.</div>';
+  }
+  return '<div class="vt-av"><div class="vt-tr-title" style="margin-top:12px">'+n+' classification <span class="hint">(unofficial check, may stop working)</span> · '+btn+'</div>'+body+'</div>';
+}
+window.vtAvastCheck=async function(domain){
+  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
+  const r=await fetch(BASE+'?action=avast-check',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},
+    body:new URLSearchParams({domain})}).then(x=>x.json()).catch(()=>null);
+  if(r?.ok){(avast.queued=avast.queued||[]).push(domain); vtToast(avast.name+' check queued for '+domain+' (within 5 minutes)','info');}
+  else vtToast(r?.error||'Could not queue the check','error');
+  vtFsRefresh(domain);
+};
 function vtSiteHistHTML(domain){
   const list=siteHist[domain];
   if(!list) return '<span class="hint">Loading history…</span>';
@@ -2239,6 +2292,9 @@ function vtSiteHistHTML(domain){
     else if(e.type==='unflag'){what=pill('good','Delisted');text='<strong>'+vtEsc(e.vendor)+'</strong> no longer flags the site';}
     else if(e.type==='review'){what=pill('info','Review asked');text='<strong>'+vtEsc(e.vendor)+'</strong> '+(e.via==='email'?'by e-mail'+(e.to?' to '+vtEsc(e.to):''):'via website form'+(e.to?' (<a href="'+vtEsc(e.to)+'" target="_blank" rel="noopener">'+vtEsc(e.to.replace(/^https?:\/\//,'').slice(0,50))+'</a>)':''))+(e.by?' · by '+vtEsc(e.by):'');}
     else if(e.type==='denied'){what=pill('warn','Review denied');text='<strong>'+vtEsc(e.vendor)+'</strong>'+(e.reason?': '+vtEsc(e.reason):'')+(e.by?' · by '+vtEsc(e.by):'');}
+    else if(e.type==='av'){what=e.to?pill('bad',vtEsc(e.product)+': '+vtEsc(e.to.replace(/^URL:/,''))):pill('good',vtEsc(e.product)+': none');
+      text=e.to?vtEsc(e.product)+' classifies the site as <strong>'+vtEsc(e.to)+'</strong>'+(e.detection?' (<code>'+vtEsc(e.detection)+'</code>)':'')+(e.from?', was '+vtEsc(e.from):'')
+               :vtEsc(e.product)+' no longer classifies the site'+(e.from?' (was '+vtEsc(e.from)+')':'');}
     else if(e.type==='unreview'){what=pill('','Undone');text='review request for <strong>'+vtEsc(e.vendor)+'</strong> undone'+(e.by?' · by '+vtEsc(e.by):'');}
     return '<div class="vt-sh-row"><div class="vt-sh-time">'+when+'</div><div class="vt-sh-what">'+what+'</div><div class="vt-sh-text">'+text+'</div></div>';
   }).join('');

@@ -16,6 +16,7 @@ require_once $_vtLib . '/VtManualQueue.php';
 require_once $_vtLib . '/VtEvents.php';
 require_once $_vtLib . '/VtReviews.php';
 require_once $_vtLib . '/VtSiteLog.php';
+require_once $_vtLib . '/VtAvastStore.php';
 
 /**
  * IndexController — Plesk extension controller (extends pm_Controller_Action for layout).
@@ -249,7 +250,28 @@ class IndexController extends pm_Controller_Action
             'scanners' => self::enabledScanners(),
             'reviews'  => VtReviews::forDomains(array_merge($domains, $related)),
             'history'  => array_values(array_intersect(VtSiteLog::domains(), array_merge($domains, $related))),
+            'avast'    => self::avastInfo($domains),
         ]);
+    }
+
+    /** Avast / AVG classification: product, results and queue for these sites (empty when switched off) */
+    private static function avastInfo(array $domains): array
+    {
+        $p = VtAvastStore::product();
+        if (!$p) return ['product' => 0];
+        return ['product' => $p, 'name' => VtAvast::PRODUCTS[$p], 'form' => VtAvast::FP_FORMS[$p],
+                'results' => VtAvastStore::results($domains), 'queued' => array_values(array_intersect(VtAvastStore::queued(), $domains))];
+    }
+
+    /** "Check now": queue a site for the Avast / AVG check (handled by avast_scan.php within 5 minutes) */
+    public function avastCheckAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        $domain = $this->sanitize($this->_getParam('domain', ''));
+        if (!$domain || !$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
+        if (!VtAvastStore::product()) { $this->respond(['error' => 'The Avast / AVG check is switched off']); return; }
+        VtAvastStore::enqueue($domain);
+        $this->respond(['ok' => true]);
     }
 
     /** Remember (or forget, with remove=1) that a review was requested from a vendor for a site */
@@ -604,6 +626,7 @@ class IndexController extends pm_Controller_Action
         $s['my_email']         = VtNotifier::emailOfLogin($this->settings->getUserId()) ?? '';
         $s['has_key']          = !empty($ownKey) || $this->usingAdminKey;
         $s['scanners']         = self::scannerSettings();
+        $s['avast_product']    = VtAvastStore::product();
         unset($s['scanners_disabled']);
         $s['using_admin_key']  = false; // Never expose admin key fallback to non-admin users
         // Quick auth check using the effective key (own or admin fallback)
@@ -651,6 +674,13 @@ class IndexController extends pm_Controller_Action
             }
         }
 
+        // Avast / AVG classification: one server-wide setting of the administrator
+        if (isset($input['avast_product']) && $this->role() === 'admin') {
+            $p = (int)$input['avast_product'];
+            $p = isset(VtAvast::PRODUCTS[$p]) ? $p : 0;
+            if ($this->settings->getUserId() === 'admin') $save['avast_product'] = $p; // same file: saved below
+            else (new VtSettings('admin'))->set('avast_product', $p);
+        }
         $save['login'] = $this->settings->getUserId(); // lets the notifier find this user's address
         $this->settings->setAll($save);
         // Clear cached error results when API key changes so they get rescanned
