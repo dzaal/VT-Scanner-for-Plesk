@@ -351,6 +351,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-ev-domain a{color:inherit;text-decoration:none}
 .vt-ev-domain a:hover{text-decoration:underline}
 .vt-ev-change{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.vt-ev-change .vt-badge{min-width:92px;justify-content:center}
 .vt-ev-arrow{font-size:14px;font-weight:700}
 .vt-ev-change .vt-badge.gone{background:var(--gray-bg);color:var(--gray);border:1px dashed var(--gray)}
 
@@ -1283,8 +1284,8 @@ function vtRenderEvents(events){
     const arrow='<span class="vt-ev-arrow" style="color:'+(better===null?'var(--muted)':better?'var(--green)':'var(--red)')+'">&rarr;</span>';
     return '<div class="vt-ev-row">'
       +'<div class="vt-ev-time">'+when+'</div>'
-      +'<div class="vt-ev-domain"><a href="https://www.virustotal.com/gui/domain/'+vtEsc(e.domain)+'/detection" target="_blank" rel="noopener" title="Open on VirusTotal">'+vtEsc(e.domain)+'</a></div>'
       +'<div class="vt-ev-change">'+badge(e.from)+arrow+badge(e.to)+'</div>'
+      +'<div class="vt-ev-domain"><a href="https://www.virustotal.com/gui/domain/'+vtEsc(e.domain)+'/detection" target="_blank" rel="noopener" title="Open on VirusTotal">'+vtEsc(e.domain)+'</a></div>'
       +'</div>';
   }).join('')
   +(evAll.length>shown.length?'<button class="vt-btn ghost" style="margin-top:8px" onclick="evShowAll=true;vtRenderEvents()">Show all '+evAll.length+'</button>':'');

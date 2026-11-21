@@ -3,6 +3,9 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.23.1 — 2026-11-21
+- Recent status changes: the coloured status change is now the second column, before the site name; badges have the same width so the columns line up.
+
 ## 1.23.0 — 2026-11-21
 - Includes the work of 1.21 to 1.22.1, which ran on the server but was never released:
   - Rescans keep going on the server when you leave the page: a queue that is processed every 5 minutes.
