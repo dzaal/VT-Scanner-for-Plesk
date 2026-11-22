@@ -3,6 +3,11 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.35.1 — 2026-11-22
+- Settings: no text lighter than rgb(32, 32, 32), for easier reading.
+- The online services (VirusTotal, AVG, Avast, Google Safe Browsing) each have their own coloured block with a larger logo.
+- A green check (*API key active*) next to VirusTotal and Google Safe Browsing when the key is accepted and in use; a red cross with the reason when VirusTotal or Google rejects it (for Google: the last answer from Google).
+
 ## 1.35.0 — 2026-11-22
 - New: **Google Safe Browsing** (optional, administrator), Google's official list of unsafe sites that Chrome, Firefox and Safari use to warn visitors. Uses your own Google API key (Google Cloud → APIs & Services → Safe Browsing API); a new key is tested with Google's own test page before it is saved, and the key is never sent to the browser.
 - Every site is checked each night (up to 250 sites per request), and live when you open a site's details or rescan it. Adds no VirusTotal API usage. Calls today and a per-minute limit are shown in Settings.

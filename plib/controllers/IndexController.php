@@ -629,7 +629,7 @@ class IndexController extends pm_Controller_Action
         unset($s['gsb_api_key']); // the Google key never goes to the browser
         if ($this->role() === 'admin') {
             $s['gsb'] = ['enabled' => (bool)(new VtSettings('admin'))->get('gsb_enabled', false),
-                         'key' => VtSafeBrowsing::maskedKey(), 'calls' => VtSafeBrowsing::callsToday()];
+                         'key' => VtSafeBrowsing::maskedKey(), 'calls' => VtSafeBrowsing::callsToday(), 'last' => VtSafeBrowsing::lastStatus()];
         }
         $s['check_rates']      = VtCheckRateLimiter::rates();
         unset($s['scanners_disabled']);

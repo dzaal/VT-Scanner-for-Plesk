@@ -152,6 +152,14 @@ class VtSafeBrowsing
                            : 'Google answered, but did not list its own test page. Check the key restrictions.'];
     }
 
+    /** How the last call to Google went: [ok: bool|null (null = no call yet), error, at] */
+    public static function lastStatus(): array
+    {
+        $st = json_decode((string)@file_get_contents(VtDataDir::path('vt_gsb_state.json')), true) ?: [];
+        if (empty($st['last_at'])) return ['ok' => null, 'error' => '', 'at' => 0];
+        return ['ok' => (int)$st['last_code'] === 200, 'error' => (string)($st['last_error'] ?? ''), 'at' => (int)$st['last_at']];
+    }
+
     /** Requests sent today */
     public static function callsToday(): int
     {
@@ -189,11 +197,15 @@ class VtSafeBrowsing
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = $body === false ? 'Connection failed: ' . curl_error($ch) : '';
         curl_close($ch);
-        if ($code === 429) { // quota or rate limit: pause all requests for 10 minutes
-            $st = json_decode((string)@file_get_contents($stateFile), true) ?: [];
-            $st['not_before'] = time() + 600;
-            @file_put_contents($stateFile, json_encode($st));
-        }
+        // Remember how the last call went (for the green check / red cross in Settings)
+        $fp = @fopen($stateFile . '.lock', 'c');
+        if ($fp) flock($fp, LOCK_EX);
+        $st = json_decode((string)@file_get_contents($stateFile), true) ?: [];
+        if ($code === 429) $st['not_before'] = time() + 600; // quota or rate limit: pause all requests for 10 minutes
+        $st['last_at'] = time(); $st['last_code'] = $code;
+        $st['last_error'] = $code === 200 ? '' : ($err !== '' ? $err : self::errorText($code, json_decode((string)$body, true)));
+        @file_put_contents($stateFile, json_encode($st));
+        if ($fp) { flock($fp, LOCK_UN); fclose($fp); }
         return [$code, $body, $err];
     }
 

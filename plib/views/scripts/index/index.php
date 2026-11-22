@@ -406,6 +406,27 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 #vtpanel-settings input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 @media(max-width:850px){.vt-settings-numbers .vt-field{grid-column:span 4}}
 @media(max-width:560px){.vt-settings-numbers .vt-field{grid-column:span 6}}
+/* Settings: no text lighter than rgb(32,32,32) */
+#vtpanel-settings{--muted:#202020;color:#202020}
+#vtpanel-settings .hint,#vtpanel-settings label,#vtpanel-settings .vt-sl-name span,#vtpanel-settings .vt-sl-part.manual .vt-sl-name span,
+#vtpanel-settings .vt-av-title small,#vtpanel-settings .vt-av-calls,#vtpanel-settings .vt-rate,#vtpanel-settings .vt-sl-scale,
+#vtpanel-settings .vt-qs-today .parts,#vtpanel-settings .vt-gsb-key,#vtpanel-settings .vt-usage-heading>span{color:#202020}
+/* Online services: each in its own tinted block with a large logo */
+.vt-brand-ico.lg{width:32px;height:32px;border-radius:7px}
+.vt-svc-head{padding:10px 14px;border-radius:9px;border:1px solid #c7d2fe;background:#eef2ff}
+.vt-svc-head h3{font-size:17px}
+.vt-provider-list .vt-provider.vt-svc{border:1px solid var(--border);border-radius:9px;padding:14px 16px;margin-top:12px}
+.vt-svc.avg{background:#eef5fc;border-color:#bfd7f0}
+.vt-svc.avast{background:#fff4ec;border-color:#fcd2b3}
+.vt-svc.google{background:#f0f6ff;border-color:#c6dafc}
+.vt-svc .vt-av-title strong{font-size:15px;gap:10px}
+.vt-key-state{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:20px;padding:2px 10px;white-space:nowrap}
+.vt-key-state:empty{display:none}
+.vt-key-state.ok{color:#14532d;background:#dcfce7;border:1px solid #86efac}
+.vt-key-state.ok::before{content:'\2713';font-weight:800;color:#16a34a}
+.vt-key-state.bad{color:#7f1d1d;background:#fee2e2;border:1px solid #fca5a5}
+.vt-key-state.bad::before{content:'\2717';font-weight:800;color:#dc2626}
+.vt-key-state.off{color:#202020;background:#f3f4f6;border:1px solid var(--border)}
 /* Brand favicons next to scanner names */
 .vt-brand-ico{width:20px;height:20px;flex-shrink:0;border-radius:4px;vertical-align:middle;object-fit:contain}
 .vt-sc-row .vt-sc-name,.vt-provider .vt-radio strong,.vt-settings-title h3{display:inline-flex;align-items:center;gap:7px}
@@ -714,7 +735,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
   <!-- Settings -->
   <div class="vt-panel" id="vtpanel-settings">
     <div class="vt-card vt-settings-main">
-      <div class="vt-settings-title"><h3><img class="vt-brand-ico" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/virustotal.png') ?>" alt="" width="20" height="20">VirusTotal</h3><span class="hint">Primary website reputation service</span></div>
+      <div class="vt-settings-title vt-svc-head"><h3><img class="vt-brand-ico lg" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/virustotal.png') ?>" alt="" width="32" height="32">VirusTotal</h3><span class="vt-key-state" id="vt-vt-keystate"></span><span class="hint">Primary website reputation service</span></div>
       <div class="vt-field">
         <label for="vt-s-apikey">API Key</label>
         <input type="text" id="vt-s-apikey" placeholder="Paste your VirusTotal API key here..." autocomplete="off" spellcheck="false">
@@ -775,20 +796,20 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <div class="vt-settings-title"><h3>External reputation checks</h3><span class="vt-experimental-tag">Experimental</span></div>
       <p class="hint">Optional direct checks with AVG, Avast and Google Safe Browsing. AVG and Avast are unofficial services that may change or become unavailable; Google Safe Browsing is Google's official API. Checks run when opening site details and after a rescan; Google also checks every site each night.</p>
       <div class="vt-provider-list">
-        <div class="vt-provider">
-          <label class="vt-radio"><input type="checkbox" name="vt-av" value="147"><span class="vt-av-title"><strong><img class="vt-brand-ico" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/avg.png') ?>" alt="" width="20" height="20">AVG Web Shield</strong><small>URL reputation of AVG AntiVirus and the AVG Online Security browser extension</small></span></label>
+        <div class="vt-provider vt-svc avg">
+          <label class="vt-radio"><input type="checkbox" name="vt-av" value="147"><span class="vt-av-title"><strong><img class="vt-brand-ico lg" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/avg.png') ?>" alt="" width="32" height="32">AVG Web Shield</strong><small>URL reputation of AVG AntiVirus and the AVG Online Security browser extension</small></span></label>
           <span class="vt-av-calls"><strong id="vt-av-calls-147">0</strong>calls today</span>
           <label class="vt-rate" for="vt-rate-avg"><input type="number" id="vt-rate-avg" min="1" max="5" step="1" value="2" data-check-rate="avg" aria-label="AVG requests per minute"> / minute</label>
           <span class="hint">The verdict an AVG user gets when opening the site, asked directly from AVG's reputation service. Adds no VirusTotal API usage.</span>
         </div>
-        <div class="vt-provider">
-          <label class="vt-radio"><input type="checkbox" name="vt-av" value="146"><span class="vt-av-title"><strong><img class="vt-brand-ico" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/avast.png') ?>" alt="" width="20" height="20">Avast Web Shield</strong><small>URL reputation of Avast Antivirus and the Avast Online Security &amp; Privacy browser extension</small></span></label>
+        <div class="vt-provider vt-svc avast">
+          <label class="vt-radio"><input type="checkbox" name="vt-av" value="146"><span class="vt-av-title"><strong><img class="vt-brand-ico lg" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/avast.png') ?>" alt="" width="32" height="32">Avast Web Shield</strong><small>URL reputation of Avast Antivirus and the Avast Online Security &amp; Privacy browser extension</small></span></label>
           <span class="vt-av-calls"><strong id="vt-av-calls-146">0</strong>calls today</span>
           <label class="vt-rate" for="vt-rate-avast"><input type="number" id="vt-rate-avast" min="1" max="5" step="1" value="2" data-check-rate="avast" aria-label="Avast requests per minute"> / minute</label>
           <span class="hint">The verdict an Avast user gets when opening the site, asked directly from Avast's reputation service. Can be switched on separately from AVG.</span>
         </div>
-        <div class="vt-provider">
-          <label class="vt-radio"><input type="checkbox" id="vt-gsb-on"><span class="vt-av-title"><strong><img class="vt-brand-ico" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/google.png') ?>" alt="" width="20" height="20">Google Safe Browsing</strong><small>Google's list of unsafe sites, used by Chrome, Firefox and Safari to warn visitors</small></span></label>
+        <div class="vt-provider vt-svc google">
+          <label class="vt-radio"><input type="checkbox" id="vt-gsb-on"><span class="vt-av-title"><strong><img class="vt-brand-ico lg" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/google.png') ?>" alt="" width="32" height="32">Google Safe Browsing <span class="vt-key-state" id="vt-gsb-keystate"></span></strong><small>Google's list of unsafe sites, used by Chrome, Firefox and Safari to warn visitors</small></span></label>
           <span class="vt-av-calls"><strong id="vt-gsb-calls">0</strong>calls today</span>
           <label class="vt-rate" for="vt-rate-google"><input type="number" id="vt-rate-google" min="1" max="5" step="1" value="2" data-check-rate="google" aria-label="Google requests per minute"> / minute</label>
           <div class="vt-gsb-key"><label for="vt-gsb-key">API key</label><input type="password" id="vt-gsb-key" placeholder="Paste a new Google API key to replace the stored one" autocomplete="off" spellcheck="false"><span id="vt-gsb-stored">no key stored</span></div>
@@ -2177,7 +2198,17 @@ function loadSettingsForm(cfg){
   document.getElementById('vt-av-card').style.display=cfg.role==='admin'?'':'none';
   document.querySelectorAll('input[name=vt-av]').forEach(r=>r.checked=(cfg.avast_products||[]).includes(+r.value));
   for(const id of [146,147]) vtSet('vt-av-calls-'+id,(cfg.avast_calls||{})[id]??0);
+  // Green check when a key is accepted and in use, red cross with the reason when not
+  const ks=(id,cls,text,title)=>{const e=document.getElementById(id); if(!e) return; e.className='vt-key-state'+(cls?' '+cls:''); e.textContent=text; e.title=title||'';};
+  if(cfg.api_key_invalid) ks('vt-vt-keystate','bad','API key not accepted','VirusTotal rejected the stored key (HTTP 401)');
+  else if(cfg.has_key) ks('vt-vt-keystate','ok','API key active','VirusTotal accepted the key');
+  else ks('vt-vt-keystate','off','no API key');
   if(cfg.gsb){
+    const g=cfg.gsb, last=g.last||{};
+    if(!g.key) ks('vt-gsb-keystate','off','no API key');
+    else if(last.ok===false) ks('vt-gsb-keystate','bad','API key problem',last.error||'');
+    else if(!g.enabled) ks('vt-gsb-keystate','off','key stored, switched off');
+    else ks('vt-gsb-keystate','ok','API key active',last.at?'Last answer from Google: '+new Date(last.at*1000).toLocaleString():'Key tested when it was saved');
     document.getElementById('vt-gsb-on').checked=!!cfg.gsb.enabled;
     vtSet('vt-gsb-calls',cfg.gsb.calls??0);
     vtSet('vt-gsb-stored',cfg.gsb.key?'stored key '+cfg.gsb.key:'no key stored');
