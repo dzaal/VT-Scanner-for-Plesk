@@ -3,6 +3,10 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.30.0 — 2026-11-22
+- Click anywhere on a site's row to open or close its details (Why?), not only on the score.
+- Fix: the details of an infected site made the page too wide; long text and links now wrap within the table.
+
 ## 1.29.1 — 2026-11-22
 - Avast / AVG false-positive link: explains that the form's Alert ID comes from the warning popup of the Avast / AVG app, not from this check, and what to do without one.
 

@@ -256,7 +256,13 @@ th.vt-sortable{cursor:pointer;user-select:none}th.vt-sortable:hover{color:var(--
 .vt-sbtn .n{background:var(--red);color:#fff;border-radius:8px;padding:0 5px;font-size:10px}
 .vt-sbtn .ok{color:var(--green,#16a34a)}
 tr.vt-fs-row>td{background:var(--gray-bg);border-top:0;padding:10px 13px 12px}
-.vt-fs{font-size:12.5px}
+.vt-fs{font-size:12.5px;overflow-wrap:anywhere}
+.vt-fs-row>td{max-width:0} /* the details never make the site table wider than the page */
+.vt-why-tbl{table-layout:fixed}
+.vt-why-tbl th:nth-child(1){width:22%}.vt-why-tbl th:nth-child(2){width:38%}
+.vt-why-tbl td:last-child{white-space:normal;color:inherit}
+.vt-why-tbl code{word-break:break-all}
+.vt-tbl-wrap tbody tr[data-domain]:has(.vt-why-btn):not(.vt-fs-row){cursor:pointer}
 .vt-fs-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .vt-fs-head strong{color:var(--heading)}
 .vt-fs-head .sp{flex:1}
@@ -2237,6 +2243,14 @@ function vtWhyRowHTML(domain,st){
     +'</ol><div class="vt-fs-note">Contacts from <a href="'+VT_FP_LIST+'" target="_blank" rel="noopener">VirusTotal\'s list of vendor contacts</a>. VT Site Scanner never changes anything on the site; cleaning is up to you.</div>';
   return '<tr class="vt-fs-row" id="vtfs-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(inQueue(domain)?' data-job="1"':'')+'><td colspan="5"><div class="vt-fs">'+h+'</div></td></tr>';
 }
+// A click anywhere on a site's row (not on a button, link or field) opens or closes its details
+document.addEventListener('click',ev=>{
+  const tr=ev.target.closest('#vt-tbody tr[data-domain]');
+  if(!tr||tr.classList.contains('vt-fs-row')) return;
+  if(ev.target.closest('a,button,input,select,textarea,label,summary')) return;
+  if(window.getSelection&&String(window.getSelection())) return; // selecting text, not clicking
+  if(tr.querySelector('.vt-why-btn')) vtWhyClick(tr.dataset.domain);
+});
 window.vtWhyClick=function(domain){
   if(fsOpen[domain]==='vt'){vtFsClose(domain);return;}
   fsOpen[domain]='vt'; vtFsRefresh(domain); vtLoadSiteHist(domain); vtAvastLive(domain);
