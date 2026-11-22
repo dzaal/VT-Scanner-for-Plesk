@@ -3,14 +3,14 @@
  * Home dashboard card: scan status at a glance, styled like Plesk's own cards
  * (SSL/TLS Certificates). Reads cached results only, never calls the VirusTotal API.
  *
- * Autoloaded as plib/library/Hook/HomeBlock.php → Modules_VirustotalExtension_Hook_HomeBlock
+ * Autoloaded as plib/library/Hook/HomeBlock.php → Modules_Stingyscan_Hook_HomeBlock
  */
 require_once dirname(__DIR__) . '/VtDataDir.php';
 require_once dirname(__DIR__) . '/VtSettings.php';
 require_once dirname(__DIR__) . '/VtCache.php';
 require_once dirname(__DIR__) . '/PleskDomains.php';
 
-class Modules_VirustotalExtension_Hook_HomeBlock extends \Plesk\SDK\Hook\Home\Block
+class Modules_Stingyscan_Hook_HomeBlock extends \Plesk\SDK\Hook\Home\Block
 {
     private const MAX_LISTED = 4;
 

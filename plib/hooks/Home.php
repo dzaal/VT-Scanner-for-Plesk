@@ -7,6 +7,6 @@ return new class extends \Plesk\SDK\Hook\Home
 {
     public function getBlocks(): array
     {
-        return [new Modules_VirustotalExtension_Hook_HomeBlock()];
+        return [new Modules_Stingyscan_Hook_HomeBlock()];
     }
 };
