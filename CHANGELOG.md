@@ -3,6 +3,10 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.32.0 — 2026-11-22
+- VirusTotal daily budget as one slider from 0 to 10,000 calls: drag the bottom knob for the daily limit and the top knob for the share kept for manual rescans (the rest is for the background scan). Orange bars show the calls used today in each part. The numbers can still be typed.
+- A 20px logo next to each scanner and service in Settings (VirusTotal, AVG, Avast, ClamAV, Maldet, Imunify) and next to Avast / AVG in the site details. The logos ship with the extension; nothing is loaded from outside.
+
 ## 1.31.2 — 2026-11-22
 - Fix a missing request-token variable that stopped the Install button before it sent a request. Use Plesk's privileged extension helper, wait for its actual result, and verify the installed version before reloading.
 - Report failed upgrades and connection errors instead of treating them as success.

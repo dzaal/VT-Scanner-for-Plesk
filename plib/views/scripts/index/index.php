@@ -382,7 +382,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-settings-title h3{margin:0}
 .vt-settings-title .hint{margin-left:auto}
 .vt-settings-main{border-left:3px solid var(--blue)}
-.vt-settings-numbers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:20px}
+.vt-settings-numbers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
 .vt-settings-numbers .vt-field{min-width:0;margin:0}
 .vt-settings-usage{margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:12px}
 .vt-usage-heading,.vt-usage-line{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -403,6 +403,40 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 #vtpanel-settings .vt-sc-info{flex:1;min-width:220px}
 #vtpanel-settings input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 @media(max-width:850px){.vt-settings-numbers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Brand favicons next to scanner names */
+.vt-brand-ico{width:20px;height:20px;flex-shrink:0;border-radius:4px;vertical-align:middle;object-fit:contain}
+.vt-sc-row .vt-sc-name,.vt-provider .vt-radio strong,.vt-settings-title h3{display:inline-flex;align-items:center;gap:7px}
+/* VirusTotal daily budget: one slider, 0 – 10,000 calls. Top knob = split background / manual, bottom knob = daily limit */
+.vt-qs{position:relative;height:46px;margin:6px 9px 0;touch-action:none;user-select:none}
+.vt-qs-track{position:absolute;left:0;right:0;top:14px;height:18px;border-radius:5px;background:var(--gray-bg);border:1px solid var(--border);cursor:pointer;overflow:hidden}
+.vt-qs-seg,.vt-qs-used{position:absolute;top:0;bottom:0}
+.vt-qs-seg.auto{left:0;background:var(--blue-bg);border-right:1px solid var(--blue-border)}
+.vt-qs-seg.manual{background:#ede9fe}
+.vt-qs-used{top:5px;bottom:5px;background:#f59e0b;border-radius:3px}
+.vt-qs-used.on{min-width:3px}
+.vt-qs-free{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed var(--muted);opacity:.55}
+.vt-qs-h{position:absolute;width:0;outline:none;cursor:ew-resize}
+.vt-qs-h::before{content:'';position:absolute;left:-1px;width:2px}
+.vt-qs-h::after{content:'';position:absolute;left:-8px;width:16px;height:12px;background:var(--surface,#fff);border:2px solid;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.vt-qs-h.split{top:0;height:32px;color:#7c3aed}
+.vt-qs-h.split::before{top:12px;bottom:0;background:#7c3aed}
+.vt-qs-h.split::after{top:0;border-radius:6px 6px 2px 2px}
+.vt-qs-h.limit{top:14px;height:32px;color:var(--blue)}
+.vt-qs-h.limit::before{top:0;height:20px;background:var(--blue)}
+.vt-qs-h.limit::after{bottom:0;border-radius:2px 2px 6px 6px}
+.vt-qs-h:focus-visible::after,.vt-qs-h.drag::after{background:currentColor}
+.vt-qs-scale{position:relative;height:16px;margin:2px 9px 0;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.vt-qs-scale span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.vt-qs-scale span:first-child{transform:none}.vt-qs-scale span:last-child{transform:translateX(-100%)}
+.vt-qs-legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 22px;margin-top:10px;font-size:12px}
+.vt-qs-legend>span,.vt-qs-legend>label{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.vt-qs-legend strong{color:var(--text);font-variant-numeric:tabular-nums}
+.vt-qs-legend input{width:78px;padding:5px 7px;border:1px solid var(--border);border-radius:5px;font:inherit;color:var(--text);background:var(--surface)}
+.vt-qs-legend input#vt-s-manual-pct{width:56px}
+.vt-qs-sw{width:11px;height:11px;border-radius:3px;display:inline-block;flex-shrink:0}
+.vt-qs-sw.auto{background:var(--blue-bg);border:1px solid var(--blue-border)}
+.vt-qs-sw.manual{background:#ede9fe;border:1px solid #c4b5fd}
+.vt-qs-sw.used{background:#f59e0b}
 @media(max-width:560px){#vtpanel-settings>.vt-card{padding:16px}.vt-provider-grid{grid-template-columns:1fr}.vt-settings-numbers{gap:14px}.vt-settings-title{flex-wrap:wrap}.vt-settings-title .hint{margin-left:0}}
 
 /* Status-change events feed */
@@ -662,7 +696,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
   <!-- Settings -->
   <div class="vt-panel" id="vtpanel-settings">
     <div class="vt-card vt-settings-main">
-      <div class="vt-settings-title"><h3>VirusTotal</h3><span class="hint">Primary website reputation service</span></div>
+      <div class="vt-settings-title"><h3><img class="vt-brand-ico" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/virustotal.png') ?>" alt="" width="20" height="20">VirusTotal</h3><span class="hint">Primary website reputation service</span></div>
       <div class="vt-field">
         <label for="vt-s-apikey">API Key</label>
         <input type="text" id="vt-s-apikey" placeholder="Paste your VirusTotal API key here..." autocomplete="off" spellcheck="false">
@@ -672,17 +706,30 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
           <div id="vt-key-value">—</div>
         </div>
       </div>
+      <section class="vt-settings-usage" aria-label="VirusTotal daily API budget and usage today">
+        <div class="vt-usage-heading"><strong>Daily API budget</strong><span>used today <span id="vts-date">—</span></span></div>
+        <div class="vt-qs" id="vt-qs">
+          <div class="vt-qs-track" id="vt-qs-track">
+            <div class="vt-qs-seg auto" id="vt-qs-auto"></div>
+            <div class="vt-qs-seg manual" id="vt-qs-manual"></div>
+            <div class="vt-qs-used" id="vt-qs-used-auto" title="Background calls used today"></div>
+            <div class="vt-qs-used" id="vt-qs-used-manual" title="Manual rescans used today"></div>
+            <div class="vt-qs-free" style="left:5%" title="500 = VirusTotal free tier"></div>
+          </div>
+          <div class="vt-qs-h split" id="vt-qs-h-split" role="slider" tabindex="0" aria-label="Share for manual rescans (%)" title="Drag: share for manual rescans"></div>
+          <div class="vt-qs-h limit" id="vt-qs-h-limit" role="slider" tabindex="0" aria-label="Daily API limit" title="Drag: daily API limit"></div>
+        </div>
+        <div class="vt-qs-scale"><span style="left:0">0</span><span style="left:5%">&nbsp;500</span><span style="left:25%">2,500</span><span style="left:50%">5,000</span><span style="left:75%">7,500</span><span style="left:100%">10,000</span></div>
+        <div class="vt-qs-legend">
+          <label for="vt-s-daily">Daily limit <input type="number" id="vt-s-daily" min="1" max="1000000" step="50" value="500"></label>
+          <span><i class="vt-qs-sw auto"></i>Background <strong id="vts-auto-label">—</strong></span>
+          <label for="vt-s-manual-pct"><i class="vt-qs-sw manual"></i>Manual rescans <input type="number" id="vt-s-manual-pct" min="5" max="90" step="1" value="20">% <strong id="vts-manual-label">—</strong></label>
+          <span><i class="vt-qs-sw used"></i>Used today</span>
+        </div>
+        <input type="hidden" id="vt-s-share" value="80">
+        <div class="hint" style="margin-top:6px">500 = free tier &nbsp;|&nbsp; 1000+ = premium. Drag the bottom knob for the daily limit and the top knob for the part kept for manual rescans; the rest is for the nightly background scan.</div>
+      </section>
       <div class="vt-settings-numbers">
-        <div class="vt-field">
-          <label for="vt-s-daily">Daily API limit</label>
-          <input type="number" id="vt-s-daily" min="1" max="1000000" value="500">
-          <div class="hint">500 = free tier &nbsp;|&nbsp; 1000+ = premium</div>
-        </div>
-        <div class="vt-field">
-          <label for="vt-s-share">Background scan (%)</label>
-          <input type="number" id="vt-s-share" min="10" max="95" value="80" step="5">
-          <div class="hint">% reserved for nightly cron scan</div>
-        </div>
         <div class="vt-field">
           <label for="vt-s-clean-ttl">Cache clean sites (days)</label>
           <input type="number" id="vt-s-clean-ttl" min="1" max="365" value="30">
@@ -692,15 +739,6 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
           <input type="number" id="vt-s-inf-ttl" min="1" max="30" value="1">
         </div>
       </div>
-      <section class="vt-settings-usage" aria-label="VirusTotal usage today">
-        <div class="vt-usage-heading"><strong>API usage today</strong><span id="vts-date">—</span></div>
-        <div class="vt-usage-columns">
-          <div><div class="vt-usage-line"><span>Background</span><strong id="vts-auto-label">—</strong></div>
-            <div class="vt-b-track"><div class="vt-b-fill" id="vts-auto-bar" style="width:0%"></div></div></div>
-          <div><div class="vt-usage-line"><span>Manual rescans</span><strong id="vts-manual-label">—</strong></div>
-            <div class="vt-b-track"><div class="vt-b-fill" id="vts-manual-bar" style="width:0%"></div></div></div>
-        </div>
-      </section>
       <div class="vt-save-row">
         <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
         <span class="vt-smsg" id="vt-smsg"></span>
@@ -712,12 +750,12 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <p class="hint">Optional direct checks with AVG and Avast. These unofficial services may change or become unavailable. Checks run when opening site details and after a rescan.</p>
       <div class="vt-provider-grid">
         <div class="vt-provider">
-          <label class="vt-radio"><input type="checkbox" name="vt-av" value="147"><span><strong>AVG</strong></span></label>
+          <label class="vt-radio"><input type="checkbox" name="vt-av" value="147"><span><strong><img class="vt-brand-ico" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/avg.png') ?>" alt="" width="20" height="20">AVG</strong></span></label>
           <label class="vt-rate" for="vt-rate-avg"><input type="number" id="vt-rate-avg" min="1" max="5" step="1" value="2" data-check-rate="avg" aria-label="AVG requests per minute"> / minute</label>
           <span class="hint">Direct URL reputation. Adds no VirusTotal API usage.</span>
         </div>
         <div class="vt-provider">
-          <label class="vt-radio"><input type="checkbox" name="vt-av" value="146"><span><strong>Avast</strong></span></label>
+          <label class="vt-radio"><input type="checkbox" name="vt-av" value="146"><span><strong><img class="vt-brand-ico" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/avast.png') ?>" alt="" width="20" height="20">Avast</strong></span></label>
           <label class="vt-rate" for="vt-rate-avast"><input type="number" id="vt-rate-avast" min="1" max="5" step="1" value="2" data-check-rate="avast" aria-label="Avast requests per minute"> / minute</label>
           <span class="hint">Direct URL reputation. Enable independently of AVG.</span>
         </div>
@@ -854,6 +892,10 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 try{ if(window.top!==window && top.location.origin===location.origin) top.location.replace(location.href); }catch(e){}
 (function(){
 const BASE = <?= json_encode($this->baseUrl ?: '') ?> || location.pathname;
+const BRAND_IMG = <?= json_encode(($this->baseUrl ?: '') . 'images/brands/') ?>;
+const BRAND_ICO = {clamav:1,maldet:1,imunify:1,virustotal:1,avast:1,avg:1,146:'avast',147:'avg'};
+/** 20px favicon of a scanner or reputation service, or '' when there is none */
+function vtBrandIco(id){const k=BRAND_ICO[id]; if(!k) return ''; return '<img class="vt-brand-ico" src="'+BRAND_IMG+(k===1?id:k)+'.png" alt="" width="20" height="20">';}
 
 // Keep --vt-header-h in sync so the fixed Scan Monitor panel starts right below the app header
 function vtSyncHeaderH(){
@@ -1067,9 +1109,63 @@ function updateBudget(){
   vtSet('vts-auto-label',   au+' / '+am);
   vtSet('vts-manual-label', mu+' / '+mm);
   vtSet('vts-date', budget.date??'—');
-  vtBar('vts-auto-bar',   Math.round(au/am*100));
-  vtBar('vts-manual-bar', Math.round(mu/mm*100));
+  vtQsRender();
 }
+
+// ── VirusTotal daily budget slider (Settings) ─────────────────
+// One bar from 0 to 10,000 calls a day. Bottom knob = daily limit, top knob = where the background
+// part ends and the manual-rescan part starts. Orange = calls used today in each part.
+const QS_MAX=10000;
+function vtQsVals(){
+  const lim=Math.max(1,parseInt(document.getElementById('vt-s-daily').value)||500);
+  const share=Math.min(95,Math.max(10,parseInt(document.getElementById('vt-s-share').value)||80));
+  return {lim,share};
+}
+function vtQsRender(){
+  if(!document.getElementById('vt-qs')) return;
+  const {lim,share}=vtQsVals(), pct=v=>Math.min(100,Math.max(0,v/QS_MAX*100));
+  const am=Math.floor(lim*share/100), mm=lim-am, split=pct(am), end=pct(lim);
+  const au=budget.auto_used??0, mu=budget.manual_used??0;
+  const css=(id,st)=>Object.assign(document.getElementById(id).style,st);
+  css('vt-qs-auto',{width:split+'%'});
+  css('vt-qs-manual',{left:split+'%',width:(end-split)+'%'});
+  const ua=document.getElementById('vt-qs-used-auto'), um=document.getElementById('vt-qs-used-manual');
+  css('vt-qs-used-auto',{left:'0',width:Math.min(pct(au),split)+'%'}); ua.classList.toggle('on',au>0);
+  css('vt-qs-used-manual',{left:split+'%',width:Math.min(pct(mu),end-split)+'%'}); um.classList.toggle('on',mu>0);
+  const hs=document.getElementById('vt-qs-h-split'), hl=document.getElementById('vt-qs-h-limit');
+  hs.style.left=split+'%'; hl.style.left=end+'%';
+  hs.setAttribute('aria-valuenow',100-share); hs.setAttribute('aria-valuemin',5); hs.setAttribute('aria-valuemax',90);
+  hl.setAttribute('aria-valuenow',lim); hl.setAttribute('aria-valuemin',50); hl.setAttribute('aria-valuemax',QS_MAX);
+  const mp=document.getElementById('vt-s-manual-pct'); if(document.activeElement!==mp) mp.value=100-share;
+  const n=x=>Number(x).toLocaleString('en-US');
+  vtSet('vts-auto-label',n(au)+' / '+n(am)); vtSet('vts-manual-label',n(mu)+' / '+n(mm));
+}
+(function vtQsInit(){
+  const box=document.getElementById('vt-qs'); if(!box) return;
+  const daily=document.getElementById('vt-s-daily'), share=document.getElementById('vt-s-share');
+  const track=document.getElementById('vt-qs-track'), hs=document.getElementById('vt-qs-h-split'), hl=document.getElementById('vt-qs-h-limit');
+  const at=x=>{const r=box.getBoundingClientRect(); return Math.max(0,Math.min(1,(x-r.left)/r.width))*QS_MAX;};
+  const setLimit=v=>{v=Math.round(v/50)*50; if(Math.abs(v-500)<=100) v=500; daily.value=Math.max(50,Math.min(QS_MAX,v)); vtQsRender();};
+  const setManual=p=>{share.value=100-Math.max(5,Math.min(90,Math.round(p))); vtQsRender();};
+  const setSplitAt=v=>setManual(100-v/vtQsVals().lim*100);
+  const drag=(h,fn)=>h.addEventListener('pointerdown',e=>{
+    e.preventDefault(); e.stopPropagation(); h.focus(); h.setPointerCapture(e.pointerId); h.classList.add('drag');
+    const mv=ev=>fn(at(ev.clientX)), up=()=>{h.classList.remove('drag');h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);};
+    h.addEventListener('pointermove',mv); h.addEventListener('pointerup',up); h.addEventListener('pointercancel',up);
+  });
+  drag(hl,setLimit); drag(hs,setSplitAt);
+  // A click on the bar moves the nearest knob there
+  track.addEventListener('pointerdown',e=>{
+    const v=at(e.clientX), {lim,share:s}=vtQsVals(), sv=Math.min(QS_MAX,lim*s/100), lv=Math.min(QS_MAX,lim);
+    Math.abs(v-sv)<Math.abs(v-lv)?setSplitAt(v):setLimit(v);
+  });
+  hl.addEventListener('keydown',e=>{const d={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1}[e.key]; if(!d) return; e.preventDefault(); setLimit(vtQsVals().lim+d*(e.shiftKey?500:50));});
+  hs.addEventListener('keydown',e=>{const d={ArrowLeft:1,ArrowDown:1,ArrowRight:-1,ArrowUp:-1}[e.key]; if(!d) return; e.preventDefault(); setManual(100-vtQsVals().share+d*(e.shiftKey?5:1));});
+  daily.addEventListener('input',vtQsRender);
+  document.getElementById('vt-s-manual-pct').addEventListener('input',e=>{const v=parseInt(e.target.value); if(v>=5&&v<=90){share.value=100-v; vtQsRender();}});
+  document.getElementById('vt-s-manual-pct').addEventListener('change',e=>setManual(parseInt(e.target.value)||20));
+  vtQsRender();
+})();
 
 function vtBar(id,pct){
   const el=document.getElementById(id);
@@ -2014,6 +2110,7 @@ function loadSettingsForm(cfg){
   vtNotifyUi();
   if(cfg.daily_limit)       document.getElementById('vt-s-daily').value    =cfg.daily_limit;
   if(cfg.auto_scan_share)   document.getElementById('vt-s-share').value    =Math.round(cfg.auto_scan_share*100);
+  vtQsRender();
   if(cfg.clean_ttl_days)    document.getElementById('vt-s-clean-ttl').value=cfg.clean_ttl_days;
   if(cfg.infected_ttl_days) document.getElementById('vt-s-inf-ttl').value  =cfg.infected_ttl_days;
   checkRates=cfg.check_rates||{};
@@ -2039,7 +2136,7 @@ function vtRenderScanners(list,isAdmin){
     return '<div class="vt-sc-row'+(s.installed?'':' missing')+'">'
       +'<label class="vt-sw" title="'+(isAdmin?'Switch on or off':'Set by the administrator')+'"><input type="checkbox" '+(s.installed&&s.enabled?'checked ':'')
       +((!s.installed||!isAdmin)?'disabled ':'')+'onchange="vtToggleScanner(\''+s.id+'\',this.checked)"><span></span></label>'
-      +'<span class="vt-sc-name">'+vtEsc(s.name)+'</span>'
+      +'<span class="vt-sc-name">'+vtBrandIco(s.id)+vtEsc(s.name)+'</span>'
       +'<span class="vt-sc-info">'+info+(s.installed&&!s.enabled?' · <strong>switched off</strong>':'')+'</span>'
       +'<label class="vt-rate" for="vt-rate-'+s.id+'"><input type="number" id="vt-rate-'+s.id+'" data-check-rate="'+s.id+'" min="1" max="5" step="1" value="'+(checkRates[s.id]||2)+'" '+(!isAdmin?'disabled ':'')+'aria-label="'+vtEsc(s.name)+' requests per minute"> / minute</label></div>';
   }).join('')+(isAdmin?'':'<div class="hint" style="margin-top:6px">Only the administrator can switch scanners on or off.</div>');
@@ -2370,7 +2467,7 @@ function vtAvastRow1(domain,pr){
         +'Mention the classification (<code>'+vtEsc(r.findings.map(f=>f.classification).join(', '))+'</code>) in the description.</div>';
     }
   }
-  return '<tr class="vt-av-row'+(reviews[domain]?.[pr.name]?' asked':'')+'"><td>'+n+' <span class="hint" title="Asked directly from '+n+'\'s URL reputation service, not via VirusTotal. Unofficial, may stop working.">(direct)</span></td><td>'+verdict+'</td><td>'+action+'</td></tr>';
+  return '<tr class="vt-av-row'+(reviews[domain]?.[pr.name]?' asked':'')+'"><td>'+vtBrandIco(pr.id)+' '+n+' <span class="hint" title="Asked directly from '+n+'\'s URL reputation service, not via VirusTotal. Unofficial, may stop working.">(direct)</span></td><td>'+verdict+'</td><td>'+action+'</td></tr>';
 }
 /** Ask Avast and/or AVG now, one after the other (force = also when a result of the last 5 minutes exists) */
 window.vtAvastLive=async function(domain,force){
