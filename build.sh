@@ -15,6 +15,7 @@ mkdir -p "$BUILD/$EXT_ID" dist
 cp -r htdocs plib sbin _meta "$BUILD/$EXT_ID/"
 chmod 755 "$BUILD/$EXT_ID"/sbin/*
 cp META_INF/meta.xml "$BUILD/$EXT_ID/meta.xml"
+cp LICENSE "$BUILD/$EXT_ID/LICENSE"
 rm -f "$OUT"
 
 if command -v zip >/dev/null 2>&1; then

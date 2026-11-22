@@ -440,6 +440,10 @@ Notes:
 - VirusTotal API v3
 - Vanilla JavaScript and CSS, no dependencies
 
+## License
+
+The source is available to inspect. You may build, install, and run the unmodified extension, including on Plesk servers you administer for customer hosting. Modifying or redistributing the code requires written permission, subject to the terms in the [source-available license](LICENSE).
+
 ## Author
 
 **Dirk Zaal**, [Digizaal](https://www.digizaal.nl), Amsterdam
