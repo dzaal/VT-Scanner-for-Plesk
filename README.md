@@ -105,6 +105,14 @@ Clicking a button opens a second line under the site. It shows the scan while it
 - Scans from this extension run one at a time. maldet's own daily cron scan (installed with maldet) runs outside the extension and can overlap with a scan you start here.
 - Scanners don't always agree, and VirusTotal can flag a site for spam or phishing content in its database while its files are clean. Signatures starting with `PUA.` or `Heuristics.` are often false alarms.
 
+### Settings and request rates
+
+Settings starts with VirusTotal and its API key, daily budget, background share and cache durations. The numeric fields use four columns on larger screens.
+
+The separate **Experimental** section lets the administrator enable AVG and Avast independently. **Internal scanners** lists the supported scanners detected on the server, with an individual switch for each.
+
+Each optional provider and internal scanner has its own **1–5 requests/minute** limit (default **2**), shared across all users and browser tabs. Click **Save settings** to apply rate changes; internal scanner switches save immediately. Cached external results do not consume a slot. New checks wait for their slot, and internal file scans still run one at a time. Imunify remains a read-only check of its existing results.
+
 ### Switching scanners on and off
 
 **Settings → File scanners** lists every scanner the extension knows (ClamAV, Maldet, Imunify), with what was found on the server:

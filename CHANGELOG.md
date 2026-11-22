@@ -3,6 +3,12 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.31.0 — 2026-11-22
+- Redesign Settings: VirusTotal first with four columns of numeric controls; AVG/Avast directly below in a separate Experimental section; detected internal scanners next.
+- Enable AVG, Avast, Imunify, Maldet and ClamAV independently, with a separate 1–5 requests/minute limit per provider/scanner (default 2).
+- Enforce optional check limits server-wide across users and browser tabs. External checks wait without losing the previous result; internal scanner starts respect their rate and the existing single-scan queue. Imunify still only reads its own results.
+- Keep settings usable on narrow screens, with two-column VirusTotal fields and stacked provider controls.
+
 ## 1.30.4 — 2026-11-22
 - Copy the site's full HTTPS URL when opening a vendor review form or e-mail, including direct AVG/Avast false-positive requests.
 - Clipboard contents are replaced, never appended; show confirmation or an explicit message if copying is blocked. Undoing or denying a request does not copy anything.

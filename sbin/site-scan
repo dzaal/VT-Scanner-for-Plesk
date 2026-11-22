@@ -325,11 +325,6 @@ if ($mode === 'start') {
     $root = docroot($host);
     if (!$root) out(['error' => 'Could not find the website folder of ' . $host]);
 
-    if (!empty($scanner['instant'])) {   // read-only adapters: answer straight away
-        save($resultFile, finish($base, $id, $scanner, $root, time()));
-        out(['started' => true, 'done' => true] + $base);
-    }
-
     $lock = fopen($lockFile, 'c');
     $free = $lock && flock($lock, LOCK_EX | LOCK_NB);
     if ($free) flock($lock, LOCK_UN);
@@ -347,6 +342,18 @@ if (!$lock || !flock($lock, LOCK_EX)) {
     exit(0);
 }
 ftruncate($lock, 0); fwrite($lock, "$id $host"); fflush($lock);
+
+// Rate limit actual work, including read-only Imunify result requests, across all users.
+require_once '/usr/local/psa/admin/plib/modules/virustotal-extension/library/VtCheckRateLimiter.php';
+try {
+    while ($wait = VtCheckRateLimiter::reserve($id)) {
+        save($resultFile, $base + ['status' => 'queued', 'started' => time(), 'message' => 'Waiting for request rate limit']);
+        sleep($wait);
+    }
+} catch (\Throwable $e) {
+    save($resultFile, $base + ['status' => 'error', 'finished' => time(), 'message' => 'Request rate limiter unavailable']);
+    exit(1);
+}
 
 $started = time();
 $root    = docroot($host);

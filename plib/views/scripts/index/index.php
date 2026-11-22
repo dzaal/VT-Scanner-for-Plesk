@@ -370,6 +370,34 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 #vt-n-opts>.vt-btn{margin-left:26px}
 #vt-n-opts.off{opacity:.45;pointer-events:none}
 
+/* Settings: primary service, experimental providers, then server scanners. */
+#vtpanel-settings{max-width:1080px}
+#vtpanel-settings>.vt-card{max-width:none;padding:24px}
+#vtpanel-settings .vt-field label{font-size:12px;text-transform:none;letter-spacing:0;color:var(--text)}
+#vtpanel-settings .vt-field input{font-family:inherit}
+#vtpanel-settings .hint{font-size:12px;line-height:1.5;color:var(--muted)}
+#vtpanel-settings .vt-save-row{flex-wrap:wrap;gap:10px;margin-top:16px}
+#vtpanel-settings .vt-save-row button{white-space:nowrap;flex-shrink:0}
+.vt-settings-title{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.vt-settings-title h3{margin:0}
+.vt-settings-title .hint{margin-left:auto}
+.vt-settings-main{border-left:3px solid var(--blue)}
+.vt-settings-numbers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:20px}
+.vt-settings-numbers .vt-field{min-width:0;margin:0}
+.vt-settings-experimental{border-color:var(--yellow-border);border-left:3px solid var(--yellow)}
+.vt-experimental-tag{font-size:11px;font-weight:600;color:#92400e;background:var(--yellow-bg);border:1px solid var(--yellow-border);padding:3px 8px;border-radius:4px}
+.vt-provider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:18px}
+.vt-provider{display:grid;grid-template-columns:1fr auto;gap:8px 16px;align-items:center;padding:14px 0;border-top:1px solid var(--border)}
+.vt-provider .vt-radio{margin:0}
+.vt-provider .hint{grid-column:1/-1}
+.vt-rate{display:flex;gap:7px;align-items:center;font-size:12px;color:var(--muted);white-space:nowrap}
+.vt-rate input{width:58px;padding:7px;border:1px solid var(--border);border-radius:5px;font:inherit;color:var(--text);background:var(--surface)}
+#vtpanel-settings .vt-sc-row{flex-wrap:wrap;padding:14px 0}
+#vtpanel-settings .vt-sc-info{flex:1;min-width:220px}
+#vtpanel-settings input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+@media(max-width:850px){.vt-settings-numbers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){#vtpanel-settings>.vt-card{padding:16px}.vt-provider-grid{grid-template-columns:1fr}.vt-settings-numbers{gap:14px}.vt-settings-title{flex-wrap:wrap}.vt-settings-title .hint{margin-left:0}}
+
 /* Status-change events feed */
 .vt-ev-wrap{margin-top:14px}
 .vt-ev-row{display:flex;align-items:center;gap:12px;padding:7px 2px;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap}
@@ -626,10 +654,10 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 
   <!-- Settings -->
   <div class="vt-panel" id="vtpanel-settings">
-    <div class="vt-card">
-      <h3>VirusTotal API Settings</h3>
+    <div class="vt-card vt-settings-main">
+      <div class="vt-settings-title"><h3>VirusTotal</h3><span class="hint">Primary website reputation service</span></div>
       <div class="vt-field">
-        <label>API Key</label>
+        <label for="vt-s-apikey">API Key</label>
         <input type="text" id="vt-s-apikey" placeholder="Paste your VirusTotal API key here..." autocomplete="off" spellcheck="false">
         <div class="hint">Get your free key at virustotal.com &rarr; Profile &rarr; API key</div>
         <div class="vt-key-display" id="vt-key-display">
@@ -637,25 +665,23 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
           <div id="vt-key-value">—</div>
         </div>
       </div>
-      <div class="vt-field-row">
+      <div class="vt-settings-numbers">
         <div class="vt-field">
-          <label>Daily API limit</label>
+          <label for="vt-s-daily">Daily API limit</label>
           <input type="number" id="vt-s-daily" min="1" max="1000000" value="500">
           <div class="hint">500 = free tier &nbsp;|&nbsp; 1000+ = premium</div>
         </div>
         <div class="vt-field">
-          <label>Background scan (%)</label>
+          <label for="vt-s-share">Background scan (%)</label>
           <input type="number" id="vt-s-share" min="10" max="95" value="80" step="5">
           <div class="hint">% reserved for nightly cron scan</div>
         </div>
-      </div>
-      <div class="vt-field-row">
         <div class="vt-field">
-          <label>Cache clean sites (days)</label>
+          <label for="vt-s-clean-ttl">Cache clean sites (days)</label>
           <input type="number" id="vt-s-clean-ttl" min="1" max="365" value="30">
         </div>
         <div class="vt-field">
-          <label>Cache infected sites (days)</label>
+          <label for="vt-s-inf-ttl">Cache infected sites (days)</label>
           <input type="number" id="vt-s-inf-ttl" min="1" max="30" value="1">
         </div>
       </div>
@@ -663,6 +689,36 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
         <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
         <span class="vt-smsg" id="vt-smsg"></span>
       </div>
+    </div>
+
+    <div class="vt-card vt-settings-experimental" id="vt-av-card" style="display:none">
+      <div class="vt-settings-title"><h3>External reputation checks</h3><span class="vt-experimental-tag">Experimental</span></div>
+      <p class="hint">Optional direct checks with AVG and Avast. These unofficial services may change or become unavailable. Checks run when opening site details and after a rescan.</p>
+      <div class="vt-provider-grid">
+        <div class="vt-provider">
+          <label class="vt-radio"><input type="checkbox" name="vt-av" value="147"><span><strong>AVG</strong></span></label>
+          <label class="vt-rate" for="vt-rate-avg"><input type="number" id="vt-rate-avg" min="1" max="5" step="1" value="2" data-check-rate="avg" aria-label="AVG requests per minute"> / minute</label>
+          <span class="hint">Direct URL reputation. Adds no VirusTotal API usage.</span>
+        </div>
+        <div class="vt-provider">
+          <label class="vt-radio"><input type="checkbox" name="vt-av" value="146"><span><strong>Avast</strong></span></label>
+          <label class="vt-rate" for="vt-rate-avast"><input type="number" id="vt-rate-avast" min="1" max="5" step="1" value="2" data-check-rate="avast" aria-label="Avast requests per minute"> / minute</label>
+          <span class="hint">Direct URL reputation. Enable independently of AVG.</span>
+        </div>
+      </div>
+      <div class="vt-save-row">
+        <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
+      </div>
+    </div>
+
+    <div class="vt-card">
+      <h3 style="display:flex;align-items:center;gap:10px">Internal scanners
+        <div style="flex:1"></div>
+        <button class="vt-btn ghost" type="button" onclick="vtDetectScanners()" id="vt-sc-detect">Detect again</button></h3>
+      <div class="hint" style="margin-bottom:10px">Enable each detected scanner separately. The rate limits how often a scan can start; file scans still run one at a time. Imunify only reads existing results.</div>
+      <div id="vt-sc-list"><span class="hint">Loading…</span></div>
+      <span class="vt-smsg" id="vt-sc-msg"></span>
+      <div class="vt-save-row"><button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button><span class="hint">Scanner switches save immediately. Save settings to apply request limits.</span></div>
     </div>
 
     <div class="vt-card">
@@ -699,28 +755,6 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <div class="vt-save-row">
         <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
         <span class="vt-smsg" id="vt-smsg2"></span>
-      </div>
-    </div>
-
-    <div class="vt-card">
-      <h3 style="display:flex;align-items:center;gap:10px">File scanners
-        <div style="flex:1"></div>
-        <button class="vt-btn ghost" type="button" onclick="vtDetectScanners()" id="vt-sc-detect">Detect again</button></h3>
-      <div class="hint" style="margin-bottom:10px">Malware scanners found on this server. Each one that is switched on gets a button on every site in the dashboard. They only detect and report; nothing on the sites is changed.</div>
-      <div id="vt-sc-list"><span class="hint">Loading…</span></div>
-      <span class="vt-smsg" id="vt-sc-msg"></span>
-    </div>
-
-    <div class="vt-card" id="vt-av-card" style="display:none">
-      <h3>Avast / AVG classification <span class="hint" style="font-weight:400">(optional, unofficial)</span></h3>
-      <div class="hint" style="margin-bottom:8px">Also asks the URL reputation service of Avast or AVG how it classifies every site (for example <em>URL:Botnet</em>).
-        Only that service is asked; the sites themselves are not visited. This is not an official API: it was worked out by hand and may stop working at any time,
-        in which case the result shows <em>Check failed</em>. It is asked live: when you open the details of a site, and with every rescan (one request per second at most).</div>
-      <label class="vt-radio"><input type="checkbox" name="vt-av" value="146"><span><strong>Avast</strong> <span class="hint">(product 146)</span></span></label>
-      <label class="vt-radio"><input type="checkbox" name="vt-av" value="147"><span><strong>AVG</strong> <span class="hint">(product 147)</span></span></label>
-      <div class="hint">Neither ticked = off. With both, each site gets a row for Avast and one for AVG (two requests, one second apart).</div>
-      <div class="vt-save-row">
-        <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
       </div>
     </div>
 
@@ -1978,19 +2012,23 @@ function loadSettingsForm(cfg){
   if(cfg.auto_scan_share)   document.getElementById('vt-s-share').value    =Math.round(cfg.auto_scan_share*100);
   if(cfg.clean_ttl_days)    document.getElementById('vt-s-clean-ttl').value=cfg.clean_ttl_days;
   if(cfg.infected_ttl_days) document.getElementById('vt-s-inf-ttl').value  =cfg.infected_ttl_days;
+  checkRates=cfg.check_rates||{};
   vtRenderScanners(cfg.scanners||[],cfg.role==='admin');
   document.getElementById('vt-av-card').style.display=cfg.role==='admin'?'':'none';
   document.querySelectorAll('input[name=vt-av]').forEach(r=>r.checked=(cfg.avast_products||[]).includes(+r.value));
+  document.querySelectorAll('[data-check-rate]').forEach(input=>{input.value=cfg.check_rates?.[input.dataset.checkRate]||2;input.disabled=cfg.role!=='admin';});
 }
 
 // ── File scanners on/off (server-wide, administrator) ─────────
-let scIsAdmin=false;
+let scIsAdmin=false, checkRates={};
 function vtRenderScanners(list,isAdmin){
   scIsAdmin=isAdmin;
   const el=document.getElementById('vt-sc-list');
   document.getElementById('vt-sc-detect').style.display=isAdmin?'':'none';
   if(!list.length){el.innerHTML='<span class="hint">Could not ask the server which scanners are installed.</span>';return;}
-  el.innerHTML=list.map(s=>{
+  const found=list.filter(s=>s.installed);
+  if(!found.length){el.innerHTML='<span class="hint">No supported internal scanners found. Install ClamAV, Maldet or Imunify, then choose Detect again.</span>';return;}
+  el.innerHTML=found.map(s=>{
     const info=s.installed
       ?'Installed: '+vtEsc(s.detail||'')+(s.instant?' · shows the results of Imunify scans, starts no scan':'')
       :'Not installed on this server';
@@ -1998,7 +2036,8 @@ function vtRenderScanners(list,isAdmin){
       +'<label class="vt-sw" title="'+(isAdmin?'Switch on or off':'Set by the administrator')+'"><input type="checkbox" '+(s.installed&&s.enabled?'checked ':'')
       +((!s.installed||!isAdmin)?'disabled ':'')+'onchange="vtToggleScanner(\''+s.id+'\',this.checked)"><span></span></label>'
       +'<span class="vt-sc-name">'+vtEsc(s.name)+'</span>'
-      +'<span class="vt-sc-info">'+info+(s.installed&&!s.enabled?' · <strong>switched off</strong>':'')+'</span></div>';
+      +'<span class="vt-sc-info">'+info+(s.installed&&!s.enabled?' · <strong>switched off</strong>':'')+'</span>'
+      +'<label class="vt-rate" for="vt-rate-'+s.id+'"><input type="number" id="vt-rate-'+s.id+'" data-check-rate="'+s.id+'" min="1" max="5" step="1" value="'+(checkRates[s.id]||2)+'" '+(!isAdmin?'disabled ':'')+'aria-label="'+vtEsc(s.name)+' requests per minute"> / minute</label></div>';
   }).join('')+(isAdmin?'':'<div class="hint" style="margin-top:6px">Only the administrator can switch scanners on or off.</div>');
 }
 function vtScMsg(ok,text){
@@ -2007,6 +2046,7 @@ function vtScMsg(ok,text){
   setTimeout(()=>{m.style.display='none';},4000);
 }
 function vtApplyScanners(list){
+  document.querySelectorAll('[data-check-rate]').forEach(input=>{checkRates[input.dataset.checkRate]=input.value;});
   scanners=list.filter(s=>s.installed&&s.enabled).map(s=>({id:s.id,name:s.name,instant:s.instant}));
   vtRenderScanners(list,scIsAdmin);
   renderTable();
@@ -2038,6 +2078,16 @@ window.vtSaveSettings=async function(){
   const payload={wordpress_only:wpOnly?'true':'false',
     notify_enabled:document.getElementById('vt-n-enabled').checked?'true':'false',
     notify_events:checked('vt-n-ev'),notify_email:document.getElementById('vt-n-email').value.trim(),daily_limit:daily,auto_scan_share:share,clean_ttl_days:cttl,infected_ttl_days:ittl};
+  if(scIsAdmin){
+    const rates={};
+    for(const input of document.querySelectorAll('[data-check-rate]')){
+      const n=Number(input.value);
+      if(!Number.isInteger(n)||n<1||n>5){input.reportValidity();vtToast('Request limits must be whole numbers from 1 to 5 per minute','error');return;}
+      rates[input.dataset.checkRate]=n;
+    }
+    payload.check_rates=JSON.stringify(rates);
+    checkRates=rates;
+  }
   if(key) payload.api_key=key;
   if(document.getElementById('vt-av-card').style.display!=='none') payload.avast_products=[...document.querySelectorAll('input[name=vt-av]:checked')].map(c=>c.value).join(',')||'0';
 
@@ -2299,7 +2349,7 @@ function vtAvastRow(domain){
 function vtAvastRow1(domain,pr){
   const r=avast.results?.[domain]?.[pr.id], n=vtEsc(pr.name), p=x=>String(x).padStart(2,'0');
   let verdict, action='—';
-  if(avChecking[domain+'|'+pr.id]) verdict='<span class="vt-spin"></span> checking '+n+'…';
+  if(avChecking[domain+'|'+pr.id]) verdict='<span class="vt-spin"></span> '+(avChecking[domain+'|'+pr.id]==='waiting'?'queued for request limit':('checking '+n+'…'));
   else if(!r) verdict='<span class="hint">not checked yet</span>';
   else{
     const d=new Date(r.checked_at*1000);
@@ -2324,7 +2374,15 @@ window.vtAvastLive=async function(domain,force){
     const k=domain+'|'+pr.id;
     if(avChecking[k]) continue;
     avChecking[k]=true; if(fsOpen[domain]==='vt') vtFsRefresh(domain);
-    const r=await vtFetch('?action=avast-live&domain='+encodeURIComponent(domain)+'&product='+pr.id+(force?'&force=1':'')).catch(()=>null);
+    let r;
+    for(;;){
+      r=await vtFetch('?action=avast-live&domain='+encodeURIComponent(domain)+'&product='+pr.id+(force?'&force=1':'')).catch(()=>null);
+      if(r?.result?.state!=='rate_limited') break;
+      avChecking[k]='waiting'; if(fsOpen[domain]==='vt') vtFsRefresh(domain);
+      await delay(Math.max(1,r.result.retry_after||60)*1000);
+      if(fsOpen[domain]!=='vt'){delete avChecking[k];return;}
+      avChecking[k]=true;
+    }
     delete avChecking[k];
     const res=avast.results=avast.results||{}; res[domain]=res[domain]||{};
     if(r?.result){res[domain][pr.id]=r.result; if(r.result.state==='ok') histSites.add(domain);}

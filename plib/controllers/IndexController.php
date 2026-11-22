@@ -626,6 +626,7 @@ class IndexController extends pm_Controller_Action
         $s['has_key']          = !empty($ownKey) || $this->usingAdminKey;
         $s['scanners']         = self::scannerSettings();
         $s['avast_products']   = VtAvastStore::products();
+        $s['check_rates']      = VtCheckRateLimiter::rates();
         unset($s['scanners_disabled']);
         $s['using_admin_key']  = false; // Never expose admin key fallback to non-admin users
         // Quick auth check using the effective key (own or admin fallback)
@@ -673,12 +674,30 @@ class IndexController extends pm_Controller_Action
             }
         }
 
+        if (isset($input['check_rates'])) {
+            if ($this->role() !== 'admin') { $this->respond(['error' => 'Only the administrator can change check rates']); return; }
+            $rates = json_decode((string)$input['check_rates'], true);
+            if (!is_array($rates)) { $this->respond(['error' => 'Invalid check rates']); return; }
+            $valid = [];
+            foreach ($rates as $source => $value) {
+                if (!in_array($source, VtCheckRateLimiter::SOURCES, true) || !is_int($value) || $value < 1 || $value > 5) {
+                    $this->respond(['error' => 'Each request limit must be a whole number from 1 to 5 per minute']); return;
+                }
+                $valid[$source] = (int)$value;
+            }
+            $save['check_rates'] = array_replace(VtCheckRateLimiter::rates(), $valid);
+        }
+
         // Avast / AVG classification: one server-wide setting of the administrator
         if (isset($input['avast_products']) && $this->role() === 'admin') {
             $ps = array_values(array_unique(array_filter(array_map('intval', explode(',', (string)$input['avast_products'])), fn($p) => isset(VtAvast::PRODUCTS[$p]))));
             sort($ps);
             if ($this->settings->getUserId() === 'admin') $save['avast_products'] = $ps; // same file: saved below
             else (new VtSettings('admin'))->set('avast_products', $ps);
+        }
+        if (isset($save['check_rates']) && $this->settings->getUserId() !== 'admin') {
+            (new VtSettings('admin'))->set('check_rates', $save['check_rates']);
+            unset($save['check_rates']);
         }
         $save['login'] = $this->settings->getUserId(); // lets the notifier find this user's address
         $this->settings->setAll($save);

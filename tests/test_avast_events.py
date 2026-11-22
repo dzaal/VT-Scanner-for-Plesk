@@ -20,6 +20,7 @@ class VtDataDir {
     public static function ensureExists(): void {}
 }''')
             (lib / 'data').mkdir()
+            (lib / 'VtCheckRateLimiter.php').write_text('<?php class VtCheckRateLimiter { public static function reserve($source): int { return 0; } }')
             (lib / 'VtAvast.php').write_text('''<?php
 class VtAvast {
     const PRODUCTS = [146 => 'Avast', 147 => 'AVG'];

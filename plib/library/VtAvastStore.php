@@ -3,6 +3,7 @@ require_once __DIR__ . '/VtDataDir.php';
 require_once __DIR__ . '/VtAvast.php';
 require_once __DIR__ . '/VtSettings.php';
 require_once __DIR__ . '/VtSiteLog.php';
+require_once __DIR__ . '/VtCheckRateLimiter.php';
 
 /**
  * Latest Avast / AVG classification per site, in vt_avast.json { domain: result of VtAvast::check() }.
@@ -35,6 +36,8 @@ class VtAvastStore
         if (!$force && $prev && time() - (int)($prev['checked_at'] ?? 0) < self::LIVE_REUSE) {
             return $prev + ['reused' => true];
         }
+        $wait = VtCheckRateLimiter::reserve($product === 147 ? 'avg' : 'avast');
+        if ($wait) return ['state' => 'rate_limited', 'retry_after' => $wait];
         $r = VtAvast::check($domain, $product);
         self::locked(function () use ($domain, $product, $r) {
             $all = self::load(); $all[$domain][$product] = $r; self::save($all);

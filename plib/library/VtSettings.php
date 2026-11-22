@@ -48,6 +48,7 @@ class VtSettings
         'clean_ttl_days'     => 30,
         'infected_ttl_days'  => 1,
         'tier'               => 'free', // 'free' | 'premium' | 'custom'
+        'check_rates'        => [],     // per optional provider/scanner, 1–5 requests per minute
         'scanners_disabled'  => [],     // file scanners switched off (admin settings only, server-wide)
         'avast_product'      => 0,      // old single choice (before 1.29.0), read once for avast_products
         'avast_products'     => null,   // Avast / AVG classification: [] = off, [146] Avast, [147] AVG, or both (admin only, server-wide)
