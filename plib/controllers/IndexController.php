@@ -597,6 +597,7 @@ class IndexController extends pm_Controller_Action
         $s['has_key']          = !empty($ownKey) || $this->usingAdminKey;
         $s['scanners']         = self::scannerSettings();
         $s['avast_products']   = VtAvastStore::products();
+        $s['avast_calls']      = VtAvast::callsToday();
         $s['check_rates']      = VtCheckRateLimiter::rates();
         unset($s['scanners_disabled']);
         $s['using_admin_key']  = false; // Never expose admin key fallback to non-admin users

@@ -109,7 +109,7 @@ Clicking a button opens a second line under the site. It shows the scan while it
 
 Settings starts with VirusTotal and its API key, daily budget, background share and cache durations. The numeric fields use four columns on larger screens.
 
-The separate **Experimental** section lets the administrator enable AVG and Avast independently. **Internal scanners** lists the supported scanners detected on the server, with an individual switch for each.
+The separate **Experimental** section lets the administrator enable AVG and Avast independently. **Internal serverside file scanners** lists the supported scanners detected on the server, with an individual switch for each.
 
 Each optional provider and internal scanner has its own **1–5 requests/minute** limit (default **2**), shared across all users and browser tabs. Click **Save settings** to apply rate changes; internal scanner switches save immediately. Cached external results do not consume a slot. New checks wait for their slot, and internal file scans still run one at a time. Imunify remains a read-only check of its existing results.
 

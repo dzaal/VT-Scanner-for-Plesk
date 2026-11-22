@@ -3,6 +3,11 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.33.0 — 2026-11-22
+- VirusTotal daily budget as two clear sliders, each with its name inside: **Max calls / day** (0 – 1,000) and **Reserved for manual scans (%)**. Each range has its own colour (background scan blue, manual rescans purple, outside the budget hatched) and an orange bar inside it shows what was used today. The number of VirusTotal calls made today is shown large above the sliders, split into background and manual rescans.
+- AVG and Avast one below the other as **AVG Web Shield** and **Avast Web Shield**, with what they are, and the number of calls made today next to each.
+- "Internal scanners" is now "Internal serverside file scanners".
+
 ## 1.32.0 — 2026-11-22
 - VirusTotal daily budget as one slider from 0 to 10,000 calls: drag the bottom knob for the daily limit and the top knob for the share kept for manual rescans (the rest is for the background scan). Orange bars show the calls used today in each part. The numbers can still be typed.
 - A 20px logo next to each scanner and service in Settings (VirusTotal, AVG, Avast, ClamAV, Maldet, Imunify) and next to Avast / AVG in the site details. The logos ship with the extension; nothing is loaded from outside.

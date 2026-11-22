@@ -47,7 +47,7 @@ class VtAvast
     {
         $url  = self::normalizeUrl($urlOrDomain);
         $out  = ['url' => $url, 'product' => $product, 'checked_at' => time(), 'http' => 0, 'state' => 'failed', 'findings' => []];
-        $body = self::send(self::request($url, $product), $code, $err);
+        $body = self::send(self::request($url, $product), $code, $err, $product);
         $out['http'] = $code; $out['checked_at'] = time();
         if ($err !== '')          return $out + ['error' => $err];
         if ($code !== 200)        return $out + ['error' => 'HTTP ' . $code];
@@ -136,9 +136,19 @@ class VtAvast
     private static function int(int $f, int $v): string    { return self::varint($f << 3) . self::varint($v); }
     private static function len(int $f, string $v): string { return self::varint(($f << 3) | 2) . self::varint(strlen($v)) . $v; }
 
+    /** Requests sent today per product: [146 => n, 147 => n] */
+    public static function callsToday(): array
+    {
+        $st  = json_decode((string)@file_get_contents(VtDataDir::path('vt_avast_rate.json')), true) ?: [];
+        $out = array_fill_keys(array_keys(self::PRODUCTS), 0);
+        if (($st['day'] ?? '') !== date('Y-m-d')) return $out;
+        foreach ($st['calls'] ?? [] as $p => $n) if (isset($out[(int)$p])) $out[(int)$p] = (int)$n;
+        return $out;
+    }
+
     // ── HTTP with the shared limiter ───────────────────────────
 
-    private static function send(string $payload, ?int &$code, ?string &$err)
+    private static function send(string $payload, ?int &$code, ?string &$err, int $product = 0)
     {
         $code = 0; $err = '';
         $fp = fopen(VtDataDir::path('vt_avast_rate.lock'), 'c');
@@ -151,6 +161,9 @@ class VtAvast
             if ($startAt - $now > 120000) { $err = 'Paused by the service (HTTP 429), retry later'; return false; }
             if ($startAt > $now) usleep((int)(($startAt - $now) * 1000));
             $st['last_start_ms'] = microtime(true) * 1000;
+            // Calls today per product (server time), shown next to AVG / Avast in Settings
+            if (($st['day'] ?? '') !== date('Y-m-d')) { $st['day'] = date('Y-m-d'); $st['calls'] = []; }
+            $st['calls'][$product] = (int)($st['calls'][$product] ?? 0) + 1;
             @file_put_contents($stateFile, json_encode($st));
 
             $retryAfter = 0;
