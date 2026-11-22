@@ -354,7 +354,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-sh-pill.bad{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
 .vt-sh-pill.good{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
 .vt-sh-pill.warn{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-border)}
-.vt-av-badge{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-top:3px;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--red-bg);color:var(--red);border:1px dashed var(--red-border)}
+.vt-av-badge{all:unset;cursor:pointer;display:inline-flex;white-space:nowrap;flex-shrink:0;align-items:center;gap:5px;margin-top:3px;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--red-bg);color:var(--red);border:1px dashed var(--red-border)}
 .vt-av a{cursor:pointer}
 .vt-av{font-size:12.5px;line-height:1.7}
 .vt-rev-deny{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px}
