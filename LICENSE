@@ -1,19 +1,95 @@
-VT Site Scanner Source-Available License
+VT Site Scanner by Digizaal — Proprietary Source-Available License
 
-Copyright (c) 2026 Dirk Zaal (Digizaal). All rights reserved.
+Copyright (c) 2026 Digizaal (Dirk Zaal), Amsterdam, the Netherlands.
+All rights reserved.
 
-You may read and inspect the source code, and you may download, build, install,
-and run an unmodified copy of the extension on Plesk servers you administer,
-including for your own business and to monitor sites you host for customers.
-You may configure the extension through its documented settings and make
-copies reasonably necessary for these permitted uses.
 
-You must obtain prior written permission from the copyright holder to modify
-the source code, create derivative works from it, redistribute the extension
-or its source code, or incorporate any of its code into another product.
+1. Ownership
 
-These terms apply to material for which the copyright holder owns the rights.
-Third-party code and assets remain subject to their own terms. This license
-does not limit rights granted by applicable law that cannot be waived or rights
-granted under the GitHub Terms of Service for content in a public repository,
-including viewing and forking through GitHub as permitted by those terms.
+VT Site Scanner by Digizaal (the "Software") — including its source code,
+object code, scripts, user interface, texts, graphics created for it,
+documentation, and the design, structure, logic and way of working of the
+scanner (such as how it schedules, budgets, combines and presents checks) —
+is the intellectual property of Digizaal. All copyrights, database rights,
+trade-name and trademark rights and any other intellectual property rights in
+the Software belong exclusively to Digizaal. No rights are transferred to you;
+you only receive the limited right of use described in section 2.
+
+"VT Site Scanner by Digizaal", "Digizaal" and the Digizaal logo are names and
+marks of Digizaal and may not be used without prior written permission.
+
+
+2. What you may do
+
+You may, free of charge:
+
+  a. view and read the source code;
+  b. download, install and run an unmodified copy of the Software, as
+     published by Digizaal, on Plesk servers you administer, including for
+     your own business and to monitor websites you host for customers;
+  c. configure the Software only through its own settings screens and
+     documented options;
+  d. make copies only to the extent technically necessary for (b) and (c),
+     such as backups of the server.
+
+
+3. What you may not do
+
+Without prior written permission from Digizaal you may not:
+
+  a. modify, adapt, translate, patch or otherwise change the Software or any
+     part of it, in any form, for any purpose — including on your own server
+     and including private changes that are never shared;
+  b. create derivative works based on the Software, or copy its design,
+     structure, logic or way of working into other software;
+  c. distribute, publish, sell, rent, lend, sublicense or otherwise make the
+     Software or its source code available to others, in original or changed
+     form, other than by referring to Digizaal's own download location;
+  d. incorporate any part of the Software into another product or service;
+  e. remove, hide or change any copyright notice, license text, name or other
+     indication of Digizaal as the owner;
+  f. decompile, disassemble or reverse engineer the Software, except where
+     the law expressly allows this and cannot be excluded by agreement.
+
+Requests for permission: via https://www.digizaal.nl
+
+
+4. Third parties
+
+This license covers only the material of which Digizaal holds the rights.
+The names and logos of VirusTotal, Google, AVG, Avast, ClamAV, Maldet,
+Imunify and other services or products shown in the Software belong to their
+respective owners and are used only to identify those services. Use of those
+services is subject to their own terms; you are responsible for complying
+with them (for example the API terms of VirusTotal and Google).
+
+This license does not limit rights that apply by law and cannot be waived,
+nor the rights GitHub's Terms of Service grant for content in a public
+repository (such as viewing and forking within GitHub). A fork on GitHub does
+not grant any right to modify, run a modified version of, or distribute the
+Software outside what this license allows.
+
+
+5. No warranty, limitation of liability
+
+The Software is provided "as is", without warranty of any kind, express or
+implied, including fitness for a particular purpose and accuracy of scan
+results. Results come from third-party services and may be incomplete or
+wrong. To the maximum extent permitted by law, Digizaal is not liable for any
+damage arising from the use of, or the inability to use, the Software,
+including lost revenue, lost data or damage caused by decisions based on its
+results.
+
+
+6. Termination
+
+The right of use in section 2 ends automatically and immediately if you act
+in breach of this license. You must then stop using the Software and remove
+all copies. Digizaal keeps all other rights and remedies.
+
+
+7. Applicable law
+
+This license is governed by the laws of the Netherlands. Disputes are
+submitted exclusively to the competent court in Amsterdam, unless mandatory
+law provides otherwise.

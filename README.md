@@ -442,7 +442,14 @@ Notes:
 
 ## License
 
-The source is available to inspect. You may build, install, and run the unmodified extension, including on Plesk servers you administer for customer hosting. Modifying or redistributing the code requires written permission, subject to the terms in the [source-available license](LICENSE).
+Copyright © 2026 Digizaal (Dirk Zaal). All rights reserved.
+
+VT Site Scanner by Digizaal — its code, design and way of working — is the intellectual property of Digizaal. The source code is published so you can read it; it is **not** open source.
+
+- **Allowed:** install and run the unmodified extension as published by Digizaal on Plesk servers you administer, including for customer hosting, and configure it through its settings.
+- **Not allowed without written permission:** modifying the code in any way (also privately on your own server), creating derivative works, redistributing the extension or its code, or using parts of it in other products.
+
+Full terms: [LICENSE](LICENSE). Permission requests: via [digizaal.nl](https://www.digizaal.nl). Names and logos of VirusTotal, Google, AVG, Avast and the file scanners belong to their owners.
 
 ## Author
 
