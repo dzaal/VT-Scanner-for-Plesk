@@ -2266,7 +2266,10 @@ function vtAvastRow1(domain,pr){
     else{
       verdict=r.findings.map(f=>'<span class="vt-sh-pill bad">'+vtEsc(f.classification)+'</span> <code>'+vtEsc(f.detection||f.raw)+'</code>').join('<br>')+meta;
       action='<a onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(pr.name)+'\',0,\'form\',\''+vtEsca(pr.form)+'\')" href="'+vtEsc(pr.form)+'" target="_blank" rel="noopener">report a false positive ↗</a>'
-        +vtRevDone(domain,pr.name)+'<div class="vt-why-tip">Official '+n+' form; choose <strong>URL</strong> and enter the site address.</div>';
+        +vtRevDone(domain,pr.name)+'<div class="vt-why-tip">Official '+n+' form; choose <strong>URL</strong> and enter the site address. '
+        +'The form asks for an <strong>Alert ID</strong>: that is not the code above, it only appears in the warning popup of the '+n+' app on a computer that blocks the site. '
+        +'Leave it empty if the form allows it, or open the site on a PC with '+n+' installed and copy the Alert ID from the popup. '
+        +'Mention the classification (<code>'+vtEsc(r.findings.map(f=>f.classification).join(', '))+'</code>) in the description.</div>';
     }
   }
   return '<tr class="vt-av-row'+(reviews[domain]?.[pr.name]?' asked':'')+'"><td>'+n+' <span class="hint" title="Asked directly from '+n+'\'s URL reputation service, not via VirusTotal. Unofficial, may stop working.">(direct)</span></td><td>'+verdict+'</td><td>'+action+'</td></tr>';

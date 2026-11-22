@@ -3,6 +3,9 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.29.1 — 2026-11-22
+- Avast / AVG false-positive link: explains that the form's Alert ID comes from the warning popup of the Avast / AVG app, not from this check, and what to do without one.
+
 ## 1.29.0 — 2026-11-22
 - Avast and AVG are now two checkboxes in Settings: switch on either one or both. With both, each site gets a row for Avast and one for AVG in the details, and a badge for each that classifies it (two requests, one second apart).
 - The earlier choice and the saved results are carried over.
