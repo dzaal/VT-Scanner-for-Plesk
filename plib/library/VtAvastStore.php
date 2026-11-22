@@ -44,12 +44,29 @@ class VtAvastStore
         if ($r['state'] !== 'ok') { $log("check failed $domain: " . ($r['error'] ?? 'unknown') . " (HTTP {$r['http']})"); return $r; }
         $now = implode(', ', array_column($r['findings'], 'classification'));
         $log(($now === '' ? 'no classification' : "classification $now") . " $domain");
-        $was = ($prev['state'] ?? '') === 'ok' ? implode(', ', array_column($prev['findings'], 'classification')) : null;
-        // History: the first classification, and every change after that
-        if (($was === null && $now !== '') || ($was !== null && $was !== $now)) {
-            VtSiteLog::avast($domain, $name, (string)$was, $now, $r['findings'][0]['detection'] ?? '');
+        // Seed the history from an older successful cache when upgrading from a version
+        // that did not record clear observations; retain evidence of a true removal.
+        if (($prev['state'] ?? '') === 'ok' && !empty($prev['checked_at'])) {
+            VtSiteLog::avastResult($domain, $name, implode(', ', array_column($prev['findings'] ?? [], 'classification')),
+                                 $prev['findings'][0]['detection'] ?? '', (int)$prev['checked_at']);
         }
+        VtSiteLog::avastResult($domain, $name, $now, $r['findings'][0]['detection'] ?? '', (int)$r['checked_at']);
         return $r;
+    }
+
+    /** Import existing successful snapshots at their recorded check time, without inventing a delisting. */
+    public static function recordCachedObservations(): void
+    {
+        $marker = VtDataDir::path('vt_avast_observations_v1');
+        if (is_file($marker)) return;
+        foreach (self::load() as $domain => $products) {
+            foreach ($products as $product => $r) {
+                if (!isset(VtAvast::PRODUCTS[$product]) || ($r['state'] ?? '') !== 'ok' || empty($r['checked_at'])) continue;
+                VtSiteLog::avastResult($domain, VtAvast::PRODUCTS[$product], implode(', ', array_column($r['findings'] ?? [], 'classification')),
+                                     $r['findings'][0]['detection'] ?? '', (int)$r['checked_at']);
+            }
+        }
+        @touch($marker);
     }
 
     private static function locked(callable $fn): void

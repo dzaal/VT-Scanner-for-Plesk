@@ -3,6 +3,11 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.30.3 — 2026-11-22
+- Show direct AVG and Avast checks and classification changes in Recent status changes, separately from VirusTotal verdicts.
+- Record the first successful clear check as “No classification”; do not present it as a proven delisting. Import existing checks at their original timestamps.
+- Compare with the last successful observation, so a failed request between two successful checks does not hide an improvement.
+
 ## 1.30.2 — 2026-11-22
 - Trend tab, Recent status changes: a solid, coloured arrow between the two statuses (green = better, red = worse).
 

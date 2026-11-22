@@ -819,8 +819,10 @@ class IndexController extends pm_Controller_Action
         // Once: add the status changes from before the feed existed, found in the scan logs
         $marker = VtDataDir::path('vt_events_backfilled');
         if (!file_exists($marker) && @touch($marker)) VtEvents::backfillFromLogs();
+        VtAvastStore::recordCachedObservations();
+        $recent = VtSiteLog::recentChanges();
         if ($this->role() === 'admin') { // the whole server, including sites that have left the list
-            $this->respond(['events' => VtEvents::recent(200)]);
+            $this->respond(['events' => array_slice($recent, 0, 200)]);
             return;
         }
         $allowed = array_flip(array_merge(
@@ -828,7 +830,7 @@ class IndexController extends pm_Controller_Action
             PleskDomains::relatedForCurrentUser()
         ));
         $events = array_values(array_filter(
-            VtEvents::recent(300),
+            $recent,
             fn($e) => isset($allowed[$e['domain'] ?? ''])
         ));
         $this->respond(['events' => array_slice($events, 0, 200)]);

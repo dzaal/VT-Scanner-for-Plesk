@@ -1329,12 +1329,16 @@ function vtRenderEvents(events){
     const d=new Date(e.ts*1000);
     const when=pad(d.getDate())+'-'+pad(d.getMonth()+1)+'-'+d.getFullYear()
       +' <small>('+(e.approx?'last seen ':'')+pad(d.getHours())+':'+pad(d.getMinutes())+')</small>';
-    const better=e.to==='gone'?null:(RANK[e.to]??0)<(RANK[e.from]??0);
+    const direct=e.type==='av';
+    const better=direct?(e.observed?null:!e.to):e.to==='gone'?null:(RANK[e.to]??0)<(RANK[e.from]??0);
+    const avBadge=(value,first)=>'<span class="vt-badge '+(first?'unchecked':value?'infected':'clean')+'">'
+      +vtEsc(e.product)+': '+(first?'First check':value?vtEsc(value.replace(/^URL:/,'')):'No classification')+'</span>';
+    const change=direct?avBadge(e.from,!!e.observed):badge(e.from);
     const arrow='<span class="vt-ev-arrow" style="color:'+(better===null?'var(--muted)':better?'var(--green)':'var(--red)')+'" aria-label="'+(better===null?'to':better?'better: to':'worse: to')+'">'
       +'<svg viewBox="0 0 22 14" aria-hidden="true"><path d="M1 5h12V1l8 6-8 6V9H1z" fill="currentColor"/></svg></span>';
     return '<div class="vt-ev-row">'
       +'<div class="vt-ev-time">'+when+'</div>'
-      +'<div class="vt-ev-change">'+badge(e.from)+arrow+badge(e.to)+'</div>'
+      +'<div class="vt-ev-change">'+change+arrow+(direct?avBadge(e.to,false):badge(e.to))+'</div>'
       +'<div class="vt-ev-domain"><a href="https://www.virustotal.com/gui/domain/'+vtEsc(e.domain)+'/detection" target="_blank" rel="noopener" title="Open on VirusTotal">'+vtEsc(e.domain)+'</a></div>'
       +'</div>';
   }).join('')
@@ -2299,11 +2303,12 @@ window.vtAvastLive=async function(domain,force){
     const r=await vtFetch('?action=avast-live&domain='+encodeURIComponent(domain)+'&product='+pr.id+(force?'&force=1':'')).catch(()=>null);
     delete avChecking[k];
     const res=avast.results=avast.results||{}; res[domain]=res[domain]||{};
-    if(r?.result){res[domain][pr.id]=r.result; if(r.result.findings?.length) histSites.add(domain);}
+    if(r?.result){res[domain][pr.id]=r.result; if(r.result.state==='ok') histSites.add(domain);}
     else res[domain][pr.id]={url:'https://'+domain+'/',checked_at:Math.floor(Date.now()/1000),http:0,state:'failed',findings:[],error:r?.error||'Network error'};
     vtFsRefresh(domain);
   }
   if(fsOpen[domain]==='vt') vtLoadSiteHist(domain);
+  if(document.getElementById('vtpanel-trend').classList.contains('active')) vtLoadTrend();
 };
 function vtSiteHistHTML(domain){
   const list=siteHist[domain];
@@ -2325,7 +2330,7 @@ function vtSiteHistHTML(domain){
     else if(e.type==='denied'){what=pill('warn','Review denied');text='<strong>'+vtEsc(e.vendor)+'</strong>'+(e.reason?': '+vtEsc(e.reason):'')+(e.by?' · by '+vtEsc(e.by):'');}
     else if(e.type==='av'){what=e.to?pill('bad',vtEsc(e.product)+': '+vtEsc(e.to.replace(/^URL:/,''))):pill('good',vtEsc(e.product)+': none');
       text=e.to?vtEsc(e.product)+' classifies the site as <strong>'+vtEsc(e.to)+'</strong>'+(e.detection?' (<code>'+vtEsc(e.detection)+'</code>)':'')+(e.from?', was '+vtEsc(e.from):'')
-               :vtEsc(e.product)+' no longer classifies the site'+(e.from?' (was '+vtEsc(e.from)+')':'');}
+               :vtEsc(e.product)+(e.observed?' check returned no classification':' no longer classifies the site')+(e.from?' (was '+vtEsc(e.from)+')':'');}
     else if(e.type==='unreview'){what=pill('','Undone');text='review request for <strong>'+vtEsc(e.vendor)+'</strong> undone'+(e.by?' · by '+vtEsc(e.by):'');}
     return '<div class="vt-sh-row"><div class="vt-sh-time">'+when+'</div><div class="vt-sh-what">'+what+'</div><div class="vt-sh-text">'+text+'</div></div>';
   }).join('');

@@ -53,6 +53,39 @@ class VtSiteLog
         self::add($domain, [['ts' => time(), 'type' => 'av', 'product' => $product, 'from' => $from, 'to' => $to, 'detection' => $detection]]);
     }
 
+    /** Record successful direct checks, comparing against the last successful observation.
+     * Failed requests never erase the baseline. A first clear check is an observation,
+     * not evidence that a previously recorded classification was removed.
+     */
+    public static function avastResult(string $domain, string $product, string $classification, string $detection, int $ts): void
+    {
+        self::add($domain, [], function (array $list) use ($product, $classification, $detection, $ts): array {
+            $previous = null;
+            foreach ($list as $entry) {
+                if (($entry['type'] ?? '') === 'av' && ($entry['product'] ?? '') === $product) $previous = $entry;
+            }
+            if ($previous && (($previous['ts'] ?? 0) > $ts || ($previous['to'] ?? '') === $classification)) return [];
+            return [['ts' => $ts, 'type' => 'av', 'product' => $product,
+                     'from' => $previous['to'] ?? null, 'to' => $classification, 'detection' => $detection,
+                     'observed' => $previous === null]];
+        });
+    }
+
+    /** Combined feed; direct product observations keep their own source and verdict. */
+    public static function recentChanges(): array
+    {
+        $events = VtEvents::recent(5000);
+        foreach (self::load() as $domain => $list) {
+            foreach ($list as $entry) {
+                if (($entry['type'] ?? '') === 'av' && ($entry['ts'] ?? 0) >= time() - 90 * 86400) {
+                    $events[] = ['domain' => $domain] + $entry;
+                }
+            }
+        }
+        usort($events, fn($a, $b) => $b['ts'] <=> $a['ts']);
+        return $events;
+    }
+
     /** The whole history of a site, newest first, with the status changes merged in */
     public static function history(string $domain): array
     {
@@ -115,11 +148,13 @@ class VtSiteLog
         return false;
     }
 
-    private static function add(string $domain, array $entries): void
+    private static function add(string $domain, array $entries, ?callable $build = null): void
     {
         $fp = @fopen(VtDataDir::path(self::FILE . '.lock'), 'c');
         if ($fp) flock($fp, LOCK_EX);
         $all = self::load();
+        if ($build) $entries = $build($all[$domain] ?? []);
+        if (!$entries) { if ($fp) { flock($fp, LOCK_UN); fclose($fp); } return; }
         $list = array_merge($all[$domain] ?? [], $entries);
         usort($list, fn($a, $b) => $a['ts'] <=> $b['ts']);
         $all[$domain] = array_slice($list, -self::KEEP);
