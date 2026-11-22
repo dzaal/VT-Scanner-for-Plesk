@@ -3,6 +3,12 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.35.0 — 2026-11-22
+- New: **Google Safe Browsing** (optional, administrator), Google's official list of unsafe sites that Chrome, Firefox and Safari use to warn visitors. Uses your own Google API key (Google Cloud → APIs & Services → Safe Browsing API); a new key is tested with Google's own test page before it is saved, and the key is never sent to the browser.
+- Every site is checked each night (up to 250 sites per request), and live when you open a site's details or rescan it. Adds no VirusTotal API usage. Calls today and a per-minute limit are shown in Settings.
+- A listed site gets a badge (for example *Google: Phishing*) and a row in the Why? table with a link to Google Search Console to request a review. Listing and delisting go into the site history and Recent status changes.
+- Following Google's terms, a result is used for 30 minutes at most; after that it is shown as *last known* and checked again. Google allows this API for non-commercial use only.
+
 ## 1.34.1 — 2026-11-22
 - Fix: a rescan could run twice, in the browser and by the server queue at the same time (two VirusTotal calls, budget charged twice). The open page now reports its rescans every 30 seconds; the server only takes over a rescan when no page has reported it for 3 minutes.
 - Fix: after the server queue had finished rescans, every page load for 2 hours fetched those reports again from VirusTotal (spending manual calls). It now shows the result the server already saved.

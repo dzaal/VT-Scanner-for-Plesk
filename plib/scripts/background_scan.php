@@ -24,6 +24,7 @@ require_once $plibDir . '/PleskDomains.php';
 require_once $plibDir . '/VtNotifier.php';
 require_once $plibDir . '/VtHistory.php';
 require_once $plibDir . '/VtLogRotate.php';
+require_once $plibDir . '/VtSafeBrowsing.php';
 
 // Keep the scan logs small (log rotation settings in Settings)
 try { VtLogRotate::run(); } catch (\Throwable $e) {}
@@ -50,6 +51,16 @@ if (empty($domains)) {
 }
 
 log_msg(count($domains) . " domains loaded, queue_pos=" . $budget['queue_pos']);
+
+// Google Safe Browsing (optional): every site, up to 250 per request, independent of the VirusTotal budget
+if (VtSafeBrowsing::enabled()) {
+    try {
+        $listed = VtSafeBrowsing::checkAll($domains);
+        log_msg('[Google Safe Browsing] ' . count($domains) . ' sites checked, ' . $listed . ' listed');
+    } catch (\Throwable $e) {
+        log_msg('[Google Safe Browsing] check failed: ' . $e->getMessage());
+    }
+}
 
 $toScan = $cache->nextToScan($domains, $budget['auto_max']);
 

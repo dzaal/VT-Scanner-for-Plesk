@@ -5,7 +5,7 @@ require_once __DIR__ . '/VtSettings.php';
 /** Server-wide spacing and rolling-minute limits for each optional provider/scanner. */
 class VtCheckRateLimiter
 {
-    public const SOURCES = ['avg', 'avast', 'imunify', 'maldet', 'clamav'];
+    public const SOURCES = ['avg', 'avast', 'google', 'imunify', 'maldet', 'clamav'];
     public const DEFAULT_RATE = 2;
 
     public static function rates(): array

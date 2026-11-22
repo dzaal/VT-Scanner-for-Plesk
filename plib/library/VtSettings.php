@@ -54,6 +54,8 @@ class VtSettings
         'log_max_mb'         => 5,      // log rotation (admin only, server-wide): rotate a log larger than this
         'log_keep'           => 5,      // old copies kept (gzipped)
         'log_max_days'       => 90,     // old copies deleted after this many days
+        'gsb_enabled'        => false,  // Google Safe Browsing (admin only, server-wide)
+        'gsb_api_key'        => '',     // the administrator's Google API key; never sent to the browser
         'avast_products'     => null,   // Avast / AVG classification: [] = off, [146] Avast, [147] AVG, or both (admin only, server-wide)
     ];
 

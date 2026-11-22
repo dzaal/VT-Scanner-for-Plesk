@@ -451,6 +451,9 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-av-title{display:flex;flex-direction:column;gap:2px}
 .vt-av-title small{font-weight:400;color:var(--muted);font-size:12px}
 .vt-av-calls{font-size:12px;color:var(--muted);white-space:nowrap}
+.vt-gsb-key{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.vt-gsb-key input{flex:0 1 380px;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font:inherit;font-family:monospace;color:var(--text);background:var(--surface)}
+.vt-av-badge.stale{opacity:.6;border-style:dotted}
 .vt-av-calls strong{font-size:16px;color:var(--heading);font-variant-numeric:tabular-nums;margin-right:4px}
 @media(max-width:560px){#vtpanel-settings>.vt-card{padding:16px}.vt-provider-grid{grid-template-columns:1fr}.vt-settings-numbers{gap:14px}.vt-settings-title{flex-wrap:wrap}.vt-settings-title .hint{margin-left:0}}
 
@@ -770,7 +773,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 
     <div class="vt-card vt-settings-experimental" id="vt-av-card" style="display:none">
       <div class="vt-settings-title"><h3>External reputation checks</h3><span class="vt-experimental-tag">Experimental</span></div>
-      <p class="hint">Optional direct checks with AVG and Avast. These unofficial services may change or become unavailable. Checks run when opening site details and after a rescan.</p>
+      <p class="hint">Optional direct checks with AVG, Avast and Google Safe Browsing. AVG and Avast are unofficial services that may change or become unavailable; Google Safe Browsing is Google's official API. Checks run when opening site details and after a rescan; Google also checks every site each night.</p>
       <div class="vt-provider-list">
         <div class="vt-provider">
           <label class="vt-radio"><input type="checkbox" name="vt-av" value="147"><span class="vt-av-title"><strong><img class="vt-brand-ico" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/avg.png') ?>" alt="" width="20" height="20">AVG Web Shield</strong><small>URL reputation of AVG AntiVirus and the AVG Online Security browser extension</small></span></label>
@@ -783,6 +786,13 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
           <span class="vt-av-calls"><strong id="vt-av-calls-146">0</strong>calls today</span>
           <label class="vt-rate" for="vt-rate-avast"><input type="number" id="vt-rate-avast" min="1" max="5" step="1" value="2" data-check-rate="avast" aria-label="Avast requests per minute"> / minute</label>
           <span class="hint">The verdict an Avast user gets when opening the site, asked directly from Avast's reputation service. Can be switched on separately from AVG.</span>
+        </div>
+        <div class="vt-provider">
+          <label class="vt-radio"><input type="checkbox" id="vt-gsb-on"><span class="vt-av-title"><strong><img class="vt-brand-ico" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/google.png') ?>" alt="" width="20" height="20">Google Safe Browsing</strong><small>Google's list of unsafe sites, used by Chrome, Firefox and Safari to warn visitors</small></span></label>
+          <span class="vt-av-calls"><strong id="vt-gsb-calls">0</strong>calls today</span>
+          <label class="vt-rate" for="vt-rate-google"><input type="number" id="vt-rate-google" min="1" max="5" step="1" value="2" data-check-rate="google" aria-label="Google requests per minute"> / minute</label>
+          <div class="vt-gsb-key"><label for="vt-gsb-key">API key</label><input type="password" id="vt-gsb-key" placeholder="Paste a new Google API key to replace the stored one" autocomplete="off" spellcheck="false"><span id="vt-gsb-stored">no key stored</span></div>
+          <span class="hint">Official API with your own key (Google Cloud &rarr; APIs &amp; Services &rarr; Safe Browsing API). A new key is tested with Google's own test page before it is saved. Google allows this API for <strong>non-commercial use only</strong>. Only the site addresses are sent; Google may use them to improve its services. A result is used for 30 minutes at most, then shown as <em>last known</em> and checked again. Adds no VirusTotal API usage.</span>
         </div>
       </div>
       <div class="vt-save-row">
@@ -941,7 +951,7 @@ try{ if(window.top!==window && top.location.origin===location.origin) top.locati
 (function(){
 const BASE = <?= json_encode($this->baseUrl ?: '') ?> || location.pathname;
 const BRAND_IMG = <?= json_encode(($this->baseUrl ?: '') . 'images/brands/') ?>;
-const BRAND_ICO = {clamav:1,maldet:1,imunify:1,virustotal:1,avast:1,avg:1,146:'avast',147:'avg'};
+const BRAND_ICO = {clamav:1,maldet:1,imunify:1,virustotal:1,avast:1,avg:1,google:1,146:'avast',147:'avg'};
 /** 20px favicon of a scanner or reputation service, or '' when there is none */
 function vtBrandIco(id){const k=BRAND_ICO[id]; if(!k) return ''; return '<img class="vt-brand-ico" src="'+BRAND_IMG+(k===1?id:k)+'.png" alt="" width="20" height="20">';}
 
@@ -955,7 +965,7 @@ function vtSyncHeaderH(){
 window.addEventListener('resize',vtSyncHeaderH);
 document.addEventListener('DOMContentLoaded',vtSyncHeaderH);
 
-let domains=[], results={}, budget={}, activeFilter='all';
+let domains=[], results={}, budget={}, activeFilter='all', gsb={enabled:false};
 let scanners=[], scans={}, fsOpen={}, fsFull={}, reviews={}, histSites=new Set(), siteHist={}, avast={products:[]}; // file scanners: installed list, results per site, open panel per site
 let scanQueue=[], inFlight=0;
 const MAX_C=1;          // one at a time to stay within VT rate limits
@@ -999,7 +1009,7 @@ async function init(){
   // Phase 2 — full data: results, owners, scanners, history
   const data=await vtFetch('?action=all').catch(()=>({}));
   domains=data.domains||domains; related=data.related||[]; relSet=new Set(related); orphans=data.orphans||{}; owners=data.owners||{}; results=data.results||{};
-  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||budget; scanners=data.scanners||[]; scans=data.scans||{}; reviews=data.reviews||{}; histSites=new Set(data.history||[]); avast=data.avast||{products:[]};
+  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||budget; scanners=data.scanners||[]; scans=data.scans||{}; reviews=data.reviews||{}; histSites=new Set(data.history||[]); avast=data.avast||{products:[]}; gsb=data.gsb||{enabled:false};
   for(const d in scans) for(const id in scans[d]) if(fsBusy(d,id)) vtFsPoll(d,id);
   vtSet('vt-cnt-all',domains.length);
   document.querySelectorAll('#vt-view-seg button').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===viewMode));
@@ -1405,7 +1415,10 @@ function rowHTML(domain,data){
   return avr&&avr.state==='ok'&&avr.findings?.length
     ?'<div><button type="button" class="vt-av-badge" onclick="vtWhyClick(\''+vtEsca(domain)+'\')" title="'+vtEsc(pr.name)+' classification: '+vtEsc(avr.findings.map(f=>f.raw).join(', '))+'"><span class="vt-dot dot-r"></span>'
       +vtEsc(pr.name)+': '+vtEsc(avr.findings.map(f=>f.classification.replace(/^URL:/,'')).join(', '))+'</button></div>':'';}).join('');
-  const statusCell=badge+tagHtml+fsBadgeHtml+avHtml;
+  const gr=gsb.enabled?gsb.results?.[domain]:null, gStale=gr&&Date.now()/1000-gr.checked_at>(gsb.fresh||1800);
+  const gsbHtml=gr&&gr.state==='ok'&&gr.threats?.length
+    ?'<div><button type="button" class="vt-av-badge'+(gStale?' stale':'')+'" onclick="vtWhyClick(\''+vtEsca(domain)+'\')" title="Google Safe Browsing'+(gStale?' (last known, checked again when you open the details)':'')+'"><span class="vt-dot dot-r"></span>Google: '+vtEsc(gr.threats.join(', '))+'</button></div>':'';
+  const statusCell=badge+tagHtml+fsBadgeHtml+avHtml+gsbHtml;
 
   // Domain age badge
   let ageHtml='';
@@ -1427,9 +1440,9 @@ function rowHTML(domain,data){
     const c=data.malicious>0?'infected':'clean';
     const scoreNum=data.malicious>0?'<strong>'+data.malicious+'</strong>/'+data.total:data.malicious+'/'+data.total;
     score='<div class="vt-score"><div class="vt-sbar"><div class="vt-sbar-fill '+c+'" style="width:'+pct+'%"></div></div><span class="vt-snum '+c+'">'+scoreNum+'</span></div>';
-    const avFlag=(avast.products||[]).some(pr=>avast.results?.[domain]?.[pr.id]?.findings?.length);
+    const avFlag=(avast.products||[]).some(pr=>avast.results?.[domain]?.[pr.id]?.findings?.length)||!!(gsb.enabled&&gsb.results?.[domain]?.threats?.length);
     const flagged=data.malicious>0||st==='suspicious'||(data.flagged_by||[]).length||avFlag;
-    if(flagged||histSites.has(domain)||avast.products?.length){
+    if(flagged||histSites.has(domain)||avast.products?.length||gsb.enabled){
       score='<button type="button" class="vt-why-btn'+(fsOpen[domain]==='vt'?' open':'')+'" title="'+(flagged?'Which vendors flag this site, how to get it reviewed after cleaning, and its history':'History of this site')+'" onclick="vtWhyClick(\''+vtEsca(domain)+'\')">'+score+'<span class="vt-why-lbl">'+(flagged?'Why?':histSites.has(domain)?'History':'Details')+' ▾</span></button>';
     }
   }else if(isScanning){score='<span class="vt-spin"></span>';}
@@ -1745,7 +1758,7 @@ async function runJob(j){
   budget.auto_used=(budget.auto_used??0)+1; budget.vt_quota_used=(budget.vt_quota_used??0)+1; updateBudget();
   j.result=fresh;
   finishJob(j,'done');
-  vtAvastLive(j.domain,1); // a rescan also asks Avast / AVG
+  vtAvastLive(j.domain,1); vtGsbLive(j.domain,1); // a rescan also asks Avast / AVG and Google
 
   if(fresh.status==='infected') vtToast('⚠ INFECTED: '+j.domain,'err');
   else if(fresh.status==='suspicious') vtToast('Suspicious: '+j.domain,'warn');
@@ -2164,6 +2177,12 @@ function loadSettingsForm(cfg){
   document.getElementById('vt-av-card').style.display=cfg.role==='admin'?'':'none';
   document.querySelectorAll('input[name=vt-av]').forEach(r=>r.checked=(cfg.avast_products||[]).includes(+r.value));
   for(const id of [146,147]) vtSet('vt-av-calls-'+id,(cfg.avast_calls||{})[id]??0);
+  if(cfg.gsb){
+    document.getElementById('vt-gsb-on').checked=!!cfg.gsb.enabled;
+    vtSet('vt-gsb-calls',cfg.gsb.calls??0);
+    vtSet('vt-gsb-stored',cfg.gsb.key?'stored key '+cfg.gsb.key:'no key stored');
+    document.getElementById('vt-gsb-key').value='';
+  }
   const lr=cfg.log_rotation;
   document.getElementById('vt-lr-card').style.display=lr?'':'none';
   if(lr){
@@ -2249,6 +2268,10 @@ window.vtSaveSettings=async function(){
     payload.log_keep=parseInt(document.getElementById('vt-s-log-keep').value)||5;
     payload.log_max_days=parseInt(document.getElementById('vt-s-log-days').value)||90;
   }
+  if(document.getElementById('vt-av-card').style.display!=='none'){
+    payload.gsb_enabled=document.getElementById('vt-gsb-on').checked?'true':'false';
+    const gk=document.getElementById('vt-gsb-key').value.trim(); if(gk) payload.gsb_api_key=gk;
+  }
   if(document.getElementById('vt-av-card').style.display!=='none') payload.avast_products=[...document.querySelectorAll('input[name=vt-av]:checked')].map(c=>c.value).join(',')||'0';
 
   const body=new URLSearchParams(payload);
@@ -2260,7 +2283,7 @@ window.vtSaveSettings=async function(){
              style:{set display(v){msgs.forEach(m=>m.style.display=v);}}};
   msg.style.display='inline';
   if(res.ok){
-    msg.className='vt-smsg ok'; msg.textContent='Saved!';
+    msg.className='vt-smsg ok'; msg.textContent='Saved!'+(res.gsb_message?' '+res.gsb_message:'');
     document.getElementById('vt-api-warning').style.display='none';
     document.getElementById('vt-s-apikey').value='';
     if(noKey&&key){setTimeout(()=>location.reload(),800);} // key added: start looking sites up
@@ -2467,8 +2490,8 @@ function vtWhyRowHTML(domain,st){
   h+='<div class="vt-why-note"><strong>Already cleaned the site, and it is still red or orange?</strong> That is normal for a while. '
     +'This status comes from VirusTotal, not from the files on the server. Each vendor below keeps its own blocklist and updates it on its own schedule: '
     +'some within hours, others only after days or weeks, and some only when you ask.</div>';
-  if(list.length||avast.products?.length){
-    h+='<table class="vt-fs-tbl vt-why-tbl"><thead><tr><th>Vendor</th><th>Verdict</th><th>Ask for a review</th></tr></thead><tbody>'+vtAvastRow(domain)
+  if(list.length||avast.products?.length||gsb.enabled){
+    h+='<table class="vt-fs-tbl vt-why-tbl"><thead><tr><th>Vendor</th><th>Verdict</th><th>Ask for a review</th></tr></thead><tbody>'+vtGsbRow(domain)+vtAvastRow(domain)
       +list.map(([v,r])=>'<tr'+(reviews[domain]?.[v]?' class="asked"':'')+'><td>'+vtEsc(v)+'</td><td>'+vtEsc(r)+'</td><td>'+vtFpLink(v,domain)+'</td></tr>').join('')+'</tbody></table>';
   }
   h+='<div class="vt-sh"><div class="vt-tr-title" style="margin-top:12px">History of this site <span class="hint">(newest first)</span></div><div id="vtsh-'+rid(domain)+'">'+vtSiteHistHTML(domain)+'</div></div>';
@@ -2493,7 +2516,7 @@ document.addEventListener('click',ev=>{
 });
 window.vtWhyClick=function(domain){
   if(fsOpen[domain]==='vt'){vtFsClose(domain);return;}
-  fsOpen[domain]='vt'; vtFsRefresh(domain); vtLoadSiteHist(domain); vtAvastLive(domain);
+  fsOpen[domain]='vt'; vtFsRefresh(domain); vtLoadSiteHist(domain); vtAvastLive(domain); vtGsbLive(domain);
 };
 window.vtLoadSiteHist=async function(domain){
   const r=await vtFetch('?action=site-history&domain='+encodeURIComponent(domain)).catch(()=>null);
@@ -2502,6 +2525,49 @@ window.vtLoadSiteHist=async function(domain){
   if(el) el.innerHTML=vtSiteHistHTML(domain);
 };
 let avChecking={};
+/** Google Safe Browsing as its own vendor row in the details: official API, checked live and every night */
+let gsbChecking={};
+function vtGsbRow(domain){
+  if(!gsb.enabled) return '';
+  const r=gsb.results?.[domain], p=x=>String(x).padStart(2,'0'), name='Google Safe Browsing';
+  let verdict, action='—';
+  if(gsbChecking[domain]) verdict='<span class="vt-spin"></span> '+(gsbChecking[domain]==='waiting'?'queued for request limit':'checking Google…');
+  else if(!r) verdict='<span class="hint">not checked yet</span>';
+  else{
+    const d=new Date(r.checked_at*1000), stale=Date.now()/1000-r.checked_at>(gsb.fresh||1800);
+    const meta='<div class="vt-why-tip">'+(stale?'<strong>last known</strong> · ':'')+p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()+' ('+p(d.getHours())+':'+p(d.getMinutes())+')'
+      +' · <a onclick="vtGsbLive(\''+vtEsca(domain)+'\',1)">check again</a></div>';
+    if(r.state!=='ok') verdict='<span class="vt-sh-pill warn">Check failed</span> '+vtEsc(r.error||'')+meta;
+    else if(!r.threats?.length) verdict='<span class="vt-sh-pill good">Not listed</span>'+meta;
+    else{
+      verdict=r.threats.map(t=>'<span class="vt-sh-pill bad">'+vtEsc(t)+'</span>').join(' ')+meta;
+      const url=gsb.review||'https://search.google.com/search-console/security-issues';
+      action='<a onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+name+'\',0,\'form\',\''+vtEsca(url)+'\')" href="'+vtEsc(url)+'" target="_blank" rel="noopener">request a review in Search Console ↗</a>'
+        +vtRevDone(domain,name)+'<div class="vt-why-tip">The site owner adds the site to Google Search Console, fixes what is listed under <strong>Security issues</strong>, ticks <em>I have fixed these issues</em> and clicks <strong>Request review</strong>. Phishing reviews usually take a day, malware reviews a few days.</div>';
+    }
+  }
+  return '<tr class="vt-av-row'+(reviews[domain]?.[name]?' asked':'')+'"><td>'+vtBrandIco('google')+' '+name+' <span class="hint" title="Asked directly from Google\'s official Safe Browsing API, not via VirusTotal.">(direct)</span></td><td>'+verdict+'</td><td>'+action+'</td></tr>';
+}
+/** Ask Google now (force = also when a result of the last 30 minutes exists) */
+window.vtGsbLive=async function(domain,force){
+  if(!gsb.enabled||gsbChecking[domain]) return;
+  gsbChecking[domain]=true; if(fsOpen[domain]==='vt') vtFsRefresh(domain);
+  let r;
+  for(;;){
+    r=await vtFetch('?action=gsb-live&domain='+encodeURIComponent(domain)+(force?'&force=1':'')).catch(()=>null);
+    if(r?.result?.state!=='rate_limited') break;
+    gsbChecking[domain]='waiting'; if(fsOpen[domain]==='vt') vtFsRefresh(domain);
+    await delay(Math.max(1,r.result.retry_after||60)*1000);
+    if(fsOpen[domain]!=='vt'){delete gsbChecking[domain];return;}
+    gsbChecking[domain]=true;
+  }
+  delete gsbChecking[domain];
+  gsb.results=gsb.results||{};
+  if(r?.result) gsb.results[domain]=r.result;
+  else gsb.results[domain]={checked_at:Math.floor(Date.now()/1000),state:'failed',threats:[],error:r?.error||'Network error'};
+  vtFsRefresh(domain); if(typeof updateRow==='function'&&results[domain]) updateRow(domain,results[domain]);
+  if(fsOpen[domain]==='vt') vtLoadSiteHist(domain);
+};
 /** Avast / AVG as their own vendor rows in the details: checked live, not via VirusTotal */
 function vtAvastRow(domain){
   return (avast.products||[]).map(pr=>vtAvastRow1(domain,pr)).join('');

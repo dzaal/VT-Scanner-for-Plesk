@@ -18,6 +18,7 @@ require_once $_vtLib . '/VtReviews.php';
 require_once $_vtLib . '/VtSiteLog.php';
 require_once $_vtLib . '/VtAvastStore.php';
 require_once $_vtLib . '/VtLogRotate.php';
+require_once $_vtLib . '/VtSafeBrowsing.php';
 
 /**
  * IndexController — Plesk extension controller (extends pm_Controller_Action for layout).
@@ -247,6 +248,8 @@ class IndexController extends pm_Controller_Action
             'reviews'  => VtReviews::forDomains(array_merge($domains, $related)),
             'history'  => array_values(array_intersect(VtSiteLog::domains(), array_merge($domains, $related))),
             'avast'    => self::avastInfo($domains),
+            'gsb'      => VtSafeBrowsing::enabled() ? ['enabled' => true, 'fresh' => VtSafeBrowsing::FRESH, 'review' => VtSafeBrowsing::REVIEW_URL,
+                                                       'results' => VtSafeBrowsing::results($domains)] : ['enabled' => false],
         ]);
     }
 
@@ -257,6 +260,15 @@ class IndexController extends pm_Controller_Action
         if (!$ps) return ['products' => []];
         return ['products' => array_map(fn($p) => ['id' => $p, 'name' => VtAvast::PRODUCTS[$p], 'form' => VtAvast::FP_FORMS[$p]], $ps),
                 'results'  => VtAvastStore::results($domains)];
+    }
+
+    /** Live Google Safe Browsing check of one site: when its details are opened (reuses a result of the last 30 minutes) or after a rescan (force=1) */
+    public function gsbLiveAction(): void
+    {
+        $domain = $this->sanitize($this->_getParam('domain', ''));
+        if (!$domain || !$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
+        if (!VtSafeBrowsing::enabled()) { $this->respond(['error' => 'This check is switched off']); return; }
+        $this->respond(['result' => VtSafeBrowsing::live($domain, (bool)$this->_getParam('force', false))]);
     }
 
     /** Live Avast / AVG check of one site: when its details are opened (reuses a result of the last 5 minutes) or after a rescan (force=1) */
@@ -614,6 +626,11 @@ class IndexController extends pm_Controller_Action
         $s['avast_products']   = VtAvastStore::products();
         $s['avast_calls']      = VtAvast::callsToday();
         if ($this->role() === 'admin') $s['log_rotation'] = VtLogRotate::settings() + VtLogRotate::info();
+        unset($s['gsb_api_key']); // the Google key never goes to the browser
+        if ($this->role() === 'admin') {
+            $s['gsb'] = ['enabled' => (bool)(new VtSettings('admin'))->get('gsb_enabled', false),
+                         'key' => VtSafeBrowsing::maskedKey(), 'calls' => VtSafeBrowsing::callsToday()];
+        }
         $s['check_rates']      = VtCheckRateLimiter::rates();
         unset($s['scanners_disabled']);
         $s['using_admin_key']  = false; // Never expose admin key fallback to non-admin users
@@ -683,6 +700,22 @@ class IndexController extends pm_Controller_Action
             if ($this->settings->getUserId() === 'admin') $save['avast_products'] = $ps; // same file: saved below
             else (new VtSettings('admin'))->set('avast_products', $ps);
         }
+        // Google Safe Browsing: server-wide settings of the administrator; a new key is tested first
+        $gsbMsg = null;
+        if ($this->role() === 'admin' && (isset($input['gsb_enabled']) || isset($input['gsb_api_key']))) {
+            $gsb = [];
+            if (isset($input['gsb_enabled'])) $gsb['gsb_enabled'] = filter_var($input['gsb_enabled'], FILTER_VALIDATE_BOOLEAN);
+            $newKey = trim((string)($input['gsb_api_key'] ?? ''));
+            if ($newKey !== '') {
+                if (!preg_match('/^[A-Za-z0-9_\-]{20,100}$/', $newKey)) { $this->respond(['error' => 'That does not look like a Google API key']); return; }
+                [$ok, $gsbMsg] = VtSafeBrowsing::testKey($newKey);
+                if (!$ok) { $this->respond(['error' => 'Google Safe Browsing: ' . $gsbMsg]); return; }
+                $gsb['gsb_api_key'] = $newKey;
+            }
+            if ($this->settings->getUserId() === 'admin') $save += $gsb; // same file: saved below
+            else (new VtSettings('admin'))->setAll($gsb);
+        }
+
         // Log rotation: server-wide settings of the administrator
         if ($this->role() === 'admin') {
             $logCfg = [];
@@ -704,7 +737,7 @@ class IndexController extends pm_Controller_Action
         if (isset($save['api_key'])) {
             $this->cache->clearErrors();
         }
-        $this->respond(['ok' => true, 'saved' => array_keys($save)]);
+        $this->respond(['ok' => true, 'saved' => array_values(array_diff(array_keys($save), ['gsb_api_key'])), 'gsb_message' => $gsbMsg]);
     }
 
     // ── Helpers ─────────────────────────────────────────────────
