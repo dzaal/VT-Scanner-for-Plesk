@@ -19,7 +19,7 @@ class UpdateWorkerTest(unittest.TestCase):
             stub.chmod(0o755)
             helper = base / 'extension-update'
             helper.write_text((ROOT / 'sbin/extension-update').read_text()
-                              .replace('/run/vt-site-scanner-update', str(base / 'state'))
+                              .replace('/run/stingyscan-update', str(base / 'state'))
                               .replace('/usr/sbin/plesk', str(stub)))
             php = shutil.which('php')
             def call(*args):

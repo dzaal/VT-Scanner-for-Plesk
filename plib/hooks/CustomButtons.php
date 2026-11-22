@@ -1,6 +1,6 @@
 <?php
 /**
- * "VT Site Scanner" in Plesk's left navigation: for the administrator, resellers,
+ * "StingyScan" in Plesk's left navigation: for the administrator, resellers,
  * customers, and the Power User view (which shows the customer-style menu).
  */
 class Modules_VirustotalExtension_CustomButtons extends pm_Hook_CustomButtons
@@ -15,7 +15,7 @@ class Modules_VirustotalExtension_CustomButtons extends pm_Hook_CustomButtons
         }
         return [[
             'place'       => $places,
-            'title'       => 'VT Site Scanner',
+            'title'       => 'StingyScan',
             'description' => 'Malware, phishing and spam monitoring for your websites',
             'icon'        => pm_Context::getBaseUrl() . 'images/icon.png',
             'link'        => pm_Context::getActionUrl('index'),

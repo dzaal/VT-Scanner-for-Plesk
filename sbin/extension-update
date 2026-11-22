@@ -1,7 +1,7 @@
 #!/usr/local/psa/admin/bin/php
 <?php
 /** Privileged updater. Only installs this extension's versioned GitHub release. */
-const UPDATE_DIR = '/run/vt-site-scanner-update';
+const UPDATE_DIR = '/run/stingyscan-update';
 function reply(array $data): void { echo json_encode($data), "\n"; exit; }
 function status(array $data): void {
     file_put_contents(UPDATE_DIR . '/status.tmp', json_encode($data));
@@ -37,7 +37,7 @@ if ($mode === 'start') {
     reply(['ok' => true]);
 }
 
-$url = 'https://github.com/dzaal/VT-Scanner-for-Plesk/releases/download/v' . $version . '/virustotal-extension.zip';
+$url = 'https://github.com/dzaal/StingyScan-for-Plesk/releases/download/v' . $version . '/stingyscan.zip';
 exec('/usr/sbin/plesk bin extension --upgrade-url ' . escapeshellarg($url) . ' 2>&1', $lines, $code);
 status(['state' => $code === 0 ? 'done' : 'failed', 'version' => $version,
         'message' => $code === 0 ? 'Installed' : substr(implode("\n", $lines), -4000), 'finished' => time()]);

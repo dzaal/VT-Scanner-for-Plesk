@@ -4,7 +4,7 @@
 # Usage: bash .github/release-notes.sh 1.15.6
 set -euo pipefail
 v="$1"
-repo="${GITHUB_REPOSITORY:-dzaal/VT-Scanner-for-Plesk}"
+repo="${GITHUB_REPOSITORY:-dzaal/StingyScan-for-Plesk}"
 changelog="$(dirname "$0")/../CHANGELOG.md"
 
 # The section of this version (without its heading), and everything older.
@@ -19,10 +19,10 @@ ${this:-No notes for this version.}
 On your Plesk server, as root:
 
 \`\`\`
-plesk bin extension --upgrade-url https://github.com/$repo/releases/latest/download/virustotal-extension.zip
+plesk bin extension --upgrade-url https://github.com/$repo/releases/latest/download/stingyscan.zip
 \`\`\`
 
-Or download \`virustotal-extension-$v.zip\` below and upload it in Plesk (Extensions → My Extensions → Upload Extension).
+Or download \`stingyscan-$v.zip\` below and upload it in Plesk (Extensions → My Extensions → Upload Extension).
 
 NOTES
 

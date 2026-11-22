@@ -6,7 +6,7 @@
  * (runs as psaadm with Plesk's PHP, every night at 03:00). No manual cron needed.
  *
  * Manual run (e.g. to test), as the panel user and with Plesk's PHP 8:
- *   sudo -u psaadm /usr/local/psa/admin/bin/php  *     /usr/local/psa/admin/plib/modules/virustotal-extension/scripts/background_scan.php
+ *   sudo -u psaadm /usr/local/psa/admin/bin/php  *     /usr/local/psa/admin/plib/modules/stingyscan/scripts/background_scan.php
  *
  * Do NOT run it as root or with the OS's /usr/bin/php: files created as root
  * become unwritable for the panel, and older PHP versions can't parse this code.

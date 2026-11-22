@@ -515,7 +515,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
   <div class="vt-brand">
     <img class="vt-brand-logo" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/logo-128.png') ?>" alt="" width="48" height="48">
     <div class="vt-brand-text">
-      <div class="vt-brand-name">VT Site Scanner<?php if ($this->version): ?> <span class="vt-brand-ver">v<?= htmlspecialchars($this->version) ?></span><?php endif; ?></div>
+      <div class="vt-brand-name">StingyScan<?php if ($this->version): ?> <span class="vt-brand-ver">v<?= htmlspecialchars($this->version) ?></span><?php endif; ?></div>
       <div class="vt-brand-tag">Malware, phishing and spam monitoring for every hosted website on this server, powered by VirusTotal</div>
     </div>
     <a class="vt-brand-by" href="#about" onclick="vtShowTab('about');return false;" title="About the maker">
@@ -558,6 +558,13 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
   <!-- Dashboard -->
   <div class="vt-panel active" id="vtpanel-dashboard">
 
+<?php if (!empty($this->oldVtInstalled)): ?>
+    <div class="vt-alert warn">
+      <strong>VT Site Scanner (the old name of StingyScan) is still installed.</strong> Its settings, keys and history have been copied to StingyScan,
+      but both run their own scans and use your VirusTotal budget. Remove the old one as root:
+      <code>plesk bin extension --uninstall virustotal-extension</code>
+    </div>
+<?php endif; ?>
     <div class="vt-alert warn" id="vt-api-warning" style="display:none">
       No valid API key configured or key is invalid (HTTP 401) &mdash; scans will not work.
       <a onclick="vtShowTab('settings')" style="cursor:pointer">Configure in Settings &rarr;</a>
@@ -677,7 +684,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
         usually old copies, test or staging sites. Nobody can visit them, but VirusTotal often still lists them, sometimes as infected,
         and an old, never-updated copy is an easy target. They are not looked up automatically; click <strong>Rescan</strong> to check one.
         If the copy is no longer needed: click <strong>Back up</strong> (a <code>.sql.gz</code> copy in the subscription's <code>private/vt-db-backups</code> folder),
-        then delete it in Plesk. VT Site Scanner never deletes anything itself.</p>
+        then delete it in Plesk. StingyScan never deletes anything itself.</p>
       <div class="vt-tbl-wrap">
       <table>
         <thead>
@@ -925,7 +932,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
           <h3 style="margin:0 0 4px">Made by Dirk Zaal</h3>
           <div class="vt-about-sub"><a href="https://www.digizaal.nl" target="_blank" rel="noopener">Digizaal</a> · web development and hosting, Amsterdam</div>
           <p>Digizaal builds and hosts websites for its customers, about 600 of them WordPress sites on one Plesk server.
-          I built VT Site Scanner because I needed it myself: one hacked site can hurt its visitors, get the server's
+          I built StingyScan because I needed it myself: one hacked site can hurt its visitors, get the server's
           IP address blacklisted and drag every other site on the server down with it.</p>
           <p>I used the VirusTotal scanner that comes with Plesk, but every day it told me the API calls were exhausted:
           not all sites had been scanned, and the rest stayed unscanned. So I wrote a scanner that spends the free
@@ -963,15 +970,21 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <div class="vt-card">
         <h3>What's new</h3>
         <p>You are using version <strong><?= htmlspecialchars($this->version ?: '?') ?></strong>. See what changed in this version and in every version before it.</p>
-        <a class="vt-btn ghost" href="https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest" target="_blank" rel="noopener">Latest changes &rarr;</a>
-        <a class="vt-btn ghost" href="https://github.com/dzaal/VT-Scanner-for-Plesk/blob/main/CHANGELOG.md" target="_blank" rel="noopener">All versions &rarr;</a>
+        <a class="vt-btn ghost" href="https://github.com/dzaal/StingyScan-for-Plesk/releases/latest" target="_blank" rel="noopener">Latest changes &rarr;</a>
+        <a class="vt-btn ghost" href="https://github.com/dzaal/StingyScan-for-Plesk/blob/main/CHANGELOG.md" target="_blank" rel="noopener">All versions &rarr;</a>
+      </div>
+
+      <div class="vt-card">
+        <h3>License and trademarks</h3>
+        <p>&copy; 2026 Digizaal (Dirk Zaal). All rights reserved. StingyScan, its code, design and way of working, is the intellectual property of Digizaal. You may install and run the unmodified extension; changing or redistributing it needs written permission. <a href="https://github.com/dzaal/StingyScan-for-Plesk/blob/main/LICENSE" target="_blank" rel="noopener">License &rarr;</a></p>
+        <p class="hint">StingyScan is an independent product. It is not affiliated with, endorsed or sponsored by VirusTotal, Google, Gen Digital (AVG, Avast), WebPros (Plesk) or the makers of the file scanners. VirusTotal, Google Safe Browsing and Chrome are trademarks of Google LLC; AVG and Avast of Gen Digital Inc.; Plesk of WebPros International GmbH; WordPress of the WordPress Foundation; ClamAV of Cisco Systems, Inc.; Imunify360 and ImunifyAV of CloudLinux Software, Inc. All other names and logos belong to their respective owners and are used only to identify their services. <a href="https://github.com/dzaal/StingyScan-for-Plesk#trademarks" target="_blank" rel="noopener">All trademarks &rarr;</a></p>
       </div>
 
       <div class="vt-card vt-coffee">
         <div class="vt-coffee-cup" aria-hidden="true">&#9749;</div>
         <div style="flex:1">
           <h3 style="margin:0 0 4px">Buy me a cup of coffee</h3>
-          <p style="margin:0">VT Site Scanner is free. If it saves you time or catches a hacked site, a coffee is a nice way to say thanks.</p>
+          <p style="margin:0">StingyScan is free. If it saves you time or catches a hacked site, a coffee is a nice way to say thanks.</p>
         </div>
         <?php if ($this->paypalUrl): ?>
           <a class="vt-paypal" href="<?= htmlspecialchars($this->paypalUrl) ?>" target="_blank" rel="noopener">
@@ -2557,7 +2570,7 @@ function vtWhyRowHTML(domain,st){
     +'<li><strong>Google:</strong> if Chrome shows a red warning, the site owner can ask Google for a review in <a href="https://search.google.com/search-console/security-issues" target="_blank" rel="noopener">Search Console → Security issues</a>. Google usually handles this within a few days.</li>'
     +'<li><strong>Click Rescan again after a few days</strong> to see which vendors have removed the site from their list. Results of infected sites are refreshed every day by the background scan anyway. '
     +'When a vendor says it has removed the site but VirusTotal still shows it: VirusTotal keeps separate reports for <code>www.</code> and <code>http://</code> versions of the address; open them on virustotal.com and click <em>Reanalyze</em> on each.</li>'
-    +'</ol><div class="vt-fs-note">Contacts from <a href="'+VT_FP_LIST+'" target="_blank" rel="noopener">VirusTotal\'s list of vendor contacts</a>. VT Site Scanner never changes anything on the site; cleaning is up to you.</div>';
+    +'</ol><div class="vt-fs-note">Contacts from <a href="'+VT_FP_LIST+'" target="_blank" rel="noopener">VirusTotal\'s list of vendor contacts</a>. StingyScan never changes anything on the site; cleaning is up to you.</div>';
   return '<tr class="vt-fs-row" id="vtfs-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"'+(inQueue(domain)?' data-job="1"':'')+'><td colspan="5"><div class="vt-fs">'+h+'</div></td></tr>';
 }
 // A click anywhere on a site's row (not on a button, link or field) opens or closes its details

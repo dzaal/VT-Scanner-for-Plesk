@@ -1,17 +1,19 @@
 <img src="docs/logo.png" alt="" width="72" align="right">
 
-# VT Site Scanner for Plesk
+# StingyScan for Plesk
 
-A Plesk extension that checks every website hosted on your Plesk server against [VirusTotal](https://www.virustotal.com) for malware, phishing and spam, while carefully managing the limited number of API calls in VirusTotal's free tier.
+A Plesk extension that checks every website hosted on your Plesk server against [VirusTotal](https://www.virustotal.com)¹ for malware, phishing and spam, while carefully managing the limited number of API calls in VirusTotal's free tier. Optionally it also asks Google Safe Browsing¹ directly, and (experimental) the URL reputation of AVG and Avast¹.
 
-Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web development and hosting company in Amsterdam.
+<sub>¹ StingyScan is an independent product by Digizaal. It is not affiliated with, endorsed or sponsored by VirusTotal, Google, Gen Digital (AVG, Avast) or WebPros (Plesk). All trademarks belong to their owners; see [Trademarks](#trademarks).</sub>
 
-> **Detection only.** VT Site Scanner never changes anything on your sites. It does not edit, clean, move, quarantine or delete files, and it does not change or delete databases. It only looks and reports, so you decide what to do. (The one thing it writes, on request, is a backup copy of an orphan database.)
+Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web development and hosting company in Amsterdam. *Stingy* because it is sparing with every API call. StingyScan was called **VT Site Scanner** until version 1.35; see [Coming from VT Site Scanner](#coming-from-vt-site-scanner-1x).
+
+> **Detection only.** StingyScan never changes anything on your sites. It does not edit, clean, move, quarantine or delete files, and it does not change or delete databases. It only looks and reports, so you decide what to do. (The one thing it writes, on request, is a backup copy of an orphan database.)
 
 > [!TIP]
-> **Beta testers wanted.** Do you run a Plesk server with many websites, as a hosting company, agency or sysadmin? Try VT Site Scanner for two weeks and tell us what you think. You get early access to new versions, direct contact with the developer, and a mention in this README if you like.
+> **Beta testers wanted.** Do you run a Plesk server with many websites, as a hosting company, agency or sysadmin? Try StingyScan for two weeks and tell us what you think. You get early access to new versions, direct contact with the developer, and a mention in this README if you like.
 >
-> **[Sign up as a beta tester](https://github.com/dzaal/VT-Scanner-for-Plesk/issues/new?template=beta-signup.yml)** · install with [one command](#installation) · **[send feedback](https://github.com/dzaal/VT-Scanner-for-Plesk/issues/new?template=beta-feedback.yml)**
+> **[Sign up as a beta tester](https://github.com/dzaal/StingyScan-for-Plesk/issues/new?template=beta-signup.yml)** · install with [one command](#installation) · **[send feedback](https://github.com/dzaal/StingyScan-for-Plesk/issues/new?template=beta-feedback.yml)**
 
 ![From an infected site to the vendors that flag it, each with a link to ask for a review (demo names)](docs/screenshots/why-flagged-demo.gif)
 
@@ -19,7 +21,7 @@ Made by **Dirk Zaal** of **[Digizaal](https://www.digizaal.nl)**, a web developm
 
 Hosting companies, agencies and server admins who look after **more sites than VirusTotal's free API can check in a day**. The free key allows 500 requests per day and 4 per minute. With 500 sites or more you can't check them all every day, and a simple scanner burns the whole quota before you get to the one site you just cleaned up.
 
-VT Site Scanner makes that quota go a long way:
+StingyScan makes that quota go a long way:
 
 - **Every site gets its turn.** The nightly scan picks up where it stopped the night before, so all sites are checked in rotation, however many there are.
 - **Quota left for you.** Part of the daily budget is always kept for manual rescans.
@@ -30,7 +32,7 @@ VT Site Scanner makes that quota go a long way:
 
 **Scanner dashboard:** every hosted website with its status, detection score and a Rescan button. The Scan Monitor shows what is being checked right now.
 
-![VT Site Scanner dashboard in Plesk](docs/screenshots/scanner-dashboard.png)
+![StingyScan dashboard in Plesk](docs/screenshots/scanner-dashboard.png)
 
 **Why is a site flagged, and how do you fix it?** Click the score of a flagged site: you see which security vendors flag it, a review link per vendor, and the steps from cleaning the site to getting it delisted.
 
@@ -39,13 +41,13 @@ VT Site Scanner makes that quota go a long way:
 **Card on the Plesk Home page:** counts per status and the sites flagged by the most engines, straight on the admin's Home page.
 
 <p>
-  <img src="docs/screenshots/home-widget.png" alt="VT Site Scanner card on the Plesk Home page" width="346">
+  <img src="docs/screenshots/home-widget.png" alt="StingyScan card on the Plesk Home page" width="346">
 </p>
 
 <details>
 <summary>The card in context on the Plesk Home page</summary>
 
-![Plesk Home page with the VT Site Scanner card](docs/screenshots/home-dashboard.png)
+![Plesk Home page with the StingyScan card](docs/screenshots/home-dashboard.png)
 
 </details>
 
@@ -59,7 +61,7 @@ Digizaal hosts about 600 WordPress sites on a single Plesk server. A single comp
 
 With that many sites, VirusTotal's free API quota (500 requests per day) runs out every single day: checking every site even once takes more than a day, and rescans of infected sites come on top of that. Plesk ships with its own VirusTotal integration (*VirusTotal Website Check*), but every day it reported that the API calls were exhausted and not all sites had been scanned, leaving the rest unscanned, with no control over which sites were checked or when. That left no room to rescan a site after cleaning it up, which is the moment you need it most.
 
-VT Site Scanner was built to fix that:
+StingyScan was built to fix that:
 
 - **Careful with API calls.** Every call goes through a rate limiter, results are cached, and the daily budget is split between background scans and manual rescans.
 - **Interactive.** A live dashboard shows all sites, grouped by reseller and customer (click a customer to fold its sites away; the search box also finds customers), lets you filter on infected or suspicious ones, and rescans a site on demand, with a Scan Monitor that shows each step of each scan.
@@ -68,13 +70,14 @@ VT Site Scanner was built to fix that:
 ## Features
 
 - Dashboard with every website hosted on the server (WordPress or not): status (Infected / Suspicious / Clean / Queued / Error), detection score (e.g. `3/93` engines), IP address, domain age and danger tags (malware, phishing, …), with direct links to the site and to its VirusTotal page.
-- **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → VT Site Scanner**.
+- **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → StingyScan**.
 - **Scan Monitor**: a panel on the right that shows the VirusTotal lookups and file scans that are running, waiting and finished, each with its steps and result (blue = VirusTotal running, amber = file scan running, green = done and clean, red = failed or infected). The pause for VirusTotal's 4-requests-per-minute limit is waited out automatically instead of failing. Click its header to open or close it.
 - **Rescans keep going when you leave the page.** A rescan is also queued on the server, and a task that runs every 5 minutes finishes it if the browser was closed first.
 - **Group or Sort:** sites grouped by reseller and customer, or one flat list. Click the **Domain**, **Score** or **Last scan** header to sort (within each group in Group mode). Mode, sort column and direction are remembered. *Last scan* shows how long ago the site was checked, with the exact time on hover.
-- **Details per site:** click anywhere on a site's row (or its score) to open its details: the vendors that flag it with review links, Avast / AVG if switched on, and the history of the site. Click again to close.
+- **Details per site:** click anywhere on a site's row (or its score) to open its details: the vendors that flag it with review links, Google Safe Browsing and AVG / Avast if switched on, and the history of the site. Click again to close.
 - **History per site:** when it was first detected, when vendors started or stopped flagging it, status changes and every review request (see [Cleaned, but still red?](#cleaned-but-still-red)).
-- **Optional Avast / AVG classification**, asked live (see [Avast / AVG classification](#avast--avg-classification-optional)).
+- **Optional Google Safe Browsing**, Google's official API: every site each night and live when you open its details (see [Google Safe Browsing](#google-safe-browsing-optional)).
+- **Optional AVG / Avast Web Shield** classification (experimental), asked live (see [AVG / Avast Web Shield](#avg--avast-web-shield-optional-experimental)).
 - **Update check:** when a newer version is on GitHub, a yellow banner appears with the release notes and, for the administrator, an **Install** button that upgrades the extension in one click.
 - **Nightly background scan** (03:00, server time), scheduled automatically through Plesk's own scheduler.
 - **Trend graph:** infected, suspicious and cleaned sites per day over the last 1, 2 or 3 months, for the whole server, per reseller or per customer (see [Trend](#trend)).
@@ -83,7 +86,7 @@ VT Site Scanner was built to fix that:
 - **Works for every Plesk user level:** administrator, reseller and client (see [Users and roles](#users-and-roles)).
 - **Category menus:** the small arrow next to each status button (All, Infected, Suspicious, …) opens a menu with **Rescan**, which rescans every site in that category, worst first and never more than today's manual budget allows. The menu next to **All** also has **Refresh site list**.
 - **File scanners on demand:** a button bar on every site for the malware scanners found on the server (ClamAV, maldet, Imunify). Results and infected files appear right under the site (see [File scanners](#file-scanners-clamav-maldet-imunify)).
-- **Log tab** with a colour-coded scan log.
+- **Log tab** with a colour-coded scan log, and **log rotation** so the logs stay small (see [Settings](#settings)).
 - **About tab** about the maker, with a *Buy me a coffee* button.
 
 ## File scanners (ClamAV, maldet, Imunify)
@@ -107,15 +110,11 @@ Clicking a button opens a second line under the site. It shows the scan while it
 
 ### Settings and request rates
 
-Settings starts with VirusTotal and its API key, daily budget, background share and cache durations. The numeric fields use four columns on larger screens.
-
-The separate **Experimental** section lets the administrator enable AVG and Avast independently. **Internal serverside file scanners** lists the supported scanners detected on the server, with an individual switch for each.
-
-Each optional provider and internal scanner has its own **1–5 requests/minute** limit (default **2**), shared across all users and browser tabs. Click **Save settings** to apply rate changes; internal scanner switches save immediately. Cached external results do not consume a slot. New checks wait for their slot, and internal file scans still run one at a time. Imunify remains a read-only check of its existing results.
+Every optional online service and every internal scanner has its own **1–5 requests/minute** limit (default **2**), shared by all users and browser tabs. Cached results use no request. New checks wait for their turn; internal file scans run one at a time.
 
 ### Switching scanners on and off
 
-**Settings → File scanners** lists every scanner the extension knows (ClamAV, Maldet, Imunify), with what was found on the server:
+**Settings → Internal serverside file scanners** lists every scanner the extension knows (ClamAV, Maldet, Imunify), with what was found on the server:
 
 - **Installed**, with how it will be used: for ClamAV a running `clamd` (and its config file) or `clamscan`; for maldet and Imunify the program path. Imunify is marked *results only*.
 - **Not installed on this server**: the switch is greyed out and there is no button for it on the sites.
@@ -126,9 +125,27 @@ The extension checks which scanners are installed once an hour. After you instal
 
 How it works: website files belong to the subscription users, so the scans run through a small root helper (`sbin/site-scan`) that Plesk installs with the extension and calls through its own `callSbin` mechanism. The helper only accepts a scanner name and a hostname, and looks up the folder in Plesk's database. Each scanner is a small adapter in that file (detect, scan, read the result), so another scanner can be added the same way.
 
+## Settings
+
+The **Settings** tab, from top to bottom (text in Settings is never lighter than rgb(32, 32, 32), for easy reading):
+
+- **VirusTotal**: the API key, with a green check *API key active* when VirusTotal accepts it (a red cross when it doesn't).
+  - **Daily API budget**: the number of VirusTotal calls made today, large, split into background scan and manual rescans.
+  - **Max calls / day** (default 500, the free tier).
+  - A slider with a thin black line: left of it is the **background scan**, right of it is **reserved for manual scans (%)**. Each part is coloured and shows in orange how much of it was used today.
+  - How long clean and infected results are cached.
+- **Google Safe Browsing** (administrator): on/off, API key with green check, calls today, requests per minute, and how to get a key with direct links to the Google Cloud Console. See [Google Safe Browsing](#google-safe-browsing-optional).
+- **External reputation checks – Experimental** (administrator): **AVG Web Shield** and **Avast Web Shield**, each with its own switch, calls today and requests per minute. See [AVG / Avast Web Shield](#avg--avast-web-shield-optional-experimental).
+- **Internal serverside file scanners**: ClamAV, Maldet and Imunify, see [File scanners](#file-scanners-clamav-maldet-imunify).
+- **Sites to scan**: all hosted websites, or WordPress sites only.
+- **Notifications**: see [Notifications](#notifications).
+- **Log rotation** (administrator, whole server): a scan log larger than the limit (default **5 MB**) is compressed to an old copy (`cron_<user>.log.1.gz`, `.2.gz`, …) and a new log is started; at most **5** old copies are kept, none older than **90 days**. The limits apply to each log file (every Plesk user has their own). Checked every 5 minutes and before the nightly scan.
+
+Each online service has its own coloured block with its logo, so you see at a glance which service a setting belongs to.
+
 ## Users and roles
 
-VT Site Scanner works at all three Plesk user levels: **administrator**, **reseller** and **client**. Each user opens it from their own Plesk panel and only ever sees their own sites.
+StingyScan works at all three Plesk user levels: **administrator**, **reseller** and **client**. Each user opens it from their own Plesk panel and only ever sees their own sites.
 
 | Level | Sees |
 |---|---|
@@ -162,7 +179,7 @@ The **Trend** tab shows how infections develop, per day, over the last **1, 2 or
 - **Sites cleaned per day**: sites that were infected or suspicious and are clean again, as bars.
 - At the top: infected and suspicious now, with the change since the start of the period; how many sites were cleaned in the period; and the number of clean sites.
 - Hover over a day for its figures, or open **Show as table**.
-- **Recent status changes**, newest first, one line per change: the date (time), the status before and after as coloured badges with a solid arrow between them (green = better, red = worse), and the site, for example `20-11-2026 (11:10)  [Infected] ➡ [Suspicious]  culturelestelling.amsterdam`. Click the site to open its VirusTotal report. A site that was infected or suspicious and leaves the site list (deleted, disabled or suspended in Plesk) shows as *Left the list*. Changes from before this list existed are filled in once from the scan logs.
+- **Recent status changes**, newest first, one line per change: the date (time), the status before and after as coloured badges with a solid arrow between them (green = better, red = worse), and the site, for example `20-11-2026 (11:10)  [Infected] ➡ [Suspicious]  flower-centrum.example`. Click the site to open its VirusTotal report. A site that was infected or suspicious and leaves the site list (deleted, disabled or suspended in Plesk) shows as *Left the list*. Changes from before this list existed are filled in once from the scan logs.
 
 ![Trend graph with demo data: many infections, a big clean-up, then a slow rise again](docs/screenshots/trend.png)
 
@@ -173,7 +190,7 @@ The totals are saved once a day: by the nightly scan (for the server, every rese
 To see what the graph looks like before there is any history, you can fill the last 92 days with made-up example data (clearly marked as *demo*, shaded in the graph, and replaced by real totals day by day):
 
 ```bash
-sudo -u psaadm /usr/local/psa/admin/bin/php /usr/local/psa/admin/plib/modules/virustotal-extension/scripts/seed_demo_history.php
+sudo -u psaadm /usr/local/psa/admin/bin/php /usr/local/psa/admin/plib/modules/stingyscan/scripts/seed_demo_history.php
 ```
 
 Options: `--resellers` also fills every reseller's history, `--customers` every customer's. The demo figures are scaled to the number of sites (never more infected sites than there are) and end at today's real totals. `--remove` deletes all demo days again, everywhere. Resellers and customers see the same *Demo data* note and shading, so they can tell it's example data.
@@ -196,15 +213,15 @@ Buttons (administrator only):
 - **Back up** makes a `.sql.gz` copy of the database, or only of the old tables, in the subscription's `private/vt-db-backups/` folder, owned by the subscription's user. Nothing is deleted.
 - **Delete in Plesk ↗** opens the subscription's **Databases** page in Plesk. Delete the database there, or use phpMyAdmin from that page to drop only the old tables.
 
-VT Site Scanner never deletes anything itself. After you delete a database, the hostname disappears from the list within a day, or right away with **Refresh site list** in the menu next to **All**.
+StingyScan never deletes anything itself. After you delete a database, the hostname disappears from the list within a day, or right away with **Refresh site list** in the menu next to **All**.
 
 ## Cleaned, but still red?
 
-A red or orange site raises two questions for the webmaster: *who* says the site is unsafe, and *how* do I get that changed once the site is clean? VT Site Scanner answers both on the same screen, so you don't have to search for each vendor's support page yourself.
+A red or orange site raises two questions for the webmaster: *who* says the site is unsafe, and *how* do I get that changed once the site is clean? StingyScan answers both on the same screen, so you don't have to search for each vendor's support page yourself.
 
 ![Vendors that flag a site, with review links and the steps to get delisted](docs/screenshots/why-flagged.png)
 
-The status in VT Site Scanner comes from **VirusTotal**, not from the files on your server. VirusTotal shows what dozens of security vendors think of a site, and **each vendor keeps its own blocklist** and updates it on its own schedule. So after you clean a site, it can stay *infected* or *suspicious* in the dashboard for a while: sometimes hours, often days, sometimes weeks, and some vendors only remove a site when you ask.
+The status in StingyScan comes from **VirusTotal**, not from the files on your server. VirusTotal shows what dozens of security vendors think of a site, and **each vendor keeps its own blocklist** and updates it on its own schedule. So after you clean a site, it can stay *infected* or *suspicious* in the dashboard for a while: sometimes hours, often days, sometimes weeks, and some vendors only remove a site when you ask.
 
 Click a flagged site's row, or its **score** (for example *8/92 · Why?*). A second line opens with:
 
@@ -244,15 +261,39 @@ For vendors with only an e-mail address, the link in the extension opens an e-ma
 
 The extension does not send review requests itself: each vendor has its own form or address, and a request should come from someone who can vouch that the site is clean.
 
-## Avast / AVG classification (optional)
+## Google Safe Browsing (optional)
 
-VirusTotal's list does not always show what Avast and AVG think of a site, while many visitors use those products. In **Settings → Avast / AVG classification** the administrator can tick **Avast** (product 146), **AVG** (product 147) or both. It asks the URL reputation service those products use themselves how they classify each site, for example `URL:Botnet`. Only that service is asked; the sites themselves are not visited.
+[Google Safe Browsing](https://safebrowsing.google.com) is Google's list of unsafe sites (malware, phishing, unwanted software, harmful apps). Chrome, Firefox and Safari use it to warn visitors, so a listed site loses visitors right away. VirusTotal also shows a Google Safe Browsing verdict, but asking Google directly gives a fresh answer, uses no VirusTotal calls, and links straight to the right review page.
+
+**Set it up** (administrator, once for the whole server):
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/projectselector2/home/dashboard), open or create a project.
+2. [Enable the Safe Browsing API](https://console.cloud.google.com/apis/library/safebrowsing.googleapis.com).
+3. [Create an API key](https://console.cloud.google.com/apis/credentials) (*+ Create credentials → API key*) and restrict it: *API restrictions* → only **Safe Browsing API**; *Application restrictions* → **IP addresses** → your server's outgoing IP address.
+4. In **Settings → Google Safe Browsing**, tick the switch, paste the key and click **Save settings**. The key is first tested with Google's own test page (always listed as phishing); a key that doesn't work is not saved and you see Google's error. A green check *API key active* shows it works. The key is stored on the server and never sent to the browser.
+
+**What it does:**
+
+- **Every night** all sites are checked, up to 250 per request (the `https://` and `http://` address of each), before the VirusTotal scan.
+- **Live** when you open a site's details or rescan it.
+- A listed site gets a red badge such as *Google: Phishing* and a **Google Safe Browsing (direct)** row in the vendor table, with a link to [Search Console → Security issues](https://search.google.com/search-console/security-issues) to request a review after cleaning. The click is remembered like the other review links.
+- Listing and delisting go into the site history and **Recent status changes**; clean results don't, so the feed is not flooded.
+- Google's terms do not allow treating a site as unsafe on information older than 30 minutes. A result is therefore used for 30 minutes at most; after that it is shown as *last known* and checked again when you open the details.
+- **Limits:** Google gives every project a default quota; see the [Quotas](https://console.cloud.google.com/apis/api/safebrowsing.googleapis.com/quotas) page of the API, where you can also ask for more. The nightly check needs 1 request per 250 sites. When Google answers *quota exceeded*, all checks pause for 10 minutes.
+
+> Google allows the Safe Browsing API for **non-commercial use only** ([terms](https://developers.google.com/safe-browsing/terms)). For commercial use Google offers the paid [Web Risk API](https://cloud.google.com/web-risk). Only the site addresses are sent; Google may use them to improve its services.
+
+Results are kept in `vt_gsb.json`, calls per day in `vt_gsb_state.json`.
+
+## AVG / Avast Web Shield (optional, experimental)
+
+VirusTotal's list does not always show what AVG and Avast think of a site, while many visitors use those products. In **Settings → External reputation checks** the administrator can switch on **AVG Web Shield** (product 147), **Avast Web Shield** (product 146) or both. It asks the URL reputation service those products use themselves (their antivirus Web Shield and browser extensions) how they classify each site, for example `URL:Botnet`. Only that service is asked; the sites themselves are not visited.
 
 > **Unofficial.** There is no public API for this; the format was worked out by hand and may change or stop working at any time. When it does, the result shows *Check failed* and nothing else is affected.
 
-- **Live, not in the background.** The check runs when you open the details of a site (click its score: *Why?*, *History* or, for a clean site, *Details*) and after every rescan. A result of the last 5 minutes is reused, so opening and closing the details does not ask again; *check again* asks right away. At most **one request per second** for the whole server, never two at once (one shared lock, also across processes), and on HTTP 429 all checks pause for the *Retry-After* time (at least 60 seconds).
-- **What you see.** Avast and/or AVG are the first rows of the vendor table in the details, marked *(direct)*: the classification with its detection name, or *No classification received*, or *Check failed* with the reason (time-out, HTTP error, invalid response, no answer for the URL), with the checked URL, the time and the HTTP status. A classified site also gets a red badge such as *AVG: Botnet* under its status. For a false positive there is a link to the official form ([Avast](https://www.avast.com/report-false-positive), [AVG](https://www.avg.com/en-us/report-false-positive)); you submit it yourself and choose **URL** in the form. The click is remembered like the other review links.
-- **History.** The site history notes when the classification appears, changes or goes away.
+- **Live, not in the background.** The check runs when you open the details of a site and after every rescan. A result of the last 5 minutes is reused; *check again* asks right away. Each product has its own requests-per-minute limit (default 2), and there is never more than one request per second for the whole server. On HTTP 429 all checks pause for the *Retry-After* time (at least 60 seconds). Settings shows the number of calls made today for each.
+- **What you see.** AVG and/or Avast are rows of the vendor table in the details, marked *(direct)*: the classification with its detection name, *No classification received*, or *Check failed* with the reason. A classified site also gets a red badge such as *AVG: Botnet* under its status. For a false positive there is a link to the official form ([Avast](https://www.avast.com/report-false-positive), [AVG](https://www.avg.com/en-us/report-false-positive)); you submit it yourself and choose **URL** in the form.
+- **History.** The site history and **Recent status changes** note when the classification appears, changes or goes away.
 - The latest result per site is kept in `vt_avast.json`.
 
 ## How it saves API calls
@@ -276,7 +317,8 @@ Every API call is a domain report lookup (`GET /domains/{domain}`), a re-analysi
 - **Plesk Obsidian 18.0 or newer** on Linux, with root SSH access to the server
 - Websites hosted in Plesk. Every active domain and subdomain with web hosting is checked, whatever it runs (WordPress, Joomla, plain HTML, …), plus WordPress sites on a hostname under a hosted domain. Hostnames that only appear in a leftover WordPress database and no longer exist in DNS are listed separately under **Orphan databases** (see below). Forwarding-only domains, domains without hosting and suspended domains are skipped. The list is read from Plesk's own database. To check WordPress sites only, choose **Settings → Sites to scan → WordPress sites only**.
 - A **VirusTotal API key**. The free key is enough: create an account at [virustotal.com](https://www.virustotal.com), then open your profile menu → **API key**.
-- Optional: **ClamAV**, **maldet** and/or **ImunifyAV / Imunify360** for the file scans. The extension uses whichever are installed; none of them is required. You can switch each one off in **Settings → File scanners**.
+- Optional: a **Google API key** for Google Safe Browsing (free, non-commercial use; see [Google Safe Browsing](#google-safe-browsing-optional)).
+- Optional: **ClamAV**, **maldet** and/or **ImunifyAV / Imunify360** for the file scans. The extension uses whichever are installed; none of them is required. You can switch each one off in **Settings → Internal serverside file scanners**.
 
 The extension runs on Plesk's own bundled PHP (8.x), so the PHP version of your websites doesn't matter.
 
@@ -289,12 +331,12 @@ The extension runs on Plesk's own bundled PHP (8.x), so the PHP version of your 
 Log in to your Plesk server as root and run:
 
 ```bash
-plesk bin extension --upgrade-url https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip
+plesk bin extension --upgrade-url https://github.com/dzaal/StingyScan-for-Plesk/releases/latest/download/stingyscan.zip
 ```
 
 That's all. Plesk downloads the latest release from GitHub and installs it. The same command updates an existing installation to the newest version.
 
-**Without the command line:** download `virustotal-extension-<version>.zip` from the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest), then in Plesk go to **Extensions → My Extensions → Upload Extension** and select the zip. If you don't see the **Upload Extension** button, enable it once by adding these lines to `/usr/local/psa/admin/conf/panel.ini` on the server (create the file if it doesn't exist):
+**Without the command line:** download `stingyscan-<version>.zip` from the [latest release](https://github.com/dzaal/StingyScan-for-Plesk/releases/latest), then in Plesk go to **Extensions → My Extensions → Upload Extension** and select the zip. If you don't see the **Upload Extension** button, enable it once by adding these lines to `/usr/local/psa/admin/conf/panel.ini` on the server (create the file if it doesn't exist):
 
 ```ini
 [ext-catalog]
@@ -307,14 +349,14 @@ Installing registers the nightly background scan automatically. You don't need t
 
 ### Step 2: Check the requirements for file scans (optional)
 
-The VirusTotal checks work right away. The **file scan** buttons appear for the malware scanners that are already installed on the server (ClamAV, Linux Malware Detect, ImunifyAV / Imunify360); see [File scanners](#file-scanners-clamav-maldet-imunify). You can check what was found under **Settings → File scanners**.
+The VirusTotal checks work right away. The **file scan** buttons appear for the malware scanners that are already installed on the server (ClamAV, Linux Malware Detect, ImunifyAV / Imunify360); see [File scanners](#file-scanners-clamav-maldet-imunify). You can check what was found under **Settings → Internal serverside file scanners**.
 
 ### Step 3: Add your VirusTotal API key
 
-1. In Plesk, open **VT Site Scanner** in the left navigation (under **Links to Additional Services**; in the Power User view and for customers in the main menu), or under **Extensions → My Extensions**. Until you add a key, the sites show **Needs API key** and nothing is looked up.
+1. In Plesk, open **StingyScan** in the left navigation (under **Links to Additional Services**; in the Power User view and for customers in the main menu), or under **Extensions → My Extensions**. Until you add a key, the sites show **Needs API key** and nothing is looked up.
 2. Go to the **Settings** tab. The VirusTotal API key is the first card.
 3. Paste your API key and click **Save settings**.
-4. Optional: choose **Sites to scan** (all hosted websites, or WordPress sites only), and adjust the daily limit (500 for the free tier, higher if you have a premium key), the background/manual split, and how long results are cached.
+4. Optional: choose **Sites to scan** (all hosted websites, or WordPress sites only), and adjust **Max calls / day** (500 for the free tier, higher if you have a premium key), the background/manual split with the slider, and how long results are cached. See [Settings](#settings).
 
 ### Step 4: Check that it works
 
@@ -323,14 +365,14 @@ The VirusTotal checks work right away. The **file scan** buttons appear for the 
 3. Optional: switch on the summary e-mail in **Settings → Notifications** and click **Send test e-mail**.
 4. Check that the nightly scan is scheduled:
    ```bash
-   crontab -l -u psaadm | grep virustotal-extension
+   crontab -l -u psaadm | grep stingyscan
    ```
-   You should see a line ending in `virustotal-extension/scripts/background_scan.php` (the nightly scan) and one ending in `scripts/manual_scan.php` (every 5 minutes: rescans that were still queued when the page was closed).
+   You should see a line ending in `stingyscan/scripts/background_scan.php` (the nightly scan) and one ending in `scripts/manual_scan.php` (every 5 minutes: rescans that were still queued when the page was closed).
 
 To start a background scan straight away instead of waiting for 03:00:
 
 ```bash
-sudo -u psaadm /usr/local/psa/admin/bin/php /usr/local/psa/admin/plib/modules/virustotal-extension/scripts/background_scan.php
+sudo -u psaadm /usr/local/psa/admin/bin/php /usr/local/psa/admin/plib/modules/stingyscan/scripts/background_scan.php
 ```
 
 > Always run it as `psaadm` with Plesk's PHP (`/usr/local/psa/admin/bin/php`). Running it as root leaves files the panel can't write to, and the operating system's own `php` is often too old for this code.
@@ -350,23 +392,37 @@ plesk bin extension --uninstall website-virus-check
 When a newer version is out, a yellow banner appears at the top of the dashboard; the administrator can click **Install** to upgrade in one click. Or run the same command as for installing:
 
 ```bash
-plesk bin extension --upgrade-url https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip
+plesk bin extension --upgrade-url https://github.com/dzaal/StingyScan-for-Plesk/releases/latest/download/stingyscan.zip
 ```
 
-Plesk keeps your settings, API key, scan results and history, and the nightly task is re-registered automatically. Each release on the [Releases page](https://github.com/dzaal/VT-Scanner-for-Plesk/releases) lists what changed in it and in all earlier versions; the full history is in [CHANGELOG.md](CHANGELOG.md). In the extension, **About → What's new** links to both.
+Plesk keeps your settings, API key, scan results and history, and the nightly task is re-registered automatically. Each release on the [Releases page](https://github.com/dzaal/StingyScan-for-Plesk/releases) lists what changed in it and in all earlier versions; the full history is in [CHANGELOG.md](CHANGELOG.md). In the extension, **About → What's new** links to both.
+
+### Coming from VT Site Scanner (1.x)
+
+Until version 1.35 StingyScan was called **VT Site Scanner** (extension id `virustotal-extension`, repository `dzaal/VT-Scanner-for-Plesk`). Version 2.0 has a new name and a new extension id (`stingyscan`), so Plesk installs it as a new extension next to the old one. Switching takes two commands as root:
+
+```bash
+# 1. Install StingyScan: it copies the settings, API keys, results, history and logs of VT Site Scanner
+plesk bin extension --upgrade-url https://github.com/dzaal/StingyScan-for-Plesk/releases/latest/download/stingyscan.zip
+
+# 2. Then remove VT Site Scanner (this deletes its own data folder, which has been copied)
+plesk bin extension --uninstall virustotal-extension
+```
+
+Clicking **Install** on the update banner of VT Site Scanner does step 1 as well; it then reports a version mismatch, because the old extension itself stays at 1.x. Until you remove it, StingyScan shows a reminder, because both would run their own scans. The panel address changes to `/modules/stingyscan/`, and the old GitHub address keeps redirecting to the new one.
 
 **Upgrading from 1.0.x?** Earlier versions asked you to add a line to root's crontab by hand. Remove that line (`crontab -e` as root, delete the line with `background_scan.php`); the extension now schedules itself.
 
 ## Uninstalling
 
 ```bash
-plesk bin extension --uninstall virustotal-extension
+plesk bin extension --uninstall stingyscan
 ```
 
 This removes the extension and its scheduled task. To also delete all stored settings, results and logs (including the API key), remove the data directory:
 
 ```bash
-rm -rf /usr/local/psa/var/modules/virustotal-extension
+rm -rf /usr/local/psa/var/modules/stingyscan
 ```
 
 ---
@@ -379,11 +435,23 @@ rm -rf /usr/local/psa/var/modules/virustotal-extension
 | "Invalid API key (401)" | Re-paste the key in **Settings**; make sure there are no spaces around it. |
 | Many sites stay "Queued" | VirusTotal has never seen these domains; the first lookup submits them for a scan. They resolve on a later lookup or the next nightly run. |
 | Rescans say "Daily manual rescan limit reached" | The manual share of today's budget is used up. It resets at midnight UTC, or raise the percentage in **Settings**. |
+| Google Safe Browsing: key not saved, or a red cross | The message shows Google's answer. *API key not valid*: re-paste the key. *Access denied*: enable the Safe Browsing API for the key's project, and check that the key's IP restriction contains the server's outgoing IP address. *Quota*: see the Quotas page of the API in the Google Cloud Console. |
 | The nightly scan doesn't seem to run | Run `crontab -l -u psaadm \| grep virustotal`, then run the scan by hand (step 4) to see its output. The **Log** tab shows every run. |
 
 ## Data and privacy
 
-All data stays on your server in `/usr/local/psa/var/modules/virustotal-extension/data/`: settings (including the API key, readable only by the panel user), cached results, budget counters and logs. Nothing is stored in this repository. The only information sent to VirusTotal is the domain names of the sites being checked.
+All data stays on your server in `/usr/local/psa/var/modules/stingyscan/data/`: settings (including the API keys, readable only by the panel user), cached results, budget counters and logs (rotated, see [Settings](#settings)). Nothing is stored in this repository.
+
+What leaves the server, and only for the services you switched on:
+
+| Service | What is sent |
+|---|---|
+| VirusTotal | The domain names of the sites being checked. |
+| Google Safe Browsing | The `https://` and `http://` address of each site. Google may use them to improve its services. |
+| AVG / Avast | The address of the site whose details are opened or that is rescanned. |
+| GitHub | The update check asks GitHub for the latest release number. |
+
+No site content, files or customer data are sent anywhere.
 
 ---
 
@@ -391,7 +459,7 @@ All data stays on your server in `/usr/local/psa/var/modules/virustotal-extensio
 
 ### Releases
 
-Every new version gets a ready-made zip on the [Releases page](https://github.com/dzaal/VT-Scanner-for-Plesk/releases). This happens automatically: when the `<version>` in `META_INF/meta.xml` changes on `main`, the GitHub Action in `.github/workflows/release.yml` builds the package with `build.sh` and publishes release `v<version>` with two copies of it: `virustotal-extension-<version>.zip` and `virustotal-extension.zip` (a fixed name, so the `releases/latest/download/...` link always gives the newest version).
+Every new version gets a ready-made zip on the [Releases page](https://github.com/dzaal/StingyScan-for-Plesk/releases). This happens automatically: when the `<version>` in `META_INF/meta.xml` changes on `main`, the GitHub Action in `.github/workflows/release.yml` builds the package with `build.sh` and publishes release `v<version>` with three copies of it: `stingyscan-<version>.zip`, `stingyscan.zip` (a fixed name, so the `releases/latest/download/...` link always gives the newest version) and `virustotal-extension.zip` (the old fixed name, so installations of VT Site Scanner 1.x find the way to StingyScan).
 
 The release notes come from `CHANGELOG.md` (`.github/release-notes.sh`): add a `## <version> — <date>` section there with each version bump. Changing `CHANGELOG.md` also refreshes the notes of all existing releases.
 
@@ -400,12 +468,12 @@ The release notes come from `CHANGELOG.md` (`.github/release-notes.sh`): add a `
 On any machine with `bash` and either `zip` or Python:
 
 ```bash
-git clone https://github.com/dzaal/VT-Scanner-for-Plesk.git
-cd VT-Scanner-for-Plesk
+git clone https://github.com/dzaal/StingyScan-for-Plesk.git
+cd StingyScan-for-Plesk
 bash build.sh
 ```
 
-This creates `dist/virustotal-extension-<version>.zip`. Install it on the server with `plesk bin extension --install <file>`.
+This creates `dist/stingyscan-<version>.zip`. Install it on the server with `plesk bin extension --install <file>`.
 
 
 ```
@@ -413,15 +481,18 @@ META_INF/meta.xml            Extension metadata (id, name, version)
 htdocs/index.php             Entry point (Plesk MVC bootstrap)
 plib/controllers/            IndexController: page + JSON actions
 plib/views/scripts/index/    Dashboard UI (vanilla JS + CSS, no build step)
-plib/library/                VirusTotal client, rate limiter, cache, settings, domain discovery
+plib/library/                VirusTotal client, Google Safe Browsing, AVG / Avast, rate limiters,
+                             cache, settings, domain discovery, queue, history, log rotation
 plib/library/Hook/           Home page card (HomeBlock)
-plib/scripts/                Nightly scan + install/uninstall hooks (scheduler registration)
+plib/scripts/                Nightly scan, 5-minute rescan queue, install/uninstall hooks
+sbin/                        Root helpers: file scans (site-scan), one-click updates (extension-update)
 plib/hooks/Home.php          Registers the Home page card (Plesk SDK hook, returns an anonymous class)
 _meta/icons/                 Extension icons shown in Plesk's Extensions list
 docs/                        Logo and screenshots used in this README
-build.sh                     Builds dist/virustotal-extension-<version>.zip
+build.sh                     Builds dist/stingyscan-<version>.zip
 .github/workflows/release.yml  Publishes the zip as a GitHub Release for every new version
 deploy.sh                    Build + install on a server over SSH
+LICENSE                      License (included in every package)
 ```
 
 Build and install in one step:
@@ -437,22 +508,39 @@ Notes:
 ## Stack
 
 - PHP 8 (Plesk's bundled sw-engine), Zend Framework 1 (Plesk's built-in MVC)
-- VirusTotal API v3
+- VirusTotal API v3, Google Safe Browsing Lookup API v4
 - Vanilla JavaScript and CSS, no dependencies
+
+## Trademarks
+
+StingyScan is an independent product of Digizaal. It is **not affiliated with, endorsed, sponsored or approved by** any of the companies below. Their names and logos are used only to identify the services and software the extension works with (nominative use); the logos are their favicons, shown next to the settings and results of that service.
+
+- **StingyScan** and **Digizaal** are names of Digizaal.
+- **VirusTotal** is a trademark of Google LLC.
+- **Google**, **Google Safe Browsing**, **Google Cloud**, **Google Search Console** and **Chrome** are trademarks of Google LLC.
+- **AVG** and **Avast** are trademarks of Gen Digital Inc. or its affiliates.
+- **Plesk** is a trademark of WebPros International GmbH.
+- **WordPress** is a trademark of the WordPress Foundation. **Joomla** is a trademark of Open Source Matters, Inc.
+- **ClamAV** is a trademark of Cisco Systems, Inc. **Imunify360** and **ImunifyAV** are trademarks of CloudLinux Software, Inc. **Linux Malware Detect** (maldet) is a product of R-fx Networks. **Linux** is a registered trademark of Linus Torvalds.
+- **Firefox** is a trademark of the Mozilla Foundation. **Safari** is a trademark of Apple Inc.
+- **GitHub** is a trademark of GitHub, Inc. **PayPal** is a trademark of PayPal, Inc.
+- The security vendors named in [Cleaned, but still red?](#cleaned-but-still-red) (Fortinet, Sophos, Bitdefender, G DATA and others) and all other product and company names mentioned are trademarks or registered trademarks of their respective holders.
+
+Use of these services is subject to their own terms, which you accept with your own account or API key.
 
 ## License
 
 Copyright © 2026 Digizaal (Dirk Zaal). All rights reserved.
 
-VT Site Scanner by Digizaal — its code, design and way of working — is the intellectual property of Digizaal. The source code is published so you can read it; it is **not** open source.
+StingyScan by Digizaal — its code, design and way of working — is the intellectual property of Digizaal. The source code is published so you can read it; it is **not** open source.
 
 - **Allowed:** install and run the unmodified extension as published by Digizaal on Plesk servers you administer, including for customer hosting, and configure it through its settings.
 - **Not allowed without written permission:** modifying the code in any way (also privately on your own server), creating derivative works, redistributing the extension or its code, or using parts of it in other products.
 
-Full terms: [LICENSE](LICENSE). Permission requests: via [digizaal.nl](https://www.digizaal.nl). Names and logos of VirusTotal, Google, AVG, Avast and the file scanners belong to their owners.
+Full terms: [LICENSE](LICENSE). Permission requests: via [digizaal.nl](https://www.digizaal.nl).
 
 ## Author
 
 **Dirk Zaal**, [Digizaal](https://www.digizaal.nl), Amsterdam
 
-VT Site Scanner is free. If it saves you time or catches a hacked site, you can [buy me a cup of coffee ($3)](https://www.paypal.com/paypalme/zirk020/3USD) ☕
+StingyScan is free. If it saves you time or catches a hacked site, you can [buy me a cup of coffee ($3)](https://www.paypal.com/paypalme/zirk020/3USD) ☕

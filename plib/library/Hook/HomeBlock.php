@@ -15,8 +15,8 @@ class Modules_VirustotalExtension_Hook_HomeBlock extends \Plesk\SDK\Hook\Home\Bl
     private const MAX_LISTED = 4;
 
     public function getId(): string      { return 'vt-site-scanner'; }
-    public function getName(): string    { return 'VT Site Scanner'; }
-    public function getTitle(): string   { return 'VT Site Scanner'; }
+    public function getName(): string    { return 'StingyScan'; }
+    public function getTitle(): string   { return 'StingyScan'; }
     public function getSection(): string { return self::SECTION_SECURITY; }
     public function getColumn(): int     { return 1; }
     public function getOrder(): int      { return 2; } // right below SSL/TLS Certificates
@@ -61,7 +61,7 @@ class Modules_VirustotalExtension_Hook_HomeBlock extends \Plesk\SDK\Hook\Home\Bl
     public function getFooter(): string
     {
         $s = $this->stats();
-        $label = ($s['infected'] + $s['suspicious']) > 0 ? 'Review flagged sites' : 'Open VT Site Scanner';
+        $label = ($s['infected'] + $s['suspicious']) > 0 ? 'Review flagged sites' : 'Open StingyScan';
         return '<a href="' . htmlspecialchars(pm_Context::getBaseUrl()) . '">' . $label . '</a>';
     }
 

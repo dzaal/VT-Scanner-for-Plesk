@@ -1,10 +1,12 @@
 # Publish a ready-made, installable zip as a GitHub Release for every new version.
 # Runs when META_INF/meta.xml or CHANGELOG.md changes on main; skips versions that already have a release.
 # Release notes come from CHANGELOG.md (see .github/release-notes.sh).
-# Each release has two copies of the same package:
-#   virustotal-extension-<version>.zip  (that version)
-#   virustotal-extension.zip            (fixed name, so .../releases/latest/download/virustotal-extension.zip
-#                                        always points to the newest version)
+# Each release has three copies of the same package:
+#   stingyscan-<version>.zip   (that version)
+#   stingyscan.zip             (fixed name, so .../releases/latest/download/stingyscan.zip
+#                               always points to the newest version)
+#   virustotal-extension.zip   (old fixed name, for installations of VT Site Scanner (1.x) whose
+#                               update check and Install button still use it; they then install StingyScan)
 name: Release
 
 on:
@@ -39,7 +41,8 @@ jobs:
         if: steps.exists.outputs.skip != 'true'
         run: |
           bash build.sh
-          cp "dist/virustotal-extension-${{ steps.v.outputs.version }}.zip" dist/virustotal-extension.zip
+          cp "dist/stingyscan-${{ steps.v.outputs.version }}.zip" dist/stingyscan.zip
+          cp "dist/stingyscan-${{ steps.v.outputs.version }}.zip" dist/virustotal-extension.zip
 
       - name: Publish the release
         if: steps.exists.outputs.skip != 'true'
@@ -48,9 +51,10 @@ jobs:
         run: |
           bash .github/release-notes.sh "${{ steps.v.outputs.version }}" > notes.md
           gh release create "v${{ steps.v.outputs.version }}" \
-            "dist/virustotal-extension-${{ steps.v.outputs.version }}.zip" \
+            "dist/stingyscan-${{ steps.v.outputs.version }}.zip" \
+            dist/stingyscan.zip \
             dist/virustotal-extension.zip \
-            --title "VT Site Scanner ${{ steps.v.outputs.version }}" \
+            --title "StingyScan ${{ steps.v.outputs.version }}" \
             --notes-file notes.md \
             --latest
 

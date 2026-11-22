@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Installation guide
-    url: https://github.com/dzaal/VT-Scanner-for-Plesk#installation
+    url: https://github.com/dzaal/StingyScan-for-Plesk#installation
     about: One command installs or updates the extension.

@@ -1,9 +1,9 @@
 #!/bin/bash
-# Build the installable Plesk extension package: dist/virustotal-extension-<version>.zip
+# Build the installable Plesk extension package: dist/stingyscan-<version>.zip
 # Usage: bash build.sh
 set -e
 
-EXT_ID="virustotal-extension"
+EXT_ID="stingyscan"
 cd "$(dirname "$0")"
 VERSION=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' META_INF/meta.xml)
 OUT="dist/${EXT_ID}-${VERSION}.zip"

@@ -2,12 +2,12 @@
 /**
  * VtDataDir — centrale locatie voor persistente extensie-data.
  *
- * Binnen Plesk: /usr/local/psa/var/modules/virustotal-extension/data/
+ * Binnen Plesk: /usr/local/psa/var/modules/stingyscan/data/
  * CLI/cron:     zelfde pad (altijd beschikbaar op de server)
  */
 class VtDataDir
 {
-    const BASE = '/usr/local/psa/var/modules/virustotal-extension/data';
+    const BASE = '/usr/local/psa/var/modules/stingyscan/data';
 
     public static function path(string $filename): string
     {

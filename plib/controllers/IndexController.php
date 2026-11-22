@@ -1,6 +1,6 @@
 <?php
 // Load our non-autoloaded library classes
-$_vtLib = '/usr/local/psa/admin/plib/modules/virustotal-extension/library';
+$_vtLib = '/usr/local/psa/admin/plib/modules/stingyscan/library';
 if (!is_dir($_vtLib)) {
     $_vtLib = realpath(dirname(__FILE__) . '/../library');
 }
@@ -83,10 +83,12 @@ class IndexController extends pm_Controller_Action
     public function indexAction(): void
     {
         // Browser tab title; Plesk's own page header is hidden by the view (branded header instead)
-        $this->view->pageTitle = 'VT Site Scanner';
+        $this->view->pageTitle = 'StingyScan';
         $this->view->baseUrl   = pm_Context::getBaseUrl();
         $version = $this->installedVersion();
         $this->view->version   = $version;
+        // The old extension (VT Site Scanner 1.x) still installed next to StingyScan: both would scan
+        $this->view->oldVtInstalled = $this->role() === 'admin' && is_dir('/usr/local/psa/admin/plib/modules/virustotal-extension');
         $this->view->paypalUrl = self::PAYPAL_ME !== ''
             ? 'https://www.paypal.com/paypalme/' . rawurlencode(self::PAYPAL_ME) . '/' . self::COFFEE_PRICE
             : '';
@@ -557,11 +559,11 @@ class IndexController extends pm_Controller_Action
         }
 
         if (!$github) {
-            $ch = curl_init('https://api.github.com/repos/dzaal/VT-Scanner-for-Plesk/releases/latest');
+            $ch = curl_init('https://api.github.com/repos/dzaal/StingyScan-for-Plesk/releases/latest');
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => 10,
-                CURLOPT_HTTPHEADER     => ['User-Agent: VT-Site-Scanner-Plesk/' . $current],
+                CURLOPT_HTTPHEADER     => ['User-Agent: StingyScan-Plesk/' . $current],
                 CURLOPT_FOLLOWLOCATION => true,
             ]);
             $raw  = curl_exec($ch);
@@ -575,8 +577,8 @@ class IndexController extends pm_Controller_Action
             $latest = ltrim((string)($data['tag_name'] ?? ''), 'v');
             $url    = (string)($data['html_url'] ?? '');
             // Stable URL — works for every release as long as the asset is named
-            // virustotal-extension.zip (without version number).
-            $zip = 'https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip';
+            // stingyscan.zip (without version number).
+            $zip = 'https://github.com/dzaal/StingyScan-for-Plesk/releases/latest/download/stingyscan.zip';
             $github = ['latest' => $latest, 'url' => $url, 'zip' => $zip];
             @file_put_contents($cacheFile, json_encode($github));
         }

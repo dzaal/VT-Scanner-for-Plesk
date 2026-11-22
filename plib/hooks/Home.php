@@ -1,6 +1,6 @@
 <?php
 /**
- * Adds the "VT Site Scanner" card to the admin Home dashboard (Plesk 18.0.60+).
+ * Adds the "StingyScan" card to the admin Home dashboard (Plesk 18.0.60+).
  * New-style SDK hooks must return an anonymous class instance.
  */
 return new class extends \Plesk\SDK\Hook\Home

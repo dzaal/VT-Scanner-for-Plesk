@@ -1,7 +1,13 @@
 # Changes
 
-Every version of VT Site Scanner for Plesk, newest first.
-Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
+Every version of StingyScan for Plesk (called VT Site Scanner until 1.35), newest first.
+Install or update: see the [latest release](https://github.com/dzaal/StingyScan-for-Plesk/releases/latest).
+
+## 2.0.0 — 2026-11-22
+- **New name: StingyScan** (was VT Site Scanner), with a new logo. *Stingy* because it is sparing with every API call; the name no longer contains a third party's trademark.
+- New extension id `stingyscan` (was `virustotal-extension`), panel address `/modules/stingyscan/`, and repository `dzaal/StingyScan-for-Plesk` (the old address redirects).
+- **Coming from VT Site Scanner:** install StingyScan; it copies the settings, API keys, results, history and logs of VT Site Scanner. Then remove the old extension with `plesk bin extension --uninstall virustotal-extension`. Until then StingyScan shows a reminder, because both would run their own scans. Releases also carry the zip under its old name, so the update check of VT Site Scanner finds StingyScan.
+- Documentation: Settings, Google Safe Browsing and AVG / Avast Web Shield described in full; what is sent to which service; trademark notices in the README and in the About tab.
 
 ## 1.35.3 — 2026-11-22
 - License: VT Site Scanner by Digizaal, including its code, design and way of working, is the intellectual property of Digizaal. The source code may be read; installing and running the unmodified extension is allowed. Modifying the code in any way, derivative works and redistribution are not allowed without written permission. See LICENSE.

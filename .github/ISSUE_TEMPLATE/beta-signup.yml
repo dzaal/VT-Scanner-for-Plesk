@@ -1,12 +1,12 @@
 name: Beta tester sign-up
-description: Try VT Site Scanner on your Plesk server and tell us what you think.
+description: Try StingyScan on your Plesk server and tell us what you think.
 title: "Beta tester: "
 labels: ["beta-tester"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping! Beta testers install VT Site Scanner on a Plesk server, use it for two weeks and share their experience.
+        Thanks for helping! Beta testers install StingyScan on a Plesk server, use it for two weeks and share their experience.
         You get early access to new versions, direct contact with the developer, and (if you like) a mention in the README.
 
         **This issue is public.** Don't post e-mail addresses, server names, domain names or other private details here. We'll reply on this issue.

@@ -9,7 +9,30 @@
  * Idempotent: existing tasks of this extension are removed first, so an upgrade
  * never leaves duplicate schedules behind.
  */
-pm_Context::init('virustotal-extension');
+pm_Context::init('stingyscan');
+
+// From VT Site Scanner (1.x, extension id "virustotal-extension") to StingyScan (2.x, "stingyscan"):
+// Plesk sees a new extension, so copy settings, API keys, results, history and logs once from the
+// old data folder. Files that already exist here are never overwritten. Plesk deletes the old folder
+// when the old extension is uninstalled, so this must run first (it does: installing StingyScan).
+$oldData = '/usr/local/psa/var/modules/virustotal-extension/data';
+$newData = '/usr/local/psa/var/modules/stingyscan/data';
+$marker  = $newData . '/.migrated_from_vt_site_scanner';
+if (is_dir($oldData) && !file_exists($marker)) {
+    if (!is_dir($newData)) @mkdir($newData, 0750, true);
+    $n = 0;
+    foreach (scandir($oldData) ?: [] as $f) {
+        if ($f === '.' || $f === '..' || !is_file("$oldData/$f")) continue;
+        if (preg_match('/\.(lock|tmp)$/', $f) || $f === 'vt_update_check.json') continue; // runtime files
+        if (!file_exists("$newData/$f") && @copy("$oldData/$f", "$newData/$f")) $n++;
+    }
+    @file_put_contents($marker, date('c') . " copied $n files from $oldData\n");
+    // The panel user must own the data (this script may run as root)
+    if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+        @exec('chown -R psaadm:psaadm ' . escapeshellarg(dirname($newData)));
+    }
+    echo "StingyScan: copied $n data files from VT Site Scanner. Uninstall the old extension: plesk bin extension --uninstall virustotal-extension\n";
+}
 
 $scheduler = pm_Scheduler::getInstance();
 $scheduler->removeAllTasks();
@@ -38,5 +61,5 @@ $task2->setSchedule([
 $task2->setCmd('manual_scan.php');
 $scheduler->putTask($task2);
 
-echo "VT Site Scanner: nightly background scan scheduled (03:00), manual queue processor scheduled (every 5 min).\n";
+echo "StingyScan: nightly background scan scheduled (03:00), manual queue processor scheduled (every 5 min).\n";
 exit(0);

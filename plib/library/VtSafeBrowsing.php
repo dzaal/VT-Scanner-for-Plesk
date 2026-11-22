@@ -183,7 +183,7 @@ class VtSafeBrowsing
         }
 
         $payload = json_encode([
-            'client'     => ['clientId' => 'vt-site-scanner-plesk', 'clientVersion' => '1'],
+            'client'     => ['clientId' => 'stingyscan-plesk', 'clientVersion' => '1'],
             'threatInfo' => ['threatTypes' => array_keys(self::TYPES), 'platformTypes' => ['ANY_PLATFORM'],
                              'threatEntryTypes' => ['URL'], 'threatEntries' => $entries],
         ]);

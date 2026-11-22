@@ -8,7 +8,7 @@
  *
  * Manual run (for testing):
  *   sudo -u psaadm /usr/local/psa/admin/bin/php \
- *     /usr/local/psa/admin/plib/modules/virustotal-extension/scripts/manual_scan.php
+ *     /usr/local/psa/admin/plib/modules/stingyscan/scripts/manual_scan.php
  */
 
 define('VT_CRON', true);

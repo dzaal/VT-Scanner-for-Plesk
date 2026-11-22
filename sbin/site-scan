@@ -20,7 +20,7 @@
  * one runs waits its turn ("queued").
  */
 
-const DATA     = '/usr/local/psa/var/modules/virustotal-extension/data';
+const DATA     = '/usr/local/psa/var/modules/stingyscan/data';
 const VHOSTS   = '/var/www/vhosts/';
 const MAX_LIST = 200;   // files listed in a result
 const TIMEOUT  = 3600;  // seconds before a scan is stopped
@@ -344,7 +344,7 @@ if (!$lock || !flock($lock, LOCK_EX)) {
 ftruncate($lock, 0); fwrite($lock, "$id $host"); fflush($lock);
 
 // Rate limit actual work, including read-only Imunify result requests, across all users.
-require_once '/usr/local/psa/admin/plib/modules/virustotal-extension/library/VtCheckRateLimiter.php';
+require_once '/usr/local/psa/admin/plib/modules/stingyscan/library/VtCheckRateLimiter.php';
 try {
     while ($wait = VtCheckRateLimiter::reserve($id)) {
         save($resultFile, $base + ['status' => 'queued', 'started' => time(), 'message' => 'Waiting for request rate limit']);
