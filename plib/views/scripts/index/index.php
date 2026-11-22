@@ -2197,8 +2197,32 @@ window.vtReviewDeny=function(a,domain,vendor){
     +'<a onclick="vtFsRefresh(\''+vtEsca(domain)+'\')">cancel</a></div>';
   const inp=document.querySelector('.vt-rev-deny input'); if(inp){inp.focus(); inp.onkeydown=ev=>{if(ev.key==='Enter')inp.nextElementSibling.click(); if(ev.key==='Escape')vtFsRefresh(domain);};}
 };
+window.vtCopyReviewUrl=function(url){
+  const fallback=()=>{
+    const input=document.createElement('textarea');
+    input.value=url;
+    input.setAttribute('readonly','');
+    input.style.cssText='position:fixed;top:0;left:-9999px';
+    const previous=document.activeElement;
+    document.body.appendChild(input);
+    input.select();
+    let copied=false;
+    try{copied=document.execCommand('copy');}catch(e){}
+    input.remove();
+    if(previous&&previous.focus) previous.focus({preventScroll:true});
+    return copied;
+  };
+  const done=()=>vtToast('Site URL copied: '+url,'ok');
+  const failed=()=>vtToast('Could not copy automatically. Site URL: '+url,'info');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    try{
+      navigator.clipboard.writeText(url).then(done,()=>{fallback()?done():failed();});
+    }catch(e){fallback()?done():failed();}
+  }else{fallback()?done():failed();}
+};
 window.vtReviewMark=async function(domain,vendor,remove,via,to,deniedReason){
   const denied=typeof deniedReason==='string';
+  if(!remove&&!denied) vtCopyReviewUrl('https://'+domain+'/');
   const fpToken=document.getElementById('forgery_protection_token')?.content||'';
   if(!remove){ // show it at once; the server copy follows
     (reviews[domain]=reviews[domain]||{})[vendor]={ts:Math.floor(Date.now()/1000),by:''};
@@ -2216,7 +2240,7 @@ function vtFpLink(vendor,domain){
   const k=vtFpKey(vendor), c=k?VT_FP[k]:'', tip=k&&VT_FP_TIP[k]?'<div class="vt-why-tip">'+vtEsc(VT_FP_TIP[k])+'</div>':'';
   const via=c.includes('@')?'email':'form';
   const mark=' onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(vendor)+'\',0,\''+via+'\',\''+vtEsca(c)+'\')"', done=vtRevDone(domain,vendor);
-  if(!c) return '<a href="'+VT_FP_LIST+'" target="_blank" rel="noopener">find the contact</a>';
+  if(!c) return '<a data-site-url="'+vtEsc('https://'+domain+'/')+'" onclick="vtCopyReviewUrl(this.dataset.siteUrl)" href="'+VT_FP_LIST+'" target="_blank" rel="noopener">find the contact</a>';
   if(c.includes('@')) return '<a'+mark+' href="mailto:'+vtEsc(c)+'?subject='+encodeURIComponent('Review request: '+domain+' has been cleaned')
     +'&body='+encodeURIComponent('Hello,\n\nThe website '+domain+' is flagged by your service on VirusTotal:\nhttps://www.virustotal.com/gui/domain/'+domain+'/detection\n\nThe site has been cleaned and secured. Could you review it and remove it from your list?\n\nThank you.')+'">'+vtEsc(c)+'</a>'+done+tip;
   return '<a'+mark+' href="'+vtEsc(c)+'" target="_blank" rel="noopener">request a review ↗</a>'+done+tip;
@@ -2242,7 +2266,7 @@ function vtWhyRowHTML(domain,st){
   h+='<ol class="vt-why-steps">'
     +'<li><strong>Clean the site first.</strong> Use the scanner buttons to find infected files. Update WordPress, plugins and themes, remove plugins you don\'t use, change all passwords (admin, FTP/SFTP, database, hosting) and remove admin users you don\'t know. Otherwise the site is infected again soon and the vendors list it again.</li>'
     +'<li><strong>Click Rescan.</strong> VirusTotal then checks the site address again with all vendors (this uses one manual call). The score shown here comes from the VirusTotal report for the whole domain, which follows when the vendors update their own lists, so it does not always drop right away.</li>'
-    +'<li><strong>Ask the vendors that still flag it for a review.</strong> Use the links above. Mention the site address, that it has been cleaned and what you did. Most answer within a few days.</li>'
+    +'<li><strong>Ask the vendors that still flag it for a review.</strong> Opening a review link copies the site URL to your clipboard. Paste it into the form and mention that it has been cleaned and what you did. Most answer within a few days.</li>'
     +'<li><strong>Google:</strong> if Chrome shows a red warning, the site owner can ask Google for a review in <a href="https://search.google.com/search-console/security-issues" target="_blank" rel="noopener">Search Console → Security issues</a>. Google usually handles this within a few days.</li>'
     +'<li><strong>Click Rescan again after a few days</strong> to see which vendors have removed the site from their list. Results of infected sites are refreshed every day by the background scan anyway. '
     +'When a vendor says it has removed the site but VirusTotal still shows it: VirusTotal keeps separate reports for <code>www.</code> and <code>http://</code> versions of the address; open them on virustotal.com and click <em>Reanalyze</em> on each.</li>'

@@ -3,6 +3,10 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.30.4 — 2026-11-22
+- Copy the site's full HTTPS URL when opening a vendor review form or e-mail, including direct AVG/Avast false-positive requests.
+- Clipboard contents are replaced, never appended; show confirmation or an explicit message if copying is blocked. Undoing or denying a request does not copy anything.
+
 ## 1.30.3 — 2026-11-22
 - Show direct AVG and Avast checks and classification changes in Recent status changes, separately from VirusTotal verdicts.
 - Record the first successful clear check as “No classification”; do not present it as a proven delisting. Import existing checks at their original timestamps.
