@@ -17,6 +17,7 @@ require_once $_vtLib . '/VtEvents.php';
 require_once $_vtLib . '/VtReviews.php';
 require_once $_vtLib . '/VtSiteLog.php';
 require_once $_vtLib . '/VtAvastStore.php';
+require_once $_vtLib . '/VtLogRotate.php';
 
 /**
  * IndexController — Plesk extension controller (extends pm_Controller_Action for layout).
@@ -598,6 +599,7 @@ class IndexController extends pm_Controller_Action
         $s['scanners']         = self::scannerSettings();
         $s['avast_products']   = VtAvastStore::products();
         $s['avast_calls']      = VtAvast::callsToday();
+        if ($this->role() === 'admin') $s['log_rotation'] = VtLogRotate::settings() + VtLogRotate::info();
         $s['check_rates']      = VtCheckRateLimiter::rates();
         unset($s['scanners_disabled']);
         $s['using_admin_key']  = false; // Never expose admin key fallback to non-admin users
@@ -666,6 +668,17 @@ class IndexController extends pm_Controller_Action
             sort($ps);
             if ($this->settings->getUserId() === 'admin') $save['avast_products'] = $ps; // same file: saved below
             else (new VtSettings('admin'))->set('avast_products', $ps);
+        }
+        // Log rotation: server-wide settings of the administrator
+        if ($this->role() === 'admin') {
+            $logCfg = [];
+            foreach (array_keys(VtLogRotate::DEFAULTS) as $k) {
+                if (isset($input[$k])) $logCfg[$k] = VtLogRotate::clamp($k, $input[$k]);
+            }
+            if ($logCfg) {
+                if ($this->settings->getUserId() === 'admin') $save += $logCfg; // same file: saved below
+                else (new VtSettings('admin'))->setAll($logCfg);
+            }
         }
         if (isset($save['check_rates']) && $this->settings->getUserId() !== 'admin') {
             (new VtSettings('admin'))->set('check_rates', $save['check_rates']);

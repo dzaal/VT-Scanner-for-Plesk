@@ -51,6 +51,9 @@ class VtSettings
         'check_rates'        => [],     // per optional provider/scanner, 1–5 requests per minute
         'scanners_disabled'  => [],     // file scanners switched off (admin settings only, server-wide)
         'avast_product'      => 0,      // old single choice (before 1.29.0), read once for avast_products
+        'log_max_mb'         => 5,      // log rotation (admin only, server-wide): rotate a log larger than this
+        'log_keep'           => 5,      // old copies kept (gzipped)
+        'log_max_days'       => 90,     // old copies deleted after this many days
         'avast_products'     => null,   // Avast / AVG classification: [] = off, [146] Avast, [147] AVG, or both (admin only, server-wide)
     ];
 

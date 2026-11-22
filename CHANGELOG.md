@@ -3,6 +3,12 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.34.0 — 2026-11-22
+- Max calls / day is a number field again (default 500); the separate slider for it is gone.
+- The slider for background scan / reserved for manual scans has a thin black line as its handle.
+- Number fields in Settings (cache days, max calls, log rotation) are narrower: 2/12 of the width each.
+- New: **Log rotation** (administrator, server-wide). A scan log larger than the limit (default 5 MB) is compressed to an old copy (`cron_<user>.log.1.gz`, …) and a new log is started; at most 5 old copies are kept and none older than 90 days. All three are adjustable. Checked every 5 minutes and before the nightly scan.
+
 ## 1.33.0 — 2026-11-22
 - VirusTotal daily budget as two clear sliders, each with its name inside: **Max calls / day** (0 – 1,000) and **Reserved for manual scans (%)**. Each range has its own colour (background scan blue, manual rescans purple, outside the budget hatched) and an orange bar inside it shows what was used today. The number of VirusTotal calls made today is shown large above the sliders, split into background and manual rescans.
 - AVG and Avast one below the other as **AVG Web Shield** and **Avast Web Shield**, with what they are, and the number of calls made today next to each.

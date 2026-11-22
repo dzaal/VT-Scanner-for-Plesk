@@ -382,7 +382,9 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-settings-title h3{margin:0}
 .vt-settings-title .hint{margin-left:auto}
 .vt-settings-main{border-left:3px solid var(--blue)}
-.vt-settings-numbers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
+.vt-settings-numbers{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;margin-top:20px}
+.vt-settings-numbers .vt-field{grid-column:span 2}
+.vt-settings-numbers .vt-field.wide{grid-column:span 6}
 .vt-settings-numbers .vt-field{min-width:0;margin:0}
 .vt-settings-usage{margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:12px}
 .vt-usage-heading,.vt-usage-line{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -402,7 +404,8 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 #vtpanel-settings .vt-sc-row{flex-wrap:wrap;padding:14px 0}
 #vtpanel-settings .vt-sc-info{flex:1;min-width:220px}
 #vtpanel-settings input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
-@media(max-width:850px){.vt-settings-numbers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:850px){.vt-settings-numbers .vt-field{grid-column:span 4}}
+@media(max-width:560px){.vt-settings-numbers .vt-field{grid-column:span 6}}
 /* Brand favicons next to scanner names */
 .vt-brand-ico{width:20px;height:20px;flex-shrink:0;border-radius:4px;vertical-align:middle;object-fit:contain}
 .vt-sc-row .vt-sc-name,.vt-provider .vt-radio strong,.vt-settings-title h3{display:inline-flex;align-items:center;gap:7px}
@@ -426,13 +429,10 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-sl-name span{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#1e40af;text-overflow:ellipsis;overflow:hidden}
 .vt-sl-part.manual .vt-sl-name span{color:#5b21b6}
 .vt-sl-part .vt-sl-name span{text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:600}
-.vt-sl-part.manual .vt-sl-name{left:13px}
+.vt-sl-part.manual .vt-sl-name{left:10px}
 .vt-sl-name strong{font-size:14px;color:var(--heading);font-variant-numeric:tabular-nums}
-.vt-sl-knob{position:absolute;top:-5px;width:18px;height:54px;margin-left:-9px;border-radius:7px;background:#fff;border:2px solid var(--blue);
-  box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:ew-resize;outline:none;
-  background-image:linear-gradient(90deg,transparent 4px,#94a3b8 4px 5px,transparent 5px 8px,#94a3b8 8px 9px,transparent 9px);background-size:100% 40%;background-position:center;background-repeat:no-repeat}
-.vt-sl-knob.split{border-color:#7c3aed}
-.vt-sl-knob:focus-visible,.vt-sl-knob.drag{box-shadow:0 0 0 4px rgba(37,99,235,.25),0 1px 4px rgba(0,0,0,.25)}
+.vt-sl-knob{position:absolute;top:-6px;width:6px;height:56px;margin-left:-3px;border-radius:3px;background:#111827;box-shadow:0 0 0 2px #fff,0 1px 4px rgba(0,0,0,.35);cursor:ew-resize;outline:none}
+.vt-sl-knob:focus-visible,.vt-sl-knob.drag{box-shadow:0 0 0 2px #fff,0 0 0 5px rgba(37,99,235,.35)}
 .vt-sl-scale{position:relative;height:15px;margin:8px 10px 16px;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .vt-sl-scale span{position:absolute;transform:translateX(-50%);white-space:nowrap}
 .vt-sl-scale span:first-child{transform:none}.vt-sl-scale span:last-child{transform:translateX(-100%)}
@@ -728,15 +728,13 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
           <span class="parts"><span><i class="vt-qs-sw auto"></i> background <strong id="vts-auto-label">—</strong></span>
             <span><i class="vt-qs-sw manual"></i> manual rescans <strong id="vts-manual-label">—</strong></span></span>
         </div>
-        <div class="vt-sl" id="vt-sl-limit">
-          <div class="vt-sl-track" id="vt-sl-limit-track">
-            <div class="vt-sl-fill" id="vt-sl-limit-fill"></div>
-            <div class="vt-sl-used" id="vt-sl-limit-used" title="Calls made today"></div>
-            <div class="vt-sl-name"><span>Max calls / day</span><strong id="vt-sl-limit-val">—</strong></div>
+        <div class="vt-settings-numbers" style="margin:0 0 16px">
+          <div class="vt-field">
+            <label for="vt-s-daily">Max calls / day</label>
+            <input type="number" id="vt-s-daily" min="1" max="1000000" step="10" value="500">
           </div>
-          <div class="vt-sl-knob" id="vt-sl-limit-knob" role="slider" tabindex="0" aria-label="Max calls per day" title="Drag: max calls per day"></div>
+          <div class="vt-field wide"><label>&nbsp;</label><div class="hint" style="padding-top:8px">500 = free tier &nbsp;|&nbsp; more needs a premium key</div></div>
         </div>
-        <div class="vt-sl-scale"><span style="left:0">0</span><span style="left:25%">250</span><span style="left:50%">500 (free tier)</span><span style="left:75%">750</span><span style="left:100%">1,000</span></div>
         <div class="vt-sl" id="vt-sl-split">
           <div class="vt-sl-track" id="vt-sl-split-track">
             <div class="vt-sl-part auto" id="vt-sl-auto"><div class="vt-sl-used" id="vt-sl-auto-used" title="Background calls made today"></div>
@@ -748,13 +746,11 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
         </div>
         <div class="vt-sl-scale"><span style="left:0">0%</span><span style="left:25%">25%</span><span style="left:50%">50%</span><span style="left:75%">75%</span><span style="left:100%">100%</span></div>
         <div class="vt-qs-legend">
-          <label for="vt-s-daily">Max calls / day <input type="number" id="vt-s-daily" min="1" max="1000000" step="10" value="500"></label>
           <label for="vt-s-manual-pct">Reserved for manual scans <input type="number" id="vt-s-manual-pct" min="5" max="90" step="1" value="20"> %</label>
           <span><i class="vt-qs-sw used"></i>used today</span>
-          <span><i class="vt-qs-sw free"></i>not in the budget</span>
         </div>
         <input type="hidden" id="vt-s-share" value="80">
-        <div class="hint" style="margin-top:6px">500 = free tier &nbsp;|&nbsp; more needs a premium key (type a number above 1,000 if your key allows it). The rest of the budget is for the nightly background scan.</div>
+        <div class="hint" style="margin-top:6px">Drag the black line: what is left of it is for the nightly background scan, what is right of it is kept for manual rescans.</div>
       </section>
       <div class="vt-settings-numbers">
         <div class="vt-field">
@@ -838,6 +834,29 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <div class="vt-save-row">
         <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
         <span class="vt-smsg" id="vt-smsg2"></span>
+      </div>
+    </div>
+
+    <div class="vt-card" id="vt-lr-card" style="display:none">
+      <h3>Log rotation</h3>
+      <div class="hint">Keeps the scan logs small. A log larger than the limit is compressed to an old copy and a new log is started. Server-wide; checked every 5 minutes.</div>
+      <div class="vt-settings-numbers">
+        <div class="vt-field">
+          <label for="vt-s-log-mb">Rotate above (MB)</label>
+          <input type="number" id="vt-s-log-mb" min="1" max="100" value="5">
+        </div>
+        <div class="vt-field">
+          <label for="vt-s-log-keep">Old copies to keep</label>
+          <input type="number" id="vt-s-log-keep" min="1" max="30" value="5">
+        </div>
+        <div class="vt-field">
+          <label for="vt-s-log-days">Delete copies after (days)</label>
+          <input type="number" id="vt-s-log-days" min="1" max="365" value="90">
+        </div>
+      </div>
+      <div class="hint" id="vt-lr-info" style="margin-top:10px"></div>
+      <div class="vt-save-row">
+        <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
       </div>
     </div>
 
@@ -1141,61 +1160,47 @@ function updateBudget(){
   vtQsRender();
 }
 
-// ── VirusTotal daily budget sliders (Settings) ─────────────────
-// Slider 1: max calls per day, 0 – 1,000. Slider 2: the share reserved for manual rescans; the rest is
-// for the background scan. Each coloured range shows in orange how much of it was used today.
-const QS_MAX=1000;
+// ── VirusTotal daily budget (Settings) ─────────────────────────
+// Max calls per day is a number field. The slider sets the share reserved for manual rescans; the rest
+// is for the background scan. Each coloured range shows in orange how much of it was used today.
 function vtQsVals(){
   const lim=Math.max(1,parseInt(document.getElementById('vt-s-daily').value)||500);
   const share=Math.min(95,Math.max(10,parseInt(document.getElementById('vt-s-share').value)||80));
   return {lim,share};
 }
 function vtQsRender(){
-  if(!document.getElementById('vt-sl-limit')) return;
+  if(!document.getElementById('vt-sl-split')) return;
   const {lim,share}=vtQsVals(), man=100-share, clamp=v=>Math.min(100,Math.max(0,v));
   const am=Math.floor(lim*share/100), mm=lim-am, au=budget.auto_used??0, mu=budget.manual_used??0;
   const st=(id,o)=>Object.assign(document.getElementById(id).style,o), on=(id,b)=>document.getElementById(id).classList.toggle('on',b);
-  const n=x=>Number(x).toLocaleString('en-US'), limPct=clamp(lim/QS_MAX*100);
-  // Slider 1
-  st('vt-sl-limit-fill',{width:limPct+'%'});
-  st('vt-sl-limit-used',{width:clamp((au+mu)/QS_MAX*100)+'%'}); on('vt-sl-limit-used',au+mu>0);
-  st('vt-sl-limit-knob',{left:limPct+'%'});
-  vtSet('vt-sl-limit-val',n(lim)+' calls');
-  // Slider 2
+  const n=x=>Number(x).toLocaleString('en-US');
   st('vt-sl-auto',{width:share+'%'}); st('vt-sl-manual',{left:share+'%',width:man+'%'});
   st('vt-sl-auto-used',{width:clamp(am?au/am*100:0)+'%'}); on('vt-sl-auto-used',au>0);
   st('vt-sl-manual-used',{width:clamp(mm?mu/mm*100:0)+'%'}); on('vt-sl-manual-used',mu>0);
   st('vt-sl-split-knob',{left:share+'%'});
   vtSet('vt-sl-auto-val',n(au)+' / '+n(am)+' used');
   vtSet('vt-sl-manual-val',man+'% · '+n(mu)+' / '+n(mm)+' used');
-  // Numbers
   vtSet('vts-total',n(au+mu)); vtSet('vts-auto-label',n(au)+' of '+n(am)); vtSet('vts-manual-label',n(mu)+' of '+n(mm));
   const mp=document.getElementById('vt-s-manual-pct'); if(document.activeElement!==mp) mp.value=man;
-  const kl=document.getElementById('vt-sl-limit-knob'), ks=document.getElementById('vt-sl-split-knob');
-  kl.setAttribute('aria-valuemin',10); kl.setAttribute('aria-valuemax',QS_MAX); kl.setAttribute('aria-valuenow',lim);
+  const ks=document.getElementById('vt-sl-split-knob');
   ks.setAttribute('aria-valuemin',5); ks.setAttribute('aria-valuemax',90); ks.setAttribute('aria-valuenow',man);
 }
 (function vtQsInit(){
-  if(!document.getElementById('vt-sl-limit')) return;
-  const daily=document.getElementById('vt-s-daily'), share=document.getElementById('vt-s-share');
-  const frac=(box,x)=>{const r=document.getElementById(box).getBoundingClientRect(); return Math.max(0,Math.min(1,(x-r.left)/r.width));};
-  const setLimit=v=>{v=Math.round(v/10)*10; if(Math.abs(v-500)<=15) v=500; daily.value=Math.max(10,Math.min(QS_MAX,v)); vtQsRender();};
+  if(!document.getElementById('vt-sl-split')) return;
+  const share=document.getElementById('vt-s-share');
+  const frac=x=>{const r=document.getElementById('vt-sl-split').getBoundingClientRect(); return Math.max(0,Math.min(1,(x-r.left)/r.width));};
   const setManual=p=>{share.value=100-Math.max(5,Math.min(90,Math.round(p))); vtQsRender();};
-  const limitAt=x=>setLimit(frac('vt-sl-limit',x)*QS_MAX), splitAt=x=>setManual(100-frac('vt-sl-split',x)*100);
-  const drag=(el,fn)=>el.addEventListener('pointerdown',e=>{
+  const splitAt=x=>setManual(100-frac(x)*100), knob=document.getElementById('vt-sl-split-knob');
+  const drag=el=>el.addEventListener('pointerdown',e=>{
     e.preventDefault(); e.stopPropagation();
-    const k=el.classList.contains('vt-sl-knob')?el:el.parentNode.querySelector('.vt-sl-knob');
-    k.focus(); k.classList.add('drag'); el.setPointerCapture(e.pointerId); fn(e.clientX);
-    const mv=ev=>fn(ev.clientX), up=()=>{k.classList.remove('drag');el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up);};
+    knob.focus(); knob.classList.add('drag'); el.setPointerCapture(e.pointerId); splitAt(e.clientX);
+    const mv=ev=>splitAt(ev.clientX), up=()=>{knob.classList.remove('drag');el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up);};
     el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
   });
-  // Drag the knob, or press anywhere on the bar and drag from there
-  drag(document.getElementById('vt-sl-limit-knob'),limitAt); drag(document.getElementById('vt-sl-limit-track'),limitAt);
-  drag(document.getElementById('vt-sl-split-knob'),splitAt); drag(document.getElementById('vt-sl-split-track'),splitAt);
-  const keys=(id,fn)=>document.getElementById(id).addEventListener('keydown',e=>{const d={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1}[e.key]; if(!d) return; e.preventDefault(); fn(d,e.shiftKey);});
-  keys('vt-sl-limit-knob',(d,big)=>setLimit(Math.min(vtQsVals().lim,QS_MAX)+d*(big?100:10)));
-  keys('vt-sl-split-knob',(d,big)=>setManual(100-vtQsVals().share-d*(big?5:1)));
-  daily.addEventListener('input',vtQsRender);
+  // Drag the line, or press anywhere on the bar and drag from there
+  drag(knob); drag(document.getElementById('vt-sl-split-track'));
+  knob.addEventListener('keydown',e=>{const d={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1}[e.key]; if(!d) return; e.preventDefault(); setManual(100-vtQsVals().share-d*(e.shiftKey?5:1));});
+  document.getElementById('vt-s-daily').addEventListener('input',vtQsRender);
   const mp=document.getElementById('vt-s-manual-pct');
   mp.addEventListener('input',()=>{const v=parseInt(mp.value); if(v>=5&&v<=90){share.value=100-v; vtQsRender();}});
   mp.addEventListener('change',()=>setManual(parseInt(mp.value)||20));
@@ -2153,6 +2158,13 @@ function loadSettingsForm(cfg){
   document.getElementById('vt-av-card').style.display=cfg.role==='admin'?'':'none';
   document.querySelectorAll('input[name=vt-av]').forEach(r=>r.checked=(cfg.avast_products||[]).includes(+r.value));
   for(const id of [146,147]) vtSet('vt-av-calls-'+id,(cfg.avast_calls||{})[id]??0);
+  const lr=cfg.log_rotation;
+  document.getElementById('vt-lr-card').style.display=lr?'':'none';
+  if(lr){
+    document.getElementById('vt-s-log-mb').value=lr.log_max_mb; document.getElementById('vt-s-log-keep').value=lr.log_keep; document.getElementById('vt-s-log-days').value=lr.log_max_days;
+    const mb=b=>(b/1048576).toFixed(b<104858?2:1)+' MB';
+    vtSet('vt-lr-info','Now: '+lr.logs+' log'+(lr.logs===1?'':'s')+' ('+mb(lr.logs_bytes)+'), '+lr.old+' old cop'+(lr.old===1?'y':'ies')+' ('+mb(lr.old_bytes)+').');
+  }
   document.querySelectorAll('[data-check-rate]').forEach(input=>{input.value=cfg.check_rates?.[input.dataset.checkRate]||2;input.disabled=cfg.role!=='admin';});
 }
 
@@ -2226,6 +2238,11 @@ window.vtSaveSettings=async function(){
     checkRates=rates;
   }
   if(key) payload.api_key=key;
+  if(document.getElementById('vt-lr-card').style.display!=='none'){
+    payload.log_max_mb=parseInt(document.getElementById('vt-s-log-mb').value)||5;
+    payload.log_keep=parseInt(document.getElementById('vt-s-log-keep').value)||5;
+    payload.log_max_days=parseInt(document.getElementById('vt-s-log-days').value)||90;
+  }
   if(document.getElementById('vt-av-card').style.display!=='none') payload.avast_products=[...document.querySelectorAll('input[name=vt-av]:checked')].map(c=>c.value).join(',')||'0';
 
   const body=new URLSearchParams(payload);

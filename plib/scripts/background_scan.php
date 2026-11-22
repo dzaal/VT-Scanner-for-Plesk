@@ -23,6 +23,10 @@ require_once $plibDir . '/VtApi.php';
 require_once $plibDir . '/PleskDomains.php';
 require_once $plibDir . '/VtNotifier.php';
 require_once $plibDir . '/VtHistory.php';
+require_once $plibDir . '/VtLogRotate.php';
+
+// Keep the scan logs small (log rotation settings in Settings)
+try { VtLogRotate::run(); } catch (\Throwable $e) {}
 
 $settings = new VtSettings();
 $apiKey   = $settings->get('api_key');
