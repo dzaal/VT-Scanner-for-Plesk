@@ -357,6 +357,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-sh-pill.info{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)}
 .vt-rev-done{display:inline-flex;align-items:center;gap:6px;margin-top:3px;font-size:11px;font-weight:600;color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);border-radius:20px;padding:1px 8px}
 .vt-rev-done a{color:var(--muted);font-weight:400;cursor:pointer}
+.vt-why-tbl tr.vt-av-row td{background:var(--gray-bg)}
 .vt-why-tbl tr.asked td:first-child::after{content:' \2713';color:var(--green)}
 .vt-why-tip{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35}
 #vt-n-opts{margin-left:0}
@@ -707,8 +708,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <h3>Avast / AVG classification <span class="hint" style="font-weight:400">(optional, unofficial)</span></h3>
       <div class="hint" style="margin-bottom:8px">Also asks the URL reputation service of Avast or AVG how it classifies every site (for example <em>URL:Botnet</em>).
         Only that service is asked; the sites themselves are not visited. This is not an official API: it was worked out by hand and may stop working at any time,
-        in which case the result shows <em>Check failed</em>. Checks run in the background, one request per second at most, every site about once a week
-        (classified sites every day).</div>
+        in which case the result shows <em>Check failed</em>. It is asked live: when you open the details of a site, and with every rescan (one request per second at most).</div>
       <label class="vt-radio"><input type="radio" name="vt-av" value="0" checked><span><strong>Off</strong></span></label>
       <label class="vt-radio"><input type="radio" name="vt-av" value="146"><span><strong>Avast</strong> <span class="hint">(product 146)</span></span></label>
       <label class="vt-radio"><input type="radio" name="vt-av" value="147"><span><strong>AVG</strong> <span class="hint">(product 147)</span></span></label>
@@ -1248,8 +1248,8 @@ function rowHTML(domain,data){
     score='<div class="vt-score"><div class="vt-sbar"><div class="vt-sbar-fill '+c+'" style="width:'+pct+'%"></div></div><span class="vt-snum '+c+'">'+scoreNum+'</span></div>';
     const avFlag=!!(avast.product&&avast.results?.[domain]?.findings?.length);
     const flagged=data.malicious>0||st==='suspicious'||(data.flagged_by||[]).length||avFlag;
-    if(flagged||histSites.has(domain)){
-      score='<button type="button" class="vt-why-btn'+(fsOpen[domain]==='vt'?' open':'')+'" title="'+(flagged?'Which vendors flag this site, how to get it reviewed after cleaning, and its history':'History of this site')+'" onclick="vtWhyClick(\''+vtEsca(domain)+'\')">'+score+'<span class="vt-why-lbl">'+(flagged?'Why?':'History')+' ▾</span></button>';
+    if(flagged||histSites.has(domain)||avast.product){
+      score='<button type="button" class="vt-why-btn'+(fsOpen[domain]==='vt'?' open':'')+'" title="'+(flagged?'Which vendors flag this site, how to get it reviewed after cleaning, and its history':'History of this site')+'" onclick="vtWhyClick(\''+vtEsca(domain)+'\')">'+score+'<span class="vt-why-lbl">'+(flagged?'Why?':histSites.has(domain)?'History':'Details')+' ▾</span></button>';
     }
   }else if(isScanning){score='<span class="vt-spin"></span>';}
   else if(st==='loading'){score='<span class="vt-spin"></span>';}
@@ -1559,6 +1559,7 @@ async function runJob(j){
   budget.auto_used=(budget.auto_used??0)+1; budget.vt_quota_used=(budget.vt_quota_used??0)+1; updateBudget();
   j.result=fresh;
   finishJob(j,'done');
+  vtAvastLive(j.domain,1); // a rescan also asks Avast / AVG
 
   if(fresh.status==='infected') vtToast('⚠ INFECTED: '+j.domain,'err');
   else if(fresh.status==='suspicious') vtToast('Suspicious: '+j.domain,'warn');
@@ -2220,11 +2221,10 @@ function vtWhyRowHTML(domain,st){
   h+='<div class="vt-why-note"><strong>Already cleaned the site, and it is still red or orange?</strong> That is normal for a while. '
     +'This status comes from VirusTotal, not from the files on the server. Each vendor below keeps its own blocklist and updates it on its own schedule: '
     +'some within hours, others only after days or weeks, and some only when you ask.</div>';
-  if(list.length){
-    h+='<table class="vt-fs-tbl vt-why-tbl"><thead><tr><th>Vendor</th><th>Verdict</th><th>Ask for a review</th></tr></thead><tbody>'
+  if(list.length||avast.product){
+    h+='<table class="vt-fs-tbl vt-why-tbl"><thead><tr><th>Vendor</th><th>Verdict</th><th>Ask for a review</th></tr></thead><tbody>'+vtAvastRow(domain)
       +list.map(([v,r])=>'<tr'+(reviews[domain]?.[v]?' class="asked"':'')+'><td>'+vtEsc(v)+'</td><td>'+vtEsc(r)+'</td><td>'+vtFpLink(v,domain)+'</td></tr>').join('')+'</tbody></table>';
   }
-  h+=vtAvastHTML(domain);
   h+='<div class="vt-sh"><div class="vt-tr-title" style="margin-top:12px">History of this site <span class="hint">(newest first)</span></div><div id="vtsh-'+rid(domain)+'">'+vtSiteHistHTML(domain)+'</div></div>';
   if(!list.length) return '<tr class="vt-fs-row" id="vtfs-'+rid(domain)+'" data-domain="'+vtEsc(domain)+'" data-status="'+st+'"><td colspan="5"><div class="vt-fs">'+h+'</div></td></tr>';
   h+='<ol class="vt-why-steps">'
@@ -2239,7 +2239,7 @@ function vtWhyRowHTML(domain,st){
 }
 window.vtWhyClick=function(domain){
   if(fsOpen[domain]==='vt'){vtFsClose(domain);return;}
-  fsOpen[domain]='vt'; vtFsRefresh(domain); vtLoadSiteHist(domain);
+  fsOpen[domain]='vt'; vtFsRefresh(domain); vtLoadSiteHist(domain); vtAvastLive(domain);
 };
 window.vtLoadSiteHist=async function(domain){
   const r=await vtFetch('?action=site-history&domain='+encodeURIComponent(domain)).catch(()=>null);
@@ -2247,32 +2247,38 @@ window.vtLoadSiteHist=async function(domain){
   const el=document.getElementById('vtsh-'+rid(domain));
   if(el) el.innerHTML=vtSiteHistHTML(domain);
 };
-function vtAvastHTML(domain){
+let avChecking={};
+/** AVG / Avast as its own vendor row in the details: checked live, not via VirusTotal */
+function vtAvastRow(domain){
   if(!avast.product) return '';
-  const r=avast.results?.[domain], n=vtEsc(avast.name), e=vtEsca(domain), p=x=>String(x).padStart(2,'0');
-  const queued=(avast.queued||[]).includes(domain);
-  const btn=queued?'<span class="hint">queued, checked within 5 minutes</span>'
-    :'<a onclick="vtAvastCheck(\''+e+'\')">Check now</a>';
-  let body;
-  if(!r) body='<span class="hint">Not checked yet.</span>';
+  const r=avast.results?.[domain], n=vtEsc(avast.name), p=x=>String(x).padStart(2,'0');
+  let verdict, action='—';
+  if(avChecking[domain]) verdict='<span class="vt-spin"></span> checking '+n+'…';
+  else if(!r) verdict='<span class="hint">not checked yet</span>';
   else{
     const d=new Date(r.checked_at*1000);
-    const meta='<span class="hint">'+vtEsc(r.url)+' · '+p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()+' ('+p(d.getHours())+':'+p(d.getMinutes())+') · HTTP '+(r.http||'–')+'</span>';
-    if(r.state!=='ok') body='<span class="vt-sh-pill warn">Check failed</span> '+vtEsc(r.error||'')+'<br>'+meta;
-    else if(!r.findings?.length) body='<span class="vt-sh-pill good">No classification received</span><br>'+meta;
-    else body=r.findings.map(f=>'<span class="vt-sh-pill bad">'+vtEsc(f.classification)+'</span> detection <code>'+vtEsc(f.detection||f.raw)+'</code>').join('<br>')
-      +'<br>'+meta+'<div class="vt-why-tip" style="margin-top:4px">Cleaned, and you think this is a false positive? Report it yourself with '
-      +'<a href="'+vtEsc(avast.form)+'" target="_blank" rel="noopener">'+n+'\'s official false-positive form ↗</a>; choose <strong>URL</strong> in the form.</div>';
+    const meta='<div class="vt-why-tip">'+vtEsc(r.url)+' · '+p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()+' ('+p(d.getHours())+':'+p(d.getMinutes())+') · HTTP '+(r.http||'–')
+      +' · <a onclick="vtAvastLive(\''+vtEsca(domain)+'\',1)">check again</a></div>';
+    if(r.state!=='ok') verdict='<span class="vt-sh-pill warn">Check failed</span> '+vtEsc(r.error||'')+meta;
+    else if(!r.findings?.length) verdict='<span class="vt-sh-pill good">No classification received</span>'+meta;
+    else{
+      verdict=r.findings.map(f=>'<span class="vt-sh-pill bad">'+vtEsc(f.classification)+'</span> <code>'+vtEsc(f.detection||f.raw)+'</code>').join('<br>')+meta;
+      action='<a onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(avast.name)+'\',0,\'form\',\''+vtEsca(avast.form)+'\')" href="'+vtEsc(avast.form)+'" target="_blank" rel="noopener">report a false positive ↗</a>'
+        +vtRevDone(domain,avast.name)+'<div class="vt-why-tip">Official '+n+' form; choose <strong>URL</strong> and enter the site address.</div>';
+    }
   }
-  return '<div class="vt-av"><div class="vt-tr-title" style="margin-top:12px">'+n+' classification <span class="hint">(unofficial check, may stop working)</span> · '+btn+'</div>'+body+'</div>';
+  return '<tr class="vt-av-row'+(reviews[domain]?.[avast.name]?' asked':'')+'"><td>'+n+' <span class="hint" title="Asked directly from '+n+'\'s URL reputation service, not via VirusTotal. Unofficial, may stop working.">(direct)</span></td><td>'+verdict+'</td><td>'+action+'</td></tr>';
 }
-window.vtAvastCheck=async function(domain){
-  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
-  const r=await fetch(BASE+'?action=avast-check',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},
-    body:new URLSearchParams({domain})}).then(x=>x.json()).catch(()=>null);
-  if(r?.ok){(avast.queued=avast.queued||[]).push(domain); vtToast(avast.name+' check queued for '+domain+' (within 5 minutes)','info');}
-  else vtToast(r?.error||'Could not queue the check','error');
+/** Ask AVG / Avast now (force = also when a result of the last 5 minutes exists) */
+window.vtAvastLive=async function(domain,force){
+  if(!avast.product||avChecking[domain]) return;
+  avChecking[domain]=true; if(fsOpen[domain]==='vt') vtFsRefresh(domain);
+  const r=await vtFetch('?action=avast-live&domain='+encodeURIComponent(domain)+(force?'&force=1':'')).catch(()=>null);
+  delete avChecking[domain];
+  if(r?.result){(avast.results=avast.results||{})[domain]=r.result; if(r.result.findings?.length) histSites.add(domain);}
+  else (avast.results=avast.results||{})[domain]={url:'https://'+domain+'/',checked_at:Math.floor(Date.now()/1000),http:0,state:'failed',findings:[],error:r?.error||'Network error'};
   vtFsRefresh(domain);
+  if(fsOpen[domain]==='vt') vtLoadSiteHist(domain);
 };
 function vtSiteHistHTML(domain){
   const list=siteHist[domain];

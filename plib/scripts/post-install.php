@@ -38,11 +38,5 @@ $task2->setSchedule([
 $task2->setCmd('manual_scan.php');
 $scheduler->putTask($task2);
 
-// Every 5 minutes: Avast / AVG classification (does nothing unless switched on in Settings)
-$task3 = new pm_Scheduler_Task();
-$task3->setSchedule(['minute' => '*/5', 'hour' => '*', 'dom' => '*', 'month' => '*', 'dow' => '*']);
-$task3->setCmd('avast_scan.php');
-$scheduler->putTask($task3);
-
-echo "VT Site Scanner: nightly background scan scheduled (03:00), manual queue processor and Avast/AVG check scheduled (every 5 min).\n";
+echo "VT Site Scanner: nightly background scan scheduled (03:00), manual queue processor scheduled (every 5 min).\n";
 exit(0);

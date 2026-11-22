@@ -254,24 +254,22 @@ class IndexController extends pm_Controller_Action
         ]);
     }
 
-    /** Avast / AVG classification: product, results and queue for these sites (empty when switched off) */
+    /** Avast / AVG classification: product and latest results for these sites (empty when switched off) */
     private static function avastInfo(array $domains): array
     {
         $p = VtAvastStore::product();
         if (!$p) return ['product' => 0];
-        return ['product' => $p, 'name' => VtAvast::PRODUCTS[$p], 'form' => VtAvast::FP_FORMS[$p],
-                'results' => VtAvastStore::results($domains), 'queued' => array_values(array_intersect(VtAvastStore::queued(), $domains))];
+        return ['product' => $p, 'name' => VtAvast::PRODUCTS[$p], 'form' => VtAvast::FP_FORMS[$p], 'results' => VtAvastStore::results($domains)];
     }
 
-    /** "Check now": queue a site for the Avast / AVG check (handled by avast_scan.php within 5 minutes) */
-    public function avastCheckAction(): void
+    /** Live Avast / AVG check of one site: when its details are opened (reuses a result of the last 5 minutes) or after a rescan (force=1) */
+    public function avastLiveAction(): void
     {
-        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
         $domain = $this->sanitize($this->_getParam('domain', ''));
         if (!$domain || !$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
-        if (!VtAvastStore::product()) { $this->respond(['error' => 'The Avast / AVG check is switched off']); return; }
-        VtAvastStore::enqueue($domain);
-        $this->respond(['ok' => true]);
+        $p = VtAvastStore::product();
+        if (!$p) { $this->respond(['error' => 'The Avast / AVG check is switched off']); return; }
+        $this->respond(['result' => VtAvastStore::live($domain, $p, (bool)$this->_getParam('force', false))]);
     }
 
     /** Remember (or forget, with remove=1) that a review was requested from a vendor for a site */

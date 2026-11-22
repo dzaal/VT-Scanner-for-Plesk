@@ -236,11 +236,10 @@ VirusTotal's list does not always show what Avast and AVG think of a site, while
 
 > **Unofficial.** There is no public API for this; the format was worked out by hand and may change or stop working at any time. When it does, the result shows *Check failed* and nothing else is affected.
 
-- **Background only.** The check is its own task (`scripts/avast_scan.php`, every 5 minutes) and never runs in a page request. At most **one request per second** for the whole server, never two at once (one shared lock, also across processes), and on HTTP 429 all checks pause for the *Retry-After* time (at least 60 seconds).
-- **How often.** Every site about once a week, classified sites every day (to see a classification go away after a review), failed checks again after an hour. **Check now** in the *Why?* panel puts a site at the front of the queue.
-- **What you see.** A red badge such as *AVG: Botnet* under the status of a classified site. In the *Why?* panel: the checked URL, the time, the HTTP status, and the classification with its detection name, or *No classification received*, or *Check failed* with the reason (time-out, HTTP error, invalid response, no answer for the URL). For a false positive there is a link to the official form ([Avast](https://www.avast.com/report-false-positive), [AVG](https://www.avg.com/en-us/report-false-positive)); you submit it yourself and choose **URL** in the form.
+- **Live, not in the background.** The check runs when you open the details of a site (click its score: *Why?*, *History* or, for a clean site, *Details*) and after every rescan. A result of the last 5 minutes is reused, so opening and closing the details does not ask again; *check again* asks right away. At most **one request per second** for the whole server, never two at once (one shared lock, also across processes), and on HTTP 429 all checks pause for the *Retry-After* time (at least 60 seconds).
+- **What you see.** AVG (or Avast) is the first row of the vendor table in the details, marked *(direct)*: the classification with its detection name, or *No classification received*, or *Check failed* with the reason (time-out, HTTP error, invalid response, no answer for the URL), with the checked URL, the time and the HTTP status. A classified site also gets a red badge such as *AVG: Botnet* under its status. For a false positive there is a link to the official form ([Avast](https://www.avast.com/report-false-positive), [AVG](https://www.avg.com/en-us/report-false-positive)); you submit it yourself and choose **URL** in the form. The click is remembered like the other review links.
 - **History.** The site history notes when the classification appears, changes or goes away.
-- Results are kept in `vt_avast.json`, the queue in `vt_avast_queue.json`.
+- The latest result per site is kept in `vt_avast.json`.
 
 ## How it saves API calls
 

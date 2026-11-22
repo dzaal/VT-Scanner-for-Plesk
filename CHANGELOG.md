@@ -3,6 +3,12 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.28.0 — 2026-11-22
+- Avast / AVG is now checked live instead of in the background: when you open the details of a site, and with every rescan. A result of the last 5 minutes is reused; *check again* asks right away. Still at most one request per second server-wide.
+- AVG (or Avast) is the first row of the vendor table in the details, marked *(direct)*, with its classification, *No classification received* or *Check failed*, and the false-positive link (remembered like the other review links).
+- While the check is on, every site has a *Details* button on its score, also clean sites.
+- The background task (`avast_scan.php`) and its queue are gone.
+
 ## 1.27.1 — 2026-11-22
 - Fix: the Avast / AVG setting jumped back to Off after saving.
 
