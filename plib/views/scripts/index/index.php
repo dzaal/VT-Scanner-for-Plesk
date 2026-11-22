@@ -381,7 +381,8 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-ev-domain a:hover{text-decoration:underline}
 .vt-ev-change{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .vt-ev-change .vt-badge{min-width:92px;justify-content:center}
-.vt-ev-arrow{font-size:14px;font-weight:700}
+.vt-ev-arrow{display:inline-flex;align-items:center;flex-shrink:0}
+.vt-ev-arrow svg{width:22px;height:14px;display:block}
 .vt-ev-change .vt-badge.gone{background:var(--gray-bg);color:var(--gray);border:1px dashed var(--gray)}
 
 /* Radio options */
@@ -1329,7 +1330,8 @@ function vtRenderEvents(events){
     const when=pad(d.getDate())+'-'+pad(d.getMonth()+1)+'-'+d.getFullYear()
       +' <small>('+(e.approx?'last seen ':'')+pad(d.getHours())+':'+pad(d.getMinutes())+')</small>';
     const better=e.to==='gone'?null:(RANK[e.to]??0)<(RANK[e.from]??0);
-    const arrow='<span class="vt-ev-arrow" style="color:'+(better===null?'var(--muted)':better?'var(--green)':'var(--red)')+'">&rarr;</span>';
+    const arrow='<span class="vt-ev-arrow" style="color:'+(better===null?'var(--muted)':better?'var(--green)':'var(--red)')+'" aria-label="'+(better===null?'to':better?'better: to':'worse: to')+'">'
+      +'<svg viewBox="0 0 22 14" aria-hidden="true"><path d="M1 5h12V1l8 6-8 6V9H1z" fill="currentColor"/></svg></span>';
     return '<div class="vt-ev-row">'
       +'<div class="vt-ev-time">'+when+'</div>'
       +'<div class="vt-ev-change">'+badge(e.from)+arrow+badge(e.to)+'</div>'

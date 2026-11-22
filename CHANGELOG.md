@@ -3,6 +3,9 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.30.2 — 2026-11-22
+- Trend tab, Recent status changes: a solid, coloured arrow between the two statuses (green = better, red = worse).
+
 ## 1.30.1 — 2026-11-22
 - The Avast / AVG badge in the site list (for example *Avast: Botnet*) no longer wraps onto two lines.
 
