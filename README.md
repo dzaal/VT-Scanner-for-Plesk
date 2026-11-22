@@ -28,7 +28,7 @@ VT Site Scanner makes that quota go a long way:
 
 ## Screenshots
 
-**Scanner dashboard:** every hosted website with its status, detection score and a Rescan button. The scan queue at the top shows what is being checked right now.
+**Scanner dashboard:** every hosted website with its status, detection score and a Rescan button. The Scan Monitor shows what is being checked right now.
 
 ![VT Site Scanner dashboard in Plesk](docs/screenshots/scanner-dashboard.png)
 
@@ -62,14 +62,20 @@ With that many sites, VirusTotal's free API quota (500 requests per day) runs ou
 VT Site Scanner was built to fix that:
 
 - **Careful with API calls.** Every call goes through a rate limiter, results are cached, and the daily budget is split between background scans and manual rescans.
-- **Interactive.** A live dashboard shows all sites, grouped by reseller and customer (click a customer to fold its sites away; the search box also finds customers), lets you filter on infected or suspicious ones, and rescans a site on demand, with a visible queue that shows each step of each scan.
+- **Interactive.** A live dashboard shows all sites, grouped by reseller and customer (click a customer to fold its sites away; the search box also finds customers), lets you filter on infected or suspicious ones, and rescans a site on demand, with a Scan Monitor that shows each step of each scan.
 - **Hands-off.** A nightly background scan works through all sites in turn and picks up where it left off the night before.
 
 ## Features
 
 - Dashboard with every website hosted on the server (WordPress or not): status (Infected / Suspicious / Clean / Queued / Error), detection score (e.g. `3/93` engines), IP address, domain age and danger tags (malware, phishing, …), with direct links to the site and to its VirusTotal page.
 - **Home page card** for the Plesk admin (Plesk 18.0.60 or newer): infected / suspicious / clean counts and the worst-scoring sites, styled like Plesk's own cards. It reads cached results only and never uses API calls. Show or hide it via **Home → Customize → Security → VT Site Scanner**.
-- **Live scan queue**: one line showing the site being checked right now, or the latest result with its score. An animated bar shows the pause for VirusTotal's 4-requests-per-minute limit, which is waited out automatically instead of failing.
+- **Scan Monitor**: a panel on the right that shows the VirusTotal lookups and file scans that are running, waiting and finished, each with its steps and result (blue = VirusTotal running, amber = file scan running, green = done and clean, red = failed or infected). The pause for VirusTotal's 4-requests-per-minute limit is waited out automatically instead of failing. Click its header to open or close it.
+- **Rescans keep going when you leave the page.** A rescan is also queued on the server, and a task that runs every 5 minutes finishes it if the browser was closed first.
+- **Group or Sort:** sites grouped by reseller and customer, or one flat list. Click the **Domain**, **Score** or **Last scan** header to sort (within each group in Group mode). Mode, sort column and direction are remembered. *Last scan* shows how long ago the site was checked, with the exact time on hover.
+- **Details per site:** click anywhere on a site's row (or its score) to open its details: the vendors that flag it with review links, Avast / AVG if switched on, and the history of the site. Click again to close.
+- **History per site:** when it was first detected, when vendors started or stopped flagging it, status changes and every review request (see [Cleaned, but still red?](#cleaned-but-still-red)).
+- **Optional Avast / AVG classification**, asked live (see [Avast / AVG classification](#avast--avg-classification-optional)).
+- **Update check:** when a newer version is on GitHub, a yellow banner appears with the release notes and, for the administrator, an **Install** button that upgrades the extension in one click.
 - **Nightly background scan** (03:00, server time), scheduled automatically through Plesk's own scheduler.
 - **Trend graph:** infected, suspicious and cleaned sites per day over the last 1, 2 or 3 months, for the whole server, per reseller or per customer (see [Trend](#trend)).
 - **Helps you solve it, not just report it.** Click the score of an infected or suspicious site to see which vendors flag it, with a link per vendor to ask for a review (see [Cleaned, but still red?](#cleaned-but-still-red)).
@@ -148,7 +154,7 @@ The **Trend** tab shows how infections develop, per day, over the last **1, 2 or
 - **Sites cleaned per day**: sites that were infected or suspicious and are clean again, as bars.
 - At the top: infected and suspicious now, with the change since the start of the period; how many sites were cleaned in the period; and the number of clean sites.
 - Hover over a day for its figures, or open **Show as table**.
-- **Recent status changes**: per site, the date and time it changed and its status before and after, in colour (for example *Infected → Suspicious*). A site that was infected or suspicious and leaves the site list (deleted, disabled or suspended in Plesk) shows as *Left the list*. Changes from before this list existed are filled in once from the scan logs.
+- **Recent status changes**, newest first, one line per change: the date (time), the status before and after as coloured badges with a solid arrow between them (green = better, red = worse), and the site, for example `20-11-2026 (11:10)  [Infected] ➡ [Suspicious]  culturelestelling.amsterdam`. Click the site to open its VirusTotal report. A site that was infected or suspicious and leaves the site list (deleted, disabled or suspended in Plesk) shows as *Left the list*. Changes from before this list existed are filled in once from the scan logs.
 
 ![Trend graph with demo data: many infections, a big clean-up, then a slow rise again](docs/screenshots/trend.png)
 
@@ -192,7 +198,7 @@ A red or orange site raises two questions for the webmaster: *who* says the site
 
 The status in VT Site Scanner comes from **VirusTotal**, not from the files on your server. VirusTotal shows what dozens of security vendors think of a site, and **each vendor keeps its own blocklist** and updates it on its own schedule. So after you clean a site, it can stay *infected* or *suspicious* in the dashboard for a while: sometimes hours, often days, sometimes weeks, and some vendors only remove a site when you ask.
 
-Click the **score** of a flagged site (for example *8/92 · Why?*). A second line opens with:
+Click a flagged site's row, or its **score** (for example *8/92 · Why?*). A second line opens with:
 
 - **The vendors that flag the site** and what they call it (for example *Fortinet: malware*).
 - **A review link per vendor**: a form or e-mail address where you can report that the site is clean. The contacts come from [VirusTotal's list of vendor contacts](https://docs.virustotal.com/docs/false-positive-contacts); where a vendor has its own form for websites, that form is used instead (for example [alphaMountain](https://www.alphamountain.ai/false-positive/) and [Gridinsoft](https://portal.gridinsoft.com/false-positive)). For a vendor that is not in the list, the link goes to VirusTotal's list.
@@ -305,13 +311,13 @@ The VirusTotal checks work right away. The **file scan** buttons appear for the 
 ### Step 4: Check that it works
 
 1. Open the **Dashboard** tab. Your hosted websites appear within a few seconds. Sites without a cached result are looked up gradually (at most 10 per page load, 4 per minute); the nightly scan handles the rest.
-2. Click **Rescan** on any site. The **Scan queue** panel shows the scan moving through its steps.
+2. Click **Rescan** on any site. The **Scan Monitor** shows the scan moving through its steps.
 3. Optional: switch on the summary e-mail in **Settings → Notifications** and click **Send test e-mail**.
 4. Check that the nightly scan is scheduled:
    ```bash
    crontab -l -u psaadm | grep virustotal-extension
    ```
-   You should see a line ending in `virustotal-extension/scripts/background_scan.php`.
+   You should see a line ending in `virustotal-extension/scripts/background_scan.php` (the nightly scan) and one ending in `scripts/manual_scan.php` (every 5 minutes: rescans that were still queued when the page was closed).
 
 To start a background scan straight away instead of waiting for 03:00:
 
@@ -333,13 +339,13 @@ plesk bin extension --uninstall website-virus-check
 
 ## Updating
 
-Run the same command as for installing:
+When a newer version is out, a yellow banner appears at the top of the dashboard; the administrator can click **Install** to upgrade in one click. Or run the same command as for installing:
 
 ```bash
 plesk bin extension --upgrade-url https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip
 ```
 
-Plesk keeps your settings, API key, scan results and history, and the nightly task is re-registered automatically. Each release on the [Releases page](https://github.com/dzaal/VT-Scanner-for-Plesk/releases) lists what changed in it and in all earlier versions; the full history is in [CHANGELOG.md](CHANGELOG.md).
+Plesk keeps your settings, API key, scan results and history, and the nightly task is re-registered automatically. Each release on the [Releases page](https://github.com/dzaal/VT-Scanner-for-Plesk/releases) lists what changed in it and in all earlier versions; the full history is in [CHANGELOG.md](CHANGELOG.md). In the extension, **About → What's new** links to both.
 
 **Upgrading from 1.0.x?** Earlier versions asked you to add a line to root's crontab by hand. Remove that line (`crontab -e` as root, delete the line with `background_scan.php`); the extension now schedules itself.
 
