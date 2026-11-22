@@ -1950,6 +1950,12 @@ function vtServerPost(action,domain){
 
 async function vtPollServerQueue(){
   try{
+    // Heartbeat: rescans this page still runs or has waiting stay with this page, not with cron
+    const mine=[...new Set(jobs.filter(j=>j.kind!=='auto'&&j.kind!=='cron'&&ACTIVE.has(j.state)).map(j=>j.domain))];
+    if(mine.length){
+      const fpToken=document.getElementById('forgery_protection_token')?.content||'';
+      fetch(BASE+'?action=rescan-alive',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body:new URLSearchParams({domains:mine.join(',')})}).catch(()=>{});
+    }
     const data=await vtFetch('?action=queue-status');
     const inBrowser=new Set(jobs.filter(j=>ACTIVE.has(j.state)).map(j=>j.domain));
     const prev=serverQueue.slice();
@@ -1965,7 +1971,7 @@ async function vtPollServerQueue(){
           msg:'',result:null,prev:null,createdAt:doneAt,startedAt:doneAt,endedAt:doneAt});
         startQTicker();
         // Fetch fresh result to update the table row
-        vtFetch('?action=scan&force=1&domain='+encodeURIComponent(d))
+        vtFetch('?action=scan&domain='+encodeURIComponent(d)) // cron already saved the fresh result: no new VirusTotal call
           .then(r=>{results[d]=r;updateRow(d,r);updateCounts();})
           .catch(()=>{});
       }
@@ -1974,7 +1980,7 @@ async function vtPollServerQueue(){
     // (e.g. dequeued by browser from another tab)
     for(const d of prev){
       if(!data.pending?.includes(d)&&!inBrowser.has(d)&&!cronDone.has(d)){
-        vtFetch('?action=scan&force=1&domain='+encodeURIComponent(d))
+        vtFetch('?action=scan&domain='+encodeURIComponent(d)) // cron already saved the fresh result: no new VirusTotal call
           .then(r=>{results[d]=r;updateRow(d,r);updateCounts();})
           .catch(()=>{});
       }
@@ -2562,7 +2568,7 @@ function vtSiteHistHTML(domain){
     else if(e.type==='detected'){what=pill('bad','Detected');text='<strong>'+vtEsc(e.score||'')+'</strong>'+(e.vendors?.length?' by '+vtEsc(e.vendors.join(', '))+(e.partial?' and others':''):'');}
     else if(e.type==='flag'){what=pill('bad','Flagged');text='<strong>'+vtEsc(e.vendor)+'</strong>'+(e.verdict?': '+vtEsc(e.verdict):'');}
     else if(e.type==='unflag'){what=pill('good','Delisted');text='<strong>'+vtEsc(e.vendor)+'</strong> no longer flags the site';}
-    else if(e.type==='review'){what=pill('info','Review asked');text='<strong>'+vtEsc(e.vendor)+'</strong> '+(e.via==='email'?'by e-mail'+(e.to?' to '+vtEsc(e.to):''):'via website form'+(e.to?' (<a href="'+vtEsc(e.to)+'" target="_blank" rel="noopener">'+vtEsc(e.to.replace(/^https?:\/\//,'').slice(0,50))+'</a>)':''))+(e.by?' · by '+vtEsc(e.by):'');}
+    else if(e.type==='review'){what=pill('info','Review asked');text='<strong>'+vtEsc(e.vendor)+'</strong> '+(e.via==='email'?'by e-mail'+(e.to?' to '+vtEsc(e.to):''):'via website form'+(e.to?' ('+(/^https?:\/\//i.test(e.to)?'<a href="'+vtEsc(e.to)+'" target="_blank" rel="noopener">'+vtEsc(e.to.replace(/^https?:\/\//i,'').slice(0,50))+'</a>':vtEsc(e.to.slice(0,50)))+')':''))+(e.by?' · by '+vtEsc(e.by):'');}
     else if(e.type==='denied'){what=pill('warn','Review denied');text='<strong>'+vtEsc(e.vendor)+'</strong>'+(e.reason?': '+vtEsc(e.reason):'')+(e.by?' · by '+vtEsc(e.by):'');}
     else if(e.type==='av'){what=e.to?pill('bad',vtEsc(e.product)+': '+vtEsc(e.to.replace(/^URL:/,''))):pill('good',vtEsc(e.product)+': none');
       text=e.to?vtEsc(e.product)+' classifies the site as <strong>'+vtEsc(e.to)+'</strong>'+(e.detection?' (<code>'+vtEsc(e.detection)+'</code>)':'')+(e.from?', was '+vtEsc(e.from):'')

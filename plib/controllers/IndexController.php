@@ -281,7 +281,11 @@ class IndexController extends pm_Controller_Action
         $denied = (bool)$this->_getParam('denied', false); // the vendor turned it down: forget the request, log why
         $remove = $denied || (bool)$this->_getParam('remove', false);
         $reason = $denied ? trim(mb_substr((string)$this->_getParam('reason', ''), 0, 300)) : null;
-        VtSiteLog::review($domain, $vendor, (string)$this->_getParam('via', 'form'), substr((string)$this->_getParam('to', ''), 0, 300), $by, $remove, $reason);
+        // The review target is shown as a link in the site history: only an http(s) address or an e-mail address
+        $to = trim(substr((string)$this->_getParam('to', ''), 0, 300));
+        if ($to !== '' && !filter_var($to, FILTER_VALIDATE_EMAIL)
+            && !(preg_match('#^https?://#i', $to) && filter_var($to, FILTER_VALIDATE_URL))) $to = '';
+        VtSiteLog::review($domain, $vendor, (string)$this->_getParam('via', 'form'), $to, $by, $remove, $reason);
         $this->respond(['ok' => true, 'reviews' => VtReviews::mark($domain, $vendor, $by, $remove)]);
     }
 
@@ -459,7 +463,17 @@ class IndexController extends pm_Controller_Action
         if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
         $domain = $this->sanitize($this->_getParam('domain', ''));
         if (!$domain) { $this->respond(['error' => 'invalid']); return; }
+        if (!$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
         VtManualQueue::dequeue([$domain]);
+        $this->respond(['ok' => true]);
+    }
+
+    /** Heartbeat: this page still has these rescans (running or waiting), so cron leaves them alone */
+    public function rescanAliveAction(): void
+    {
+        if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
+        $list = array_slice(array_filter(array_map([$this, 'sanitize'], explode(',', (string)$this->_getParam('domains', '')))), 0, 500);
+        VtManualQueue::touch(array_values(array_filter($list, fn($d) => $this->mayCheck($d))));
         $this->respond(['ok' => true]);
     }
 

@@ -26,6 +26,10 @@ require_once $plibDir . '/VtLogRotate.php';
 // Keep the scan logs small (log rotation settings in Settings)
 try { VtLogRotate::run(); } catch (\Throwable $e) {}
 
+// One run at a time: a run can take longer than the 5 minutes between runs
+$runLock = @fopen(VtDataDir::path('vt_manual_scan.lock'), 'c');
+if (!$runLock || !flock($runLock, LOCK_EX | LOCK_NB)) exit(0);
+
 $settings = new VtSettings();
 $apiKey   = $settings->get('api_key');
 
@@ -33,7 +37,8 @@ if (!$apiKey) {
     exit(0); // No key: nothing to do, no noise
 }
 
-$pending = VtManualQueue::pending();
+// Only rescans that no open page is still working on (see VtManualQueue::ORPHAN_AFTER)
+$pending = VtManualQueue::takeable();
 if (empty($pending)) {
     exit(0);
 }
@@ -61,6 +66,8 @@ foreach (array_slice($pending, 0, $maxDomains) as $i => $domain) {
 
     // 1. Request a re-analysis
     if ($i > 0) sleep($delay);
+    // A page may have picked it up again, or finished it, while this run was busy
+    if (!in_array($domain, VtManualQueue::takeable(), true)) continue;
 
     $sub = $api->reanalyze($domain);
 
@@ -79,7 +86,9 @@ foreach (array_slice($pending, 0, $maxDomains) as $i => $domain) {
         }
     }
     if ($sub['status'] !== 'queued') {
-        log_msg("[manual] Reanalyze failed: $domain ({$sub['status']})");
+        // Not a temporary problem: take it off the queue instead of retrying every 5 minutes
+        log_msg("[manual] Reanalyze failed: $domain ({$sub['status']}), removed from the queue");
+        VtManualQueue::complete([$domain]);
         continue;
     }
 

@@ -3,6 +3,13 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.34.1 — 2026-11-22
+- Fix: a rescan could run twice, in the browser and by the server queue at the same time (two VirusTotal calls, budget charged twice). The open page now reports its rescans every 30 seconds; the server only takes over a rescan when no page has reported it for 3 minutes.
+- Fix: after the server queue had finished rescans, every page load for 2 hours fetched those reports again from VirusTotal (spending manual calls). It now shows the result the server already saved.
+- Fix: two runs of the server queue could overlap and scan the same sites; only one runs at a time now. The queue file is changed under a lock and written safely, so the browser and the server no longer overwrite each other's changes. A rescan that VirusTotal refuses is taken off the queue instead of being retried every 5 minutes.
+- Security: the review address saved with a review request must be an http(s) address or an e-mail address, and the site history only makes links of http(s) addresses (a `javascript:` link could otherwise run code when the administrator clicked it).
+- Removing a rescan from the server queue now checks that the site is yours.
+
 ## 1.34.0 — 2026-11-22
 - Max calls / day is a number field again (default 500); the separate slider for it is gone.
 - The slider for background scan / reserved for manual scans has a thin black line as its handle.
