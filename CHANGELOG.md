@@ -3,6 +3,10 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.35.2 — 2026-11-22
+- Google Safe Browsing has its own card in Settings, apart from the experimental AVG / Avast checks (it is Google's official API).
+- The card explains how to get a key, with direct links to the Google Cloud Console: enable the Safe Browsing API, create and restrict the key, and see its quotas and usage.
+
 ## 1.35.1 — 2026-11-22
 - Settings: no text lighter than rgb(32, 32, 32), for easier reading.
 - The online services (VirusTotal, AVG, Avast, Google Safe Browsing) each have their own coloured block with a larger logo.

@@ -472,6 +472,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-av-title{display:flex;flex-direction:column;gap:2px}
 .vt-av-title small{font-weight:400;color:var(--muted);font-size:12px}
 .vt-av-calls{font-size:12px;color:var(--muted);white-space:nowrap}
+.vt-gsb-help summary{cursor:pointer;font-size:13px}
 .vt-gsb-key{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .vt-gsb-key input{flex:0 1 380px;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font:inherit;font-family:monospace;color:var(--text);background:var(--surface)}
 .vt-av-badge.stale{opacity:.6;border-style:dotted}
@@ -792,9 +793,37 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       </div>
     </div>
 
+    <div class="vt-card" id="vt-gsb-card" style="display:none">
+      <div class="vt-settings-title"><h3>Google Safe Browsing</h3><span class="hint">Official Google API &middot; optional</span></div>
+      <div class="vt-provider-list" style="margin-top:0">
+        <div class="vt-provider vt-svc google" style="margin-top:0">
+          <label class="vt-radio"><input type="checkbox" id="vt-gsb-on"><span class="vt-av-title"><strong><img class="vt-brand-ico lg" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/google.png') ?>" alt="" width="32" height="32">Google Safe Browsing <span class="vt-key-state" id="vt-gsb-keystate"></span></strong><small>Google's list of unsafe sites, used by Chrome, Firefox and Safari to warn visitors</small></span></label>
+          <span class="vt-av-calls"><strong id="vt-gsb-calls">0</strong>calls today</span>
+          <label class="vt-rate" for="vt-rate-google"><input type="number" id="vt-rate-google" min="1" max="5" step="1" value="2" data-check-rate="google" aria-label="Google requests per minute"> / minute</label>
+          <div class="vt-gsb-key"><label for="vt-gsb-key">API key</label><input type="password" id="vt-gsb-key" placeholder="Paste a new Google API key to replace the stored one" autocomplete="off" spellcheck="false"><span id="vt-gsb-stored">no key stored</span></div>
+          <span class="hint">Every site is checked each night (up to 250 per request), and live when you open its details or rescan it. Adds no VirusTotal API usage.</span>
+        </div>
+      </div>
+      <details class="vt-gsb-help" style="margin-top:12px">
+        <summary><strong>How to get an API key</strong> (Google Cloud Console, free)</summary>
+        <ol class="vt-why-steps">
+          <li>Open or create a project in the <a href="https://console.cloud.google.com/projectselector2/home/dashboard" target="_blank" rel="noopener">Google Cloud Console &#8599;</a>.</li>
+          <li>Enable the API: <a href="https://console.cloud.google.com/apis/library/safebrowsing.googleapis.com" target="_blank" rel="noopener">Safe Browsing API &rarr; Enable &#8599;</a>.</li>
+          <li>Create the key: <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">APIs &amp; Services &rarr; Credentials &#8599;</a> &rarr; <em>+ Create credentials</em> &rarr; <em>API key</em>.</li>
+          <li>Restrict it (Edit API key): <em>API restrictions</em> &rarr; only <strong>Safe Browsing API</strong>; <em>Application restrictions</em> &rarr; <strong>IP addresses</strong> &rarr; this server's outgoing IP address.</li>
+          <li>Paste the key above and click <strong>Save settings</strong>. It is tested with Google's own test page first; the green check shows it works.</li>
+          <li>Usage and limits: <a href="https://console.cloud.google.com/apis/api/safebrowsing.googleapis.com/quotas" target="_blank" rel="noopener">Quotas &#8599;</a> and <a href="https://console.cloud.google.com/apis/api/safebrowsing.googleapis.com/metrics" target="_blank" rel="noopener">Metrics &#8599;</a> of the Safe Browsing API.</li>
+        </ol>
+        <div class="hint">Google allows the Safe Browsing API for <strong>non-commercial use only</strong>. Only the site addresses are sent; Google may use them to improve its services. A result is used for 30 minutes at most, then shown as <em>last known</em> and checked again.</div>
+      </details>
+      <div class="vt-save-row">
+        <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
+      </div>
+    </div>
+
     <div class="vt-card vt-settings-experimental" id="vt-av-card" style="display:none">
       <div class="vt-settings-title"><h3>External reputation checks</h3><span class="vt-experimental-tag">Experimental</span></div>
-      <p class="hint">Optional direct checks with AVG, Avast and Google Safe Browsing. AVG and Avast are unofficial services that may change or become unavailable; Google Safe Browsing is Google's official API. Checks run when opening site details and after a rescan; Google also checks every site each night.</p>
+      <p class="hint">Optional direct checks with AVG and Avast. These unofficial services may change or become unavailable. Checks run when opening site details and after a rescan.</p>
       <div class="vt-provider-list">
         <div class="vt-provider vt-svc avg">
           <label class="vt-radio"><input type="checkbox" name="vt-av" value="147"><span class="vt-av-title"><strong><img class="vt-brand-ico lg" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/avg.png') ?>" alt="" width="32" height="32">AVG Web Shield</strong><small>URL reputation of AVG AntiVirus and the AVG Online Security browser extension</small></span></label>
@@ -807,13 +836,6 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
           <span class="vt-av-calls"><strong id="vt-av-calls-146">0</strong>calls today</span>
           <label class="vt-rate" for="vt-rate-avast"><input type="number" id="vt-rate-avast" min="1" max="5" step="1" value="2" data-check-rate="avast" aria-label="Avast requests per minute"> / minute</label>
           <span class="hint">The verdict an Avast user gets when opening the site, asked directly from Avast's reputation service. Can be switched on separately from AVG.</span>
-        </div>
-        <div class="vt-provider vt-svc google">
-          <label class="vt-radio"><input type="checkbox" id="vt-gsb-on"><span class="vt-av-title"><strong><img class="vt-brand-ico lg" src="<?= htmlspecialchars(($this->baseUrl ?: '') . 'images/brands/google.png') ?>" alt="" width="32" height="32">Google Safe Browsing <span class="vt-key-state" id="vt-gsb-keystate"></span></strong><small>Google's list of unsafe sites, used by Chrome, Firefox and Safari to warn visitors</small></span></label>
-          <span class="vt-av-calls"><strong id="vt-gsb-calls">0</strong>calls today</span>
-          <label class="vt-rate" for="vt-rate-google"><input type="number" id="vt-rate-google" min="1" max="5" step="1" value="2" data-check-rate="google" aria-label="Google requests per minute"> / minute</label>
-          <div class="vt-gsb-key"><label for="vt-gsb-key">API key</label><input type="password" id="vt-gsb-key" placeholder="Paste a new Google API key to replace the stored one" autocomplete="off" spellcheck="false"><span id="vt-gsb-stored">no key stored</span></div>
-          <span class="hint">Official API with your own key (Google Cloud &rarr; APIs &amp; Services &rarr; Safe Browsing API). A new key is tested with Google's own test page before it is saved. Google allows this API for <strong>non-commercial use only</strong>. Only the site addresses are sent; Google may use them to improve its services. A result is used for 30 minutes at most, then shown as <em>last known</em> and checked again. Adds no VirusTotal API usage.</span>
         </div>
       </div>
       <div class="vt-save-row">
@@ -2196,6 +2218,7 @@ function loadSettingsForm(cfg){
   checkRates=cfg.check_rates||{};
   vtRenderScanners(cfg.scanners||[],cfg.role==='admin');
   document.getElementById('vt-av-card').style.display=cfg.role==='admin'?'':'none';
+  document.getElementById('vt-gsb-card').style.display=cfg.role==='admin'?'':'none';
   document.querySelectorAll('input[name=vt-av]').forEach(r=>r.checked=(cfg.avast_products||[]).includes(+r.value));
   for(const id of [146,147]) vtSet('vt-av-calls-'+id,(cfg.avast_calls||{})[id]??0);
   // Green check when a key is accepted and in use, red cross with the reason when not
@@ -2299,7 +2322,7 @@ window.vtSaveSettings=async function(){
     payload.log_keep=parseInt(document.getElementById('vt-s-log-keep').value)||5;
     payload.log_max_days=parseInt(document.getElementById('vt-s-log-days').value)||90;
   }
-  if(document.getElementById('vt-av-card').style.display!=='none'){
+  if(document.getElementById('vt-gsb-card').style.display!=='none'){
     payload.gsb_enabled=document.getElementById('vt-gsb-on').checked?'true':'false';
     const gk=document.getElementById('vt-gsb-key').value.trim(); if(gk) payload.gsb_api_key=gk;
   }
