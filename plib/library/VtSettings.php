@@ -16,7 +16,7 @@ require_once __DIR__ . '/VtDataDir.php';
  *   notify_events    string[] Which new statuses to report: infected, suspicious, clean
  *   notify_email     string   Address for the summary e-mail (empty = the user's Plesk address)
  *   login            string   Plesk login these settings belong to (for notifications)
- *   avast_product    int      Avast / AVG classification: 0 = off, 146 = Avast, 147 = AVG (administrator, server-wide)
+ *   avast_products   int[]    Avast / AVG classification: 146 = Avast, 147 = AVG, either or both (administrator, server-wide)
  */
 class VtSettings
 {
@@ -49,7 +49,8 @@ class VtSettings
         'infected_ttl_days'  => 1,
         'tier'               => 'free', // 'free' | 'premium' | 'custom'
         'scanners_disabled'  => [],     // file scanners switched off (admin settings only, server-wide)
-        'avast_product'      => 0,      // Avast / AVG classification: 0 = off, 146 = Avast, 147 = AVG (admin only, server-wide)
+        'avast_product'      => 0,      // old single choice (before 1.29.0), read once for avast_products
+        'avast_products'     => null,   // Avast / AVG classification: [] = off, [146] Avast, [147] AVG, or both (admin only, server-wide)
     ];
 
     private array $data;

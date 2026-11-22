@@ -709,9 +709,9 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       <div class="hint" style="margin-bottom:8px">Also asks the URL reputation service of Avast or AVG how it classifies every site (for example <em>URL:Botnet</em>).
         Only that service is asked; the sites themselves are not visited. This is not an official API: it was worked out by hand and may stop working at any time,
         in which case the result shows <em>Check failed</em>. It is asked live: when you open the details of a site, and with every rescan (one request per second at most).</div>
-      <label class="vt-radio"><input type="radio" name="vt-av" value="0" checked><span><strong>Off</strong></span></label>
-      <label class="vt-radio"><input type="radio" name="vt-av" value="146"><span><strong>Avast</strong> <span class="hint">(product 146)</span></span></label>
-      <label class="vt-radio"><input type="radio" name="vt-av" value="147"><span><strong>AVG</strong> <span class="hint">(product 147)</span></span></label>
+      <label class="vt-radio"><input type="checkbox" name="vt-av" value="146"><span><strong>Avast</strong> <span class="hint">(product 146)</span></span></label>
+      <label class="vt-radio"><input type="checkbox" name="vt-av" value="147"><span><strong>AVG</strong> <span class="hint">(product 147)</span></span></label>
+      <div class="hint">Neither ticked = off. With both, each site gets a row for Avast and one for AVG (two requests, one second apart).</div>
       <div class="vt-save-row">
         <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
       </div>
@@ -827,7 +827,7 @@ window.addEventListener('resize',vtSyncHeaderH);
 document.addEventListener('DOMContentLoaded',vtSyncHeaderH);
 
 let domains=[], results={}, budget={}, activeFilter='all';
-let scanners=[], scans={}, fsOpen={}, fsFull={}, reviews={}, histSites=new Set(), siteHist={}, avast={product:0}; // file scanners: installed list, results per site, open panel per site
+let scanners=[], scans={}, fsOpen={}, fsFull={}, reviews={}, histSites=new Set(), siteHist={}, avast={products:[]}; // file scanners: installed list, results per site, open panel per site
 let scanQueue=[], inFlight=0;
 const MAX_C=1;          // one at a time to stay within VT rate limits
 const PUMP_DELAY=15500; // 15.5s between requests = safe for 4 req/min free tier
@@ -870,7 +870,7 @@ async function init(){
   // Phase 2 — full data: results, owners, scanners, history
   const data=await vtFetch('?action=all').catch(()=>({}));
   domains=data.domains||domains; related=data.related||[]; relSet=new Set(related); orphans=data.orphans||{}; owners=data.owners||{}; results=data.results||{};
-  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||budget; scanners=data.scanners||[]; scans=data.scans||{}; reviews=data.reviews||{}; histSites=new Set(data.history||[]); avast=data.avast||{product:0};
+  for(const d of related) if(!results[d]) results[d]={status:'unchecked',domain:d}; budget=data.budget||budget; scanners=data.scanners||[]; scans=data.scans||{}; reviews=data.reviews||{}; histSites=new Set(data.history||[]); avast=data.avast||{products:[]};
   for(const d in scans) for(const id in scans[d]) if(fsBusy(d,id)) vtFsPoll(d,id);
   vtSet('vt-cnt-all',domains.length);
   document.querySelectorAll('#vt-view-seg button').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===viewMode));
@@ -1220,10 +1220,10 @@ function rowHTML(domain,data){
       }
     }
   }
-  const avr=avast.product?avast.results?.[domain]:null;
-  const avHtml=avr&&avr.state==='ok'&&avr.findings?.length
-    ?'<div><button type="button" class="vt-av-badge" onclick="vtWhyClick(\''+vtEsca(domain)+'\')" title="'+vtEsc(avast.name)+' classification: '+vtEsc(avr.findings.map(f=>f.raw).join(', '))+'"><span class="vt-dot dot-r"></span>'
-      +vtEsc(avast.name)+': '+vtEsc(avr.findings.map(f=>f.classification.replace(/^URL:/,'')).join(', '))+'</button></div>':'';
+  const avHtml=(avast.products||[]).map(pr=>{const avr=avast.results?.[domain]?.[pr.id];
+  return avr&&avr.state==='ok'&&avr.findings?.length
+    ?'<div><button type="button" class="vt-av-badge" onclick="vtWhyClick(\''+vtEsca(domain)+'\')" title="'+vtEsc(pr.name)+' classification: '+vtEsc(avr.findings.map(f=>f.raw).join(', '))+'"><span class="vt-dot dot-r"></span>'
+      +vtEsc(pr.name)+': '+vtEsc(avr.findings.map(f=>f.classification.replace(/^URL:/,'')).join(', '))+'</button></div>':'';}).join('');
   const statusCell=badge+tagHtml+fsBadgeHtml+avHtml;
 
   // Domain age badge
@@ -1246,9 +1246,9 @@ function rowHTML(domain,data){
     const c=data.malicious>0?'infected':'clean';
     const scoreNum=data.malicious>0?'<strong>'+data.malicious+'</strong>/'+data.total:data.malicious+'/'+data.total;
     score='<div class="vt-score"><div class="vt-sbar"><div class="vt-sbar-fill '+c+'" style="width:'+pct+'%"></div></div><span class="vt-snum '+c+'">'+scoreNum+'</span></div>';
-    const avFlag=!!(avast.product&&avast.results?.[domain]?.findings?.length);
+    const avFlag=(avast.products||[]).some(pr=>avast.results?.[domain]?.[pr.id]?.findings?.length);
     const flagged=data.malicious>0||st==='suspicious'||(data.flagged_by||[]).length||avFlag;
-    if(flagged||histSites.has(domain)||avast.product){
+    if(flagged||histSites.has(domain)||avast.products?.length){
       score='<button type="button" class="vt-why-btn'+(fsOpen[domain]==='vt'?' open':'')+'" title="'+(flagged?'Which vendors flag this site, how to get it reviewed after cleaning, and its history':'History of this site')+'" onclick="vtWhyClick(\''+vtEsca(domain)+'\')">'+score+'<span class="vt-why-lbl">'+(flagged?'Why?':histSites.has(domain)?'History':'Details')+' ▾</span></button>';
     }
   }else if(isScanning){score='<span class="vt-spin"></span>';}
@@ -1968,7 +1968,7 @@ function loadSettingsForm(cfg){
   if(cfg.infected_ttl_days) document.getElementById('vt-s-inf-ttl').value  =cfg.infected_ttl_days;
   vtRenderScanners(cfg.scanners||[],cfg.role==='admin');
   document.getElementById('vt-av-card').style.display=cfg.role==='admin'?'':'none';
-  document.querySelectorAll('input[name=vt-av]').forEach(r=>r.checked=+r.value===(+cfg.avast_product||0));
+  document.querySelectorAll('input[name=vt-av]').forEach(r=>r.checked=(cfg.avast_products||[]).includes(+r.value));
 }
 
 // ── File scanners on/off (server-wide, administrator) ─────────
@@ -2027,7 +2027,7 @@ window.vtSaveSettings=async function(){
     notify_enabled:document.getElementById('vt-n-enabled').checked?'true':'false',
     notify_events:checked('vt-n-ev'),notify_email:document.getElementById('vt-n-email').value.trim(),daily_limit:daily,auto_scan_share:share,clean_ttl_days:cttl,infected_ttl_days:ittl};
   if(key) payload.api_key=key;
-  if(document.getElementById('vt-av-card').style.display!=='none') payload.avast_product=document.querySelector('input[name=vt-av]:checked')?.value||'0';
+  if(document.getElementById('vt-av-card').style.display!=='none') payload.avast_products=[...document.querySelectorAll('input[name=vt-av]:checked')].map(c=>c.value).join(',')||'0';
 
   const body=new URLSearchParams(payload);
   const fpToken=document.getElementById('forgery_protection_token')?.content||'';
@@ -2221,7 +2221,7 @@ function vtWhyRowHTML(domain,st){
   h+='<div class="vt-why-note"><strong>Already cleaned the site, and it is still red or orange?</strong> That is normal for a while. '
     +'This status comes from VirusTotal, not from the files on the server. Each vendor below keeps its own blocklist and updates it on its own schedule: '
     +'some within hours, others only after days or weeks, and some only when you ask.</div>';
-  if(list.length||avast.product){
+  if(list.length||avast.products?.length){
     h+='<table class="vt-fs-tbl vt-why-tbl"><thead><tr><th>Vendor</th><th>Verdict</th><th>Ask for a review</th></tr></thead><tbody>'+vtAvastRow(domain)
       +list.map(([v,r])=>'<tr'+(reviews[domain]?.[v]?' class="asked"':'')+'><td>'+vtEsc(v)+'</td><td>'+vtEsc(r)+'</td><td>'+vtFpLink(v,domain)+'</td></tr>').join('')+'</tbody></table>';
   }
@@ -2248,12 +2248,14 @@ window.vtLoadSiteHist=async function(domain){
   if(el) el.innerHTML=vtSiteHistHTML(domain);
 };
 let avChecking={};
-/** AVG / Avast as its own vendor row in the details: checked live, not via VirusTotal */
+/** Avast / AVG as their own vendor rows in the details: checked live, not via VirusTotal */
 function vtAvastRow(domain){
-  if(!avast.product) return '';
-  const r=avast.results?.[domain], n=vtEsc(avast.name), p=x=>String(x).padStart(2,'0');
+  return (avast.products||[]).map(pr=>vtAvastRow1(domain,pr)).join('');
+}
+function vtAvastRow1(domain,pr){
+  const r=avast.results?.[domain]?.[pr.id], n=vtEsc(pr.name), p=x=>String(x).padStart(2,'0');
   let verdict, action='—';
-  if(avChecking[domain]) verdict='<span class="vt-spin"></span> checking '+n+'…';
+  if(avChecking[domain+'|'+pr.id]) verdict='<span class="vt-spin"></span> checking '+n+'…';
   else if(!r) verdict='<span class="hint">not checked yet</span>';
   else{
     const d=new Date(r.checked_at*1000);
@@ -2263,21 +2265,25 @@ function vtAvastRow(domain){
     else if(!r.findings?.length) verdict='<span class="vt-sh-pill good">No classification received</span>'+meta;
     else{
       verdict=r.findings.map(f=>'<span class="vt-sh-pill bad">'+vtEsc(f.classification)+'</span> <code>'+vtEsc(f.detection||f.raw)+'</code>').join('<br>')+meta;
-      action='<a onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(avast.name)+'\',0,\'form\',\''+vtEsca(avast.form)+'\')" href="'+vtEsc(avast.form)+'" target="_blank" rel="noopener">report a false positive ↗</a>'
-        +vtRevDone(domain,avast.name)+'<div class="vt-why-tip">Official '+n+' form; choose <strong>URL</strong> and enter the site address.</div>';
+      action='<a onclick="vtReviewMark(\''+vtEsca(domain)+'\',\''+vtEsca(pr.name)+'\',0,\'form\',\''+vtEsca(pr.form)+'\')" href="'+vtEsc(pr.form)+'" target="_blank" rel="noopener">report a false positive ↗</a>'
+        +vtRevDone(domain,pr.name)+'<div class="vt-why-tip">Official '+n+' form; choose <strong>URL</strong> and enter the site address.</div>';
     }
   }
-  return '<tr class="vt-av-row'+(reviews[domain]?.[avast.name]?' asked':'')+'"><td>'+n+' <span class="hint" title="Asked directly from '+n+'\'s URL reputation service, not via VirusTotal. Unofficial, may stop working.">(direct)</span></td><td>'+verdict+'</td><td>'+action+'</td></tr>';
+  return '<tr class="vt-av-row'+(reviews[domain]?.[pr.name]?' asked':'')+'"><td>'+n+' <span class="hint" title="Asked directly from '+n+'\'s URL reputation service, not via VirusTotal. Unofficial, may stop working.">(direct)</span></td><td>'+verdict+'</td><td>'+action+'</td></tr>';
 }
-/** Ask AVG / Avast now (force = also when a result of the last 5 minutes exists) */
+/** Ask Avast and/or AVG now, one after the other (force = also when a result of the last 5 minutes exists) */
 window.vtAvastLive=async function(domain,force){
-  if(!avast.product||avChecking[domain]) return;
-  avChecking[domain]=true; if(fsOpen[domain]==='vt') vtFsRefresh(domain);
-  const r=await vtFetch('?action=avast-live&domain='+encodeURIComponent(domain)+(force?'&force=1':'')).catch(()=>null);
-  delete avChecking[domain];
-  if(r?.result){(avast.results=avast.results||{})[domain]=r.result; if(r.result.findings?.length) histSites.add(domain);}
-  else (avast.results=avast.results||{})[domain]={url:'https://'+domain+'/',checked_at:Math.floor(Date.now()/1000),http:0,state:'failed',findings:[],error:r?.error||'Network error'};
-  vtFsRefresh(domain);
+  for(const pr of (avast.products||[])){
+    const k=domain+'|'+pr.id;
+    if(avChecking[k]) continue;
+    avChecking[k]=true; if(fsOpen[domain]==='vt') vtFsRefresh(domain);
+    const r=await vtFetch('?action=avast-live&domain='+encodeURIComponent(domain)+'&product='+pr.id+(force?'&force=1':'')).catch(()=>null);
+    delete avChecking[k];
+    const res=avast.results=avast.results||{}; res[domain]=res[domain]||{};
+    if(r?.result){res[domain][pr.id]=r.result; if(r.result.findings?.length) histSites.add(domain);}
+    else res[domain][pr.id]={url:'https://'+domain+'/',checked_at:Math.floor(Date.now()/1000),http:0,state:'failed',findings:[],error:r?.error||'Network error'};
+    vtFsRefresh(domain);
+  }
   if(fsOpen[domain]==='vt') vtLoadSiteHist(domain);
 };
 function vtSiteHistHTML(domain){

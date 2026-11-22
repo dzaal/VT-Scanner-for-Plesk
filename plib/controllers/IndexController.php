@@ -254,12 +254,13 @@ class IndexController extends pm_Controller_Action
         ]);
     }
 
-    /** Avast / AVG classification: product and latest results for these sites (empty when switched off) */
+    /** Avast / AVG classification: the products switched on and the latest results for these sites */
     private static function avastInfo(array $domains): array
     {
-        $p = VtAvastStore::product();
-        if (!$p) return ['product' => 0];
-        return ['product' => $p, 'name' => VtAvast::PRODUCTS[$p], 'form' => VtAvast::FP_FORMS[$p], 'results' => VtAvastStore::results($domains)];
+        $ps = VtAvastStore::products();
+        if (!$ps) return ['products' => []];
+        return ['products' => array_map(fn($p) => ['id' => $p, 'name' => VtAvast::PRODUCTS[$p], 'form' => VtAvast::FP_FORMS[$p]], $ps),
+                'results'  => VtAvastStore::results($domains)];
     }
 
     /** Live Avast / AVG check of one site: when its details are opened (reuses a result of the last 5 minutes) or after a rescan (force=1) */
@@ -267,9 +268,9 @@ class IndexController extends pm_Controller_Action
     {
         $domain = $this->sanitize($this->_getParam('domain', ''));
         if (!$domain || !$this->mayCheck($domain)) { $this->respond(['error' => 'forbidden']); return; }
-        $p = VtAvastStore::product();
-        if (!$p) { $this->respond(['error' => 'The Avast / AVG check is switched off']); return; }
-        $this->respond(['result' => VtAvastStore::live($domain, $p, (bool)$this->_getParam('force', false))]);
+        $p = (int)$this->_getParam('product', 0);
+        if (!in_array($p, VtAvastStore::products(), true)) { $this->respond(['error' => 'This check is switched off']); return; }
+        $this->respond(['product' => $p, 'result' => VtAvastStore::live($domain, $p, (bool)$this->_getParam('force', false))]);
     }
 
     /** Remember (or forget, with remove=1) that a review was requested from a vendor for a site */
@@ -624,7 +625,7 @@ class IndexController extends pm_Controller_Action
         $s['my_email']         = VtNotifier::emailOfLogin($this->settings->getUserId()) ?? '';
         $s['has_key']          = !empty($ownKey) || $this->usingAdminKey;
         $s['scanners']         = self::scannerSettings();
-        $s['avast_product']    = VtAvastStore::product();
+        $s['avast_products']   = VtAvastStore::products();
         unset($s['scanners_disabled']);
         $s['using_admin_key']  = false; // Never expose admin key fallback to non-admin users
         // Quick auth check using the effective key (own or admin fallback)
@@ -673,11 +674,11 @@ class IndexController extends pm_Controller_Action
         }
 
         // Avast / AVG classification: one server-wide setting of the administrator
-        if (isset($input['avast_product']) && $this->role() === 'admin') {
-            $p = (int)$input['avast_product'];
-            $p = isset(VtAvast::PRODUCTS[$p]) ? $p : 0;
-            if ($this->settings->getUserId() === 'admin') $save['avast_product'] = $p; // same file: saved below
-            else (new VtSettings('admin'))->set('avast_product', $p);
+        if (isset($input['avast_products']) && $this->role() === 'admin') {
+            $ps = array_values(array_unique(array_filter(array_map('intval', explode(',', (string)$input['avast_products'])), fn($p) => isset(VtAvast::PRODUCTS[$p]))));
+            sort($ps);
+            if ($this->settings->getUserId() === 'admin') $save['avast_products'] = $ps; // same file: saved below
+            else (new VtSettings('admin'))->set('avast_products', $ps);
         }
         $save['login'] = $this->settings->getUserId(); // lets the notifier find this user's address
         $this->settings->setAll($save);
