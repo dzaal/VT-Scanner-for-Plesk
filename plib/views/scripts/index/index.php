@@ -384,6 +384,13 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 .vt-settings-main{border-left:3px solid var(--blue)}
 .vt-settings-numbers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:20px}
 .vt-settings-numbers .vt-field{min-width:0;margin:0}
+.vt-settings-usage{margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:12px}
+.vt-usage-heading,.vt-usage-line{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.vt-usage-heading{margin-bottom:10px}
+.vt-usage-heading>span,.vt-usage-line>span{color:var(--muted)}
+.vt-usage-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.vt-usage-columns .vt-b-track{height:3px;width:100%;margin-top:5px}
+.vt-usage-line{flex-wrap:wrap;row-gap:2px}
 .vt-settings-experimental{border-color:var(--yellow-border);border-left:3px solid var(--yellow)}
 .vt-experimental-tag{font-size:11px;font-weight:600;color:#92400e;background:var(--yellow-bg);border:1px solid var(--yellow-border);padding:3px 8px;border-radius:4px}
 .vt-provider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:18px}
@@ -685,6 +692,15 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
           <input type="number" id="vt-s-inf-ttl" min="1" max="30" value="1">
         </div>
       </div>
+      <section class="vt-settings-usage" aria-label="VirusTotal usage today">
+        <div class="vt-usage-heading"><strong>API usage today</strong><span id="vts-date">—</span></div>
+        <div class="vt-usage-columns">
+          <div><div class="vt-usage-line"><span>Background</span><strong id="vts-auto-label">—</strong></div>
+            <div class="vt-b-track"><div class="vt-b-fill" id="vts-auto-bar" style="width:0%"></div></div></div>
+          <div><div class="vt-usage-line"><span>Manual rescans</span><strong id="vts-manual-label">—</strong></div>
+            <div class="vt-b-track"><div class="vt-b-fill" id="vts-manual-bar" style="width:0%"></div></div></div>
+        </div>
+      </section>
       <div class="vt-save-row">
         <button class="vt-btn primary" onclick="vtSaveSettings()">Save settings</button>
         <span class="vt-smsg" id="vt-smsg"></span>
@@ -758,25 +774,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
       </div>
     </div>
 
-    <div class="vt-card">
-      <h3>API usage today</h3>
-      <div style="display:flex;gap:24px;flex-wrap:wrap">
-        <div>
-          <div class="vt-b-label" style="margin-bottom:4px">Auto scans (cron)</div>
-          <div style="font-size:18px;font-weight:800" id="vts-auto-label">—</div>
-          <div class="vt-b-track" style="width:150px;margin-top:5px"><div class="vt-b-fill" id="vts-auto-bar" style="width:0%"></div></div>
-        </div>
-        <div>
-          <div class="vt-b-label" style="margin-bottom:4px">Manual (Rescan)</div>
-          <div style="font-size:18px;font-weight:800" id="vts-manual-label">—</div>
-          <div class="vt-b-track" style="width:150px;margin-top:5px"><div class="vt-b-fill" id="vts-manual-bar" style="width:0%"></div></div>
-        </div>
-        <div>
-          <div class="vt-b-label" style="margin-bottom:4px">Date</div>
-          <div style="font-size:18px;font-weight:800" id="vts-date">—</div>
-        </div>
-      </div>
-    </div>
+
   </div>
 
   <!-- About -->

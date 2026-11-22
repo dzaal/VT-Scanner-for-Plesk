@@ -3,6 +3,9 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.31.1 — 2026-11-22
+- Keep today's VirusTotal API usage with its API settings in a compact two-column summary, including background/manual counters and the date. Remove the separate statistics card at the bottom.
+
 ## 1.31.0 — 2026-11-22
 - Redesign Settings: VirusTotal first with four columns of numeric controls; AVG/Avast directly below in a separate Experimental section; detected internal scanners next.
 - Enable AVG, Avast, Imunify, Maldet and ClamAV independently, with a separate 1–5 requests/minute limit per provider/scanner (default 2).
