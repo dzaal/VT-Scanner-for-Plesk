@@ -5,8 +5,8 @@
 #   stingyscan-<version>.zip   (that version)
 #   stingyscan.zip             (fixed name, so .../releases/latest/download/stingyscan.zip
 #                               always points to the newest version)
-#   virustotal-extension.zip   (old fixed name, for installations of VT Site Scanner (1.x) whose
-#                               update check and Install button still use it; they then install StingyScan)
+#   virustotal-extension.zip   (the same StingyScan built with the old extension id, see build.sh legacy:
+#                               installations of VT Site Scanner 1.x update to it in place)
 name: Release
 
 on:
@@ -41,8 +41,9 @@ jobs:
         if: steps.exists.outputs.skip != 'true'
         run: |
           bash build.sh
+          bash build.sh legacy
           cp "dist/stingyscan-${{ steps.v.outputs.version }}.zip" dist/stingyscan.zip
-          cp "dist/stingyscan-${{ steps.v.outputs.version }}.zip" dist/virustotal-extension.zip
+          cp "dist/virustotal-extension-${{ steps.v.outputs.version }}.zip" dist/virustotal-extension.zip
 
       - name: Publish the release
         if: steps.exists.outputs.skip != 'true'

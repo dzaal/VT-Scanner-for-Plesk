@@ -88,7 +88,8 @@ class IndexController extends pm_Controller_Action
         $version = $this->installedVersion();
         $this->view->version   = $version;
         // The old extension (VT Site Scanner 1.x) still installed next to StingyScan: both would scan
-        $this->view->oldVtInstalled = $this->role() === 'admin' && is_dir('/usr/local/psa/admin/plib/modules/virustotal-extension');
+        $this->view->oldVtInstalled = $this->role() === 'admin' && basename(dirname(__DIR__)) !== 'virustotal-extension'
+            && is_dir('/usr/local/psa/admin/plib/modules/virustotal-extension');
         $this->view->paypalUrl = self::PAYPAL_ME !== ''
             ? 'https://www.paypal.com/paypalme/' . rawurlencode(self::PAYPAL_ME) . '/' . self::COFFEE_PRICE
             : '';

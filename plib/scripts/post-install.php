@@ -18,7 +18,7 @@ pm_Context::init('stingyscan');
 $oldData = '/usr/local/psa/var/modules/virustotal-extension/data';
 $newData = '/usr/local/psa/var/modules/stingyscan/data';
 $marker  = $newData . '/.migrated_from_vt_site_scanner';
-if (is_dir($oldData) && !file_exists($marker)) {
+if ($oldData !== $newData && is_dir($oldData) && !file_exists($marker)) {
     if (!is_dir($newData)) @mkdir($newData, 0750, true);
     $n = 0;
     foreach (scandir($oldData) ?: [] as $f) {

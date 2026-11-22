@@ -976,7 +976,7 @@ a.vt-row-btn{text-decoration:none;display:inline-block;margin-right:4px}
 
       <div class="vt-card">
         <h3>License and trademarks</h3>
-        <p>&copy; 2026 Digizaal (Dirk Zaal). All rights reserved. StingyScan, its code, design and way of working, is the intellectual property of Digizaal. You may install and run the unmodified extension; changing or redistributing it needs written permission. <a href="https://github.com/dzaal/StingyScan-for-Plesk/blob/main/LICENSE" target="_blank" rel="noopener">License &rarr;</a></p>
+        <p>&copy; 2026 Dirk Zaal, trading as Digizaal. All rights reserved. StingyScan, its code, design and the way it works, is the intellectual property of Dirk Zaal. You may install and use it exactly as published, free of charge; changing or distributing it needs written permission. <a href="https://github.com/dzaal/StingyScan-for-Plesk/blob/main/LICENSE" target="_blank" rel="noopener">License &rarr;</a></p>
         <p class="hint">StingyScan is an independent product. It is not affiliated with, endorsed or sponsored by VirusTotal, Google, Gen Digital (AVG, Avast), WebPros (Plesk) or the makers of the file scanners. VirusTotal, Google Safe Browsing and Chrome are trademarks of Google LLC; AVG and Avast of Gen Digital Inc.; Plesk of WebPros International GmbH; WordPress of the WordPress Foundation; ClamAV of Cisco Systems, Inc.; Imunify360 and ImunifyAV of CloudLinux Software, Inc. All other names and logos belong to their respective owners and are used only to identify their services. <a href="https://github.com/dzaal/StingyScan-for-Plesk#trademarks" target="_blank" rel="noopener">All trademarks &rarr;</a></p>
       </div>
 

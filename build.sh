@@ -1,9 +1,13 @@
 #!/bin/bash
-# Build the installable Plesk extension package: dist/stingyscan-<version>.zip
-# Usage: bash build.sh
+# Build the installable Plesk extension package.
+# Usage: bash build.sh            -> dist/stingyscan-<version>.zip            (extension id "stingyscan")
+#        bash build.sh legacy     -> dist/virustotal-extension-<version>.zip  (the same StingyScan, built with
+#                                    the old id "virustotal-extension", so an installed VT Site Scanner 1.x
+#                                    is upgraded in place: same data, same panel address, no second extension)
 set -e
 
 EXT_ID="stingyscan"
+[ "${1:-}" = "legacy" ] && EXT_ID="virustotal-extension"
 cd "$(dirname "$0")"
 VERSION=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' META_INF/meta.xml)
 OUT="dist/${EXT_ID}-${VERSION}.zip"
@@ -16,6 +20,11 @@ cp -r htdocs plib sbin _meta "$BUILD/$EXT_ID/"
 chmod 755 "$BUILD/$EXT_ID"/sbin/*
 cp META_INF/meta.xml "$BUILD/$EXT_ID/meta.xml"
 cp LICENSE "$BUILD/$EXT_ID/LICENSE"
+if [ "$EXT_ID" = "virustotal-extension" ]; then
+    # Only what ties the package to its id: Plesk module paths, the id itself, hook class
+    # names and the zip that updates download. Names, texts and the rest stay StingyScan.
+    find "$BUILD/$EXT_ID" -type f \( -name '*.php' -o -name '*.xml' -o -path '*/sbin/*' \) -print0 | xargs -0 sed -i         -e 's#/modules/stingyscan/#/modules/virustotal-extension/#g'         -e "s#pm_Context::init('stingyscan')#pm_Context::init('virustotal-extension')#g"         -e 's#<id>stingyscan</id>#<id>virustotal-extension</id>#g'         -e 's#Modules_Stingyscan_#Modules_VirustotalExtension_#g'         -e 's#/stingyscan\.zip#/virustotal-extension.zip#g'
+fi
 rm -f "$OUT"
 
 if command -v zip >/dev/null 2>&1; then

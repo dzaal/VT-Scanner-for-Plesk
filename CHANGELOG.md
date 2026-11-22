@@ -3,6 +3,11 @@
 Every version of StingyScan for Plesk (called VT Site Scanner until 1.35), newest first.
 Install or update: see the [latest release](https://github.com/dzaal/StingyScan-for-Plesk/releases/latest).
 
+## 2.0.2 — 2026-11-22
+- New home: [dzaal/StingyScan-for-Plesk](https://github.com/dzaal/StingyScan-for-Plesk). The old repository dzaal/VT-Scanner-for-Plesk stays, so existing installations keep finding their updates.
+- An installed VT Site Scanner now updates to StingyScan **in place**: `virustotal-extension.zip` is the same StingyScan, packaged under the old extension id (`bash build.sh legacy`). Settings, keys, results, history and the panel address stay as they are. Updates then come from the new repository.
+- License in plain language: StingyScan is the intellectual property of Dirk Zaal (Digizaal). Free to install and use as published; changing, copying into other software or distributing needs written permission.
+
 ## 2.0.1 — 2026-11-22
 - Fix: the Plesk hooks (menu button, Home card) still had class names of the old extension id. While VT Site Scanner was installed next to StingyScan this gave "Cannot redeclare class Modules_VirustotalExtension_CustomButtons", and the Home card did not load.
 

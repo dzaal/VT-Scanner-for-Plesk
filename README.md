@@ -399,17 +399,15 @@ Plesk keeps your settings, API key, scan results and history, and the nightly ta
 
 ### Coming from VT Site Scanner (1.x)
 
-Until version 1.35 StingyScan was called **VT Site Scanner** (extension id `virustotal-extension`, repository `dzaal/VT-Scanner-for-Plesk`). Version 2.0 has a new name and a new extension id (`stingyscan`), so Plesk installs it as a new extension next to the old one. Switching takes two commands as root:
+Until version 1.35 StingyScan was called **VT Site Scanner** (repository [dzaal/VT-Scanner-for-Plesk](https://github.com/dzaal/VT-Scanner-for-Plesk)). An installed VT Site Scanner updates to StingyScan **in place**: click **Install** on its update banner (1.31.2 and newer), or run as root:
 
 ```bash
-# 1. Install StingyScan: it copies the settings, API keys, results, history and logs of VT Site Scanner
-plesk bin extension --upgrade-url https://github.com/dzaal/StingyScan-for-Plesk/releases/latest/download/stingyscan.zip
-
-# 2. Then remove VT Site Scanner (this deletes its own data folder, which has been copied)
-plesk bin extension --uninstall virustotal-extension
+plesk bin extension --upgrade-url https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest/download/virustotal-extension.zip
 ```
 
-Clicking **Install** on the update banner of VT Site Scanner does step 1 as well; it then reports a version mismatch, because the old extension itself stays at 1.x. Until you remove it, StingyScan shows a reminder, because both would run their own scans. The panel address changes to `/modules/stingyscan/`, and the old GitHub address keeps redirecting to the new one.
+This is the same StingyScan, packaged under the old extension id (`virustotal-extension`), so your settings, API keys, results and history stay where they are and the panel address stays `/modules/virustotal-extension/`. After that, updates come from this repository automatically.
+
+New installations use the extension id `stingyscan` ([Installation](#installation)). If a server has both, StingyScan copies the data of VT Site Scanner once and shows a reminder to remove the old one with `plesk bin extension --uninstall virustotal-extension`.
 
 **Upgrading from 1.0.x?** Earlier versions asked you to add a line to root's crontab by hand. Remove that line (`crontab -e` as root, delete the line with `background_scan.php`); the extension now schedules itself.
 
@@ -459,7 +457,7 @@ No site content, files or customer data are sent anywhere.
 
 ### Releases
 
-Every new version gets a ready-made zip on the [Releases page](https://github.com/dzaal/StingyScan-for-Plesk/releases). This happens automatically: when the `<version>` in `META_INF/meta.xml` changes on `main`, the GitHub Action in `.github/workflows/release.yml` builds the package with `build.sh` and publishes release `v<version>` with three copies of it: `stingyscan-<version>.zip`, `stingyscan.zip` (a fixed name, so the `releases/latest/download/...` link always gives the newest version) and `virustotal-extension.zip` (the old fixed name, so installations of VT Site Scanner 1.x find the way to StingyScan).
+Every new version gets a ready-made zip on the [Releases page](https://github.com/dzaal/StingyScan-for-Plesk/releases). This happens automatically: when the `<version>` in `META_INF/meta.xml` changes on `main`, the GitHub Action in `.github/workflows/release.yml` builds the package with `build.sh` and publishes release `v<version>` with three copies of it: `stingyscan-<version>.zip`, `stingyscan.zip` (a fixed name, so the `releases/latest/download/...` link always gives the newest version) and `virustotal-extension.zip` (the same StingyScan built with the old extension id by `bash build.sh legacy`, so installations of VT Site Scanner 1.x update to it in place).
 
 The release notes come from `CHANGELOG.md` (`.github/release-notes.sh`): add a `## <version> — <date>` section there with each version bump. Changing `CHANGELOG.md` also refreshes the notes of all existing releases.
 
@@ -515,7 +513,7 @@ Notes:
 
 StingyScan is an independent product of Digizaal. It is **not affiliated with, endorsed, sponsored or approved by** any of the companies below. Their names and logos are used only to identify the services and software the extension works with (nominative use); the logos are their favicons, shown next to the settings and results of that service.
 
-- **StingyScan** and **Digizaal** are names of Digizaal.
+- **StingyScan** and **Digizaal** are names of Dirk Zaal (Digizaal).
 - **VirusTotal** is a trademark of Google LLC.
 - **Google**, **Google Safe Browsing**, **Google Cloud**, **Google Search Console** and **Chrome** are trademarks of Google LLC.
 - **AVG** and **Avast** are trademarks of Gen Digital Inc. or its affiliates.
@@ -530,14 +528,14 @@ Use of these services is subject to their own terms, which you accept with your 
 
 ## License
 
-Copyright © 2026 Digizaal (Dirk Zaal). All rights reserved.
+Copyright © 2026 Dirk Zaal, trading as Digizaal. All rights reserved.
 
-StingyScan by Digizaal — its code, design and way of working — is the intellectual property of Digizaal. The source code is published so you can read it; it is **not** open source.
+StingyScan, its code, design and the way it works, is the intellectual property of Dirk Zaal. The source code is public so you can read it; it is **not** open source.
 
-- **Allowed:** install and run the unmodified extension as published by Digizaal on Plesk servers you administer, including for customer hosting, and configure it through its settings.
-- **Not allowed without written permission:** modifying the code in any way (also privately on your own server), creating derivative works, redistributing the extension or its code, or using parts of it in other products.
+- **You may:** install and use StingyScan, exactly as published, on servers you manage, also for your business and for sites you host for others. Free of charge.
+- **You may not, without written permission:** change the code (also not privately), copy parts into other software, or distribute it.
 
-Full terms: [LICENSE](LICENSE). Permission requests: via [digizaal.nl](https://www.digizaal.nl).
+Want to do one of these? Just ask, via [digizaal.nl](https://www.digizaal.nl). Full terms, in plain language: [LICENSE](LICENSE).
 
 ## Author
 
