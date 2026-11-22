@@ -1,0 +1,43 @@
+#!/usr/local/psa/admin/bin/php
+<?php
+/** Privileged updater. Only installs this extension's versioned GitHub release. */
+const UPDATE_DIR = '/run/vt-site-scanner-update';
+function reply(array $data): void { echo json_encode($data), "\n"; exit; }
+function status(array $data): void {
+    file_put_contents(UPDATE_DIR . '/status.tmp', json_encode($data));
+    chmod(UPDATE_DIR . '/status.tmp', 0644);
+    rename(UPDATE_DIR . '/status.tmp', UPDATE_DIR . '/status.json');
+}
+$mode = $argv[1] ?? '';
+if (!in_array($mode, ['start', 'status', '--run'], true)) reply(['error' => 'Invalid operation']);
+if (!is_dir(UPDATE_DIR) && !mkdir(UPDATE_DIR, 0755)) reply(['error' => 'Cannot create update directory']);
+if ($mode === 'status') {
+    reply(json_decode((string)@file_get_contents(UPDATE_DIR . '/status.json'), true) ?: ['state' => 'idle']);
+}
+$version = $argv[2] ?? '';
+if (!preg_match('/^\d+\.\d+\.\d+$/D', $version)) reply(['error' => 'Invalid version']);
+$lock = fopen(UPDATE_DIR . '/lock', 'c');
+if (!$lock || !flock($lock, LOCK_EX | ($mode === '--run' ? 0 : LOCK_NB))) reply(['error' => 'An update is already running']);
+if ($mode === 'start') {
+    $previous = json_decode((string)@file_get_contents(UPDATE_DIR . '/status.json'), true);
+    if (($previous['state'] ?? '') === 'running' && time() - ($previous['started'] ?? 0) < 600) {
+        reply(['error' => 'An update is already starting']);
+    }
+    status(['state' => 'running', 'started' => time(), 'version' => $version]);
+    // Release before spawning: inherited lock descriptors would block the child.
+    // The running status prevents another start during this handover.
+    flock($lock, LOCK_UN);
+    fclose($lock);
+    exec('nohup ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__FILE__)
+        . ' --run ' . escapeshellarg($version) . ' >' . escapeshellarg(UPDATE_DIR . '/worker.log') . ' 2>&1 &', $out, $code);
+    if ($code !== 0) {
+        status(['state' => 'failed', 'message' => 'Could not launch update worker']);
+        reply(['error' => 'Could not launch update worker']);
+    }
+    reply(['ok' => true]);
+}
+
+$url = 'https://github.com/dzaal/VT-Scanner-for-Plesk/releases/download/v' . $version . '/virustotal-extension.zip';
+exec('/usr/sbin/plesk bin extension --upgrade-url ' . escapeshellarg($url) . ' 2>&1', $lines, $code);
+status(['state' => $code === 0 ? 'done' : 'failed', 'version' => $version,
+        'message' => $code === 0 ? 'Installed' : substr(implode("\n", $lines), -4000), 'finished' => time()]);

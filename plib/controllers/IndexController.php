@@ -83,12 +83,7 @@ class IndexController extends pm_Controller_Action
         // Browser tab title; Plesk's own page header is hidden by the view (branded header instead)
         $this->view->pageTitle = 'VT Site Scanner';
         $this->view->baseUrl   = pm_Context::getBaseUrl();
-        $version = '';
-        try {
-            $info = pm_Context::getModuleInfo();
-            $version = (string)($info->version ?? '');
-        } catch (\Throwable $e) {
-        }
+        $version = $this->installedVersion();
         $this->view->version   = $version;
         $this->view->paypalUrl = self::PAYPAL_ME !== ''
             ? 'https://www.paypal.com/paypalme/' . rawurlencode(self::PAYPAL_ME) . '/' . self::COFFEE_PRICE
@@ -500,60 +495,36 @@ class IndexController extends pm_Controller_Action
         if (!$this->getRequest()->isPost()) { $this->respond(['error' => 'POST required']); return; }
         if ($this->role() !== 'admin') { $this->respond(['error' => 'Administrator only']); return; }
 
-        // Accept zip URL only from GitHub releases for this repo
-        $zip = trim((string)$this->_getParam('zip', ''));
-        if (!$zip || !preg_match('#^https://github\.com/dzaal/VT-Scanner-for-Plesk/releases/(download/[^"\s]+|latest/download/virustotal-extension)\.zip$#', $zip)) {
-            $this->respond(['error' => 'Invalid or untrusted download URL']); return;
+        try {
+            $res = pm_ApiCli::callSbin('extension-update', ['start', (string)$this->_getParam('version', '')], pm_ApiCli::RESULT_FULL);
+            $data = json_decode(trim((string)($res['stdout'] ?? '')), true);
+            $this->respond(is_array($data) ? $data : ['error' => 'Could not start the privileged updater']);
+        } catch (\Throwable $e) {
+            $this->respond(['error' => $e->getMessage()]);
         }
+    }
 
-        // Download the zip first so we have a local copy
-        $tmpZip = sys_get_temp_dir() . '/vt-ext-upgrade-' . time() . '.zip';
-        $ch = curl_init($zip);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT        => 60,
-            CURLOPT_HTTPHEADER     => ['User-Agent: VT-Site-Scanner-Plesk'],
-        ]);
-        $data = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        if ($code !== 200 || !$data) {
-            $this->respond(['error' => "Download failed (HTTP $code)"]); return;
+    public function updateStatusAction(): void
+    {
+        if ($this->role() !== 'admin') { $this->respond(['error' => 'Administrator only']); return; }
+        try {
+            $res = pm_ApiCli::callSbin('extension-update', ['status'], pm_ApiCli::RESULT_FULL);
+            $data = json_decode(trim((string)($res['stdout'] ?? '')), true);
+            $this->respond(is_array($data) ? $data : ['error' => 'Cannot read update status']);
+        } catch (\Throwable $e) {
+            $this->respond(['error' => $e->getMessage()]);
         }
-        file_put_contents($tmpZip, $data);
-
-        // Remove any stray custom nav buttons created by old deploy scripts
-        // (the extension registers its own nav entry via meta.xml — no custom button needed)
-        $btnIds = [];
-        exec("/usr/local/psa/bin/custombutton --list 2>/dev/null | awk '/VT Site Scanner/{print \$1}'", $btnIds);
-        foreach (array_filter(array_map('trim', $btnIds)) as $btnId) {
-            if (is_numeric($btnId)) exec('/usr/local/psa/bin/custombutton --remove ' . (int)$btnId . ' 2>/dev/null');
-        }
-
-        // Run the upgrade in the background so PHP can send the response before
-        // Plesk replaces the extension files (which would kill this process).
-        $logFile = '/tmp/vt-ext-upgrade.log';
-        exec('nohup plesk bin extension --upgrade ' . escapeshellarg($tmpZip)
-            . ' > ' . escapeshellarg($logFile) . ' 2>&1 &');
-
-        $this->appendLog('[update] Extension upgrade started from ' . $zip);
-        $this->respond(['ok' => true, 'background' => true]);
     }
 
     public function checkUpdateAction(): void
     {
         // Current version is always read fresh — never cached — so it updates immediately after an upgrade
-        $current = '';
-        try {
-            $info = pm_Context::getModuleInfo();
-            $current = (string)($info->version ?? '');
-        } catch (\Throwable $e) {}
+        $current = $this->installedVersion();
 
         // Only the GitHub API response is cached (avoid hitting the API on every page load)
         $cacheFile = VtDataDir::path('vt_update_check.json');
         $github    = null;
-        if (is_file($cacheFile) && time() - filemtime($cacheFile) < 86400) {
+        if (is_file($cacheFile) && time() - filemtime($cacheFile) < 900) {
             $d = json_decode((string)file_get_contents($cacheFile), true);
             if (is_array($d) && isset($d['latest'])) $github = $d;
         }
@@ -722,6 +693,18 @@ class IndexController extends pm_Controller_Action
         $sent  = VtNotifier::sendTest($login, $to);
         $this->respond($sent ? ['ok' => true, 'email' => $sent]
                              : ['error' => 'No valid e-mail address found for your Plesk account']);
+    }
+
+    /** Package version on disk, without depending on panel metadata caches. */
+    private function installedVersion(): string
+    {
+        $file = dirname(__DIR__) . '/meta.xml';
+        if (is_file($file)) {
+            $meta = @simplexml_load_file($file);
+            if ($meta && isset($meta->version)) return (string)$meta->version;
+        }
+        try { return (string)(pm_Context::getModuleInfo()->version ?? ''); }
+        catch (\Throwable $e) { return ''; }
     }
 
     /** admin, reseller or client */

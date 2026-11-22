@@ -3,6 +3,11 @@
 Every version of VT Site Scanner for Plesk, newest first.
 Install or update: see the [latest release](https://github.com/dzaal/VT-Scanner-for-Plesk/releases/latest).
 
+## 1.31.2 — 2026-11-22
+- Fix a missing request-token variable that stopped the Install button before it sent a request. Use Plesk's privileged extension helper, wait for its actual result, and verify the installed version before reloading.
+- Report failed upgrades and connection errors instead of treating them as success.
+- Read the installed version directly from package metadata; refresh GitHub update checks every 15 minutes instead of 24 hours.
+
 ## 1.31.1 — 2026-11-22
 - Keep today's VirusTotal API usage with its API settings in a compact two-column summary, including background/manual counters and the date. Remove the separate statistics card at the bottom.
 

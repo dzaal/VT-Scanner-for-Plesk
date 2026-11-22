@@ -952,22 +952,28 @@ async function vtCheckUpdate(){
   }catch(e){}
 }
 window.vtInstallUpdate=async function(zip,ver){
+  const fpToken=document.getElementById('forgery_protection_token')?.content||'';
   const btn=document.getElementById('vt-update-install-btn');
   btn.disabled=true; btn.innerHTML='<span class="vt-spin"></span> Installing…';
-  const succeed=()=>{document.getElementById('vt-update-msg').innerHTML='✓ Installing v'+vtEsc(ver)+'… <span class="vt-spin"></span> Reloading in a few seconds';setTimeout(()=>location.reload(),8000);};
-  const fail=(msg)=>{document.getElementById('vt-update-msg').innerHTML='Install failed: '+vtEsc(msg)+' — <a href="'+vtEsc(zip)+'" target="_blank" rel="noopener">download manually</a>';document.getElementById('vt-update-banner').style.display='flex';};
+  const fail=(msg)=>{document.getElementById('vt-update-msg').textContent='Update failed: '+msg;};
   try{
-    const body=new URLSearchParams({zip});
-    const res=await fetch(BASE+'?action=install-update',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body});
-    // The extension replaces its own files during the upgrade, so the HTTP response
-    // is often truncated (empty body or broken JSON). Treat any truncation as success.
-    let j;
-    try{ j=await res.json(); }catch(parseErr){ succeed(); return; }
-    if(j.ok) succeed(); else fail(j.error||'unknown error');
-  }catch(e){
-    // Network error mid-request also means the upgrade ran and killed the connection — success
-    succeed();
-  }
+    const res=await fetch(BASE+'?action=install-update',{method:'POST',headers:{'X-Forgery-Protection-Token':fpToken},body:new URLSearchParams({version:ver})});
+    const j=await res.json();
+    if(!res.ok||!j.ok) throw new Error(j.error||'Could not start updater');
+    document.getElementById('vt-update-msg').textContent='Downloading and installing v'+ver+'…';
+    for(let i=0;i<150;i++){
+      await new Promise(resolve=>setTimeout(resolve,2000));
+      let status;
+      try{status=await vtFetch('?action=update-status');}catch(e){continue;}
+      if(status.state==='failed'||status.error) throw new Error(status.error||status.message||'Plesk rejected the update');
+      if(status.state==='done'){
+        const installed=await vtFetch('?action=check-update');
+        if(installed.current!==ver) throw new Error('Plesk finished, but the installed version is '+installed.current+' instead of '+ver);
+        location.reload(); return;
+      }
+    }
+    throw new Error('Update has not finished. Reload to check the installed version.');
+  }catch(e){fail(e.message||'Connection lost. Reload to check the installed version.');}
 };
 
 function isStale(d){
