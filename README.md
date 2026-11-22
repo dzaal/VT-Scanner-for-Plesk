@@ -1,5 +1,8 @@
 <img src="docs/logo.png" alt="" width="72" align="right">
 
+> [!IMPORTANT]
+> **VT Site Scanner is now StingyScan.** Development continues at **[dzaal/StingyScan-for-Plesk](https://github.com/dzaal/StingyScan-for-Plesk)**. This repository stays so existing installations keep receiving updates: an installed VT Site Scanner updates to StingyScan in place (Install button, or the command under [Coming from VT Site Scanner](#coming-from-vt-site-scanner-1x)).
+
 # StingyScan for Plesk
 
 A Plesk extension that checks every website hosted on your Plesk server against [VirusTotal](https://www.virustotal.com)¹ for malware, phishing and spam, while carefully managing the limited number of API calls in VirusTotal's free tier. Optionally it also asks Google Safe Browsing¹ directly, and (experimental) the URL reputation of AVG and Avast¹.
